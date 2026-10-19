@@ -37,7 +37,8 @@ class Watcher:
                 def include(_change, value):
                     path = Path(value)
                     try:
-                        if any(part.startswith('.') for part in path.relative_to(root).parts):
+                        parts = path.relative_to(root).parts
+                        if parts and parts[0].startswith('.') and (root / parts[0]).is_dir():
                             return False
                     except ValueError:
                         return False
@@ -72,7 +73,7 @@ class Watcher:
                 self.stop_event.wait(5)
 
     def _submit(self, library_id, directory_id=None):
-        payload = {'library_id': library_id}
+        payload = {'library_id': library_id, 'force': True}
         if directory_id:
             payload['directory_id'] = directory_id
         try:

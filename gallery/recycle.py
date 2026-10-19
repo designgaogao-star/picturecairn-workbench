@@ -7,6 +7,7 @@ def recycle(path):
     if os.name != 'nt':
         raise OSError('Recycle Bin operations require Windows')
     import pythoncom
+    import pywintypes
     from win32com.server.policy import DesignatedWrapPolicy
     from win32com.shell import shell, shellcon
 
@@ -48,5 +49,7 @@ def recycle(path):
             raise OSError(f'Recycling was not confirmed (HRESULT={sink.result}); permanent fallback refused')
         if path.exists():
             raise OSError('Source still exists after recycling')
+    except pywintypes.com_error as exc:
+        raise OSError(f'Recycle Bin operation failed: {exc}') from exc
     finally:
         pythoncom.CoUninitialize()

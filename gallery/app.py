@@ -3,13 +3,15 @@
 import asyncio
 import contextlib
 import hashlib
+import json
 import os
+import time
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.sse import EventSourceResponse, ServerSentEvent
+from fastapi.sse import EventSourceResponse, format_sse_event
 from fastapi.staticfiles import StaticFiles
 
 from gallery import schemas as s
@@ -41,6 +43,10 @@ def create_app(settings: Settings | None = None):
     app.state.service = service
     app.state.instance_id = instance_id
     app.state.settings = settings
+
+    @app.get('/favicon.ico', include_in_schema=False)
+    async def favicon():
+        return Response(status_code=204)
 
     @app.middleware('http')
     async def local_only(request: Request, call_next):
@@ -88,9 +94,9 @@ def create_app(settings: Settings | None = None):
     async def health():
         return s.Health(instance_id=instance_id)
 
-    @app.get('/api/v1/libraries', response_model=list[s.Library], tags=['Libraries'])
-    def libraries():
-        return catalog.libraries()
+    @app.get('/api/v1/libraries', response_model=s.Page[s.Library], tags=['Libraries'])
+    def libraries(offset: Offset = 0, limit: Limit = 100):
+        return catalog.page('SELECT * FROM libraries', '', [], 'name COLLATE NOCASE,id', offset, limit, '')
 
     @app.post('/api/v1/libraries', response_model=s.Library, status_code=201, tags=['Libraries'])
     def add_library(body: s.LibraryCreate):
@@ -213,6 +219,16 @@ def create_app(settings: Settings | None = None):
         return catalog.page('SELECT left_id,right_id,distance FROM similar_pairs', 'WHERE task_id=?', [task_id],
                              'distance,left_id,right_id', offset, limit, '')
 
+    @app.get('/api/v1/tasks/{task_id}/findings',
+             response_model=s.Page[s.ComparedFile | s.ShellPackage | s.AuditPackage | s.IncompletePackage], tags=['Organize'])
+    def findings(task_id: str, kind: Literal['left_unique', 'right_unique', 'shell', 'advertisement', 'incomplete'],
+                 offset: Offset = 0, limit: Limit = 100):
+        task(task_id)
+        result = catalog.page('SELECT payload FROM findings', 'WHERE task_id=? AND kind=?',
+                               [task_id, kind], 'ordinal', offset, limit, '')
+        result['items'] = [json.loads(row['payload']) for row in result['items']]
+        return result
+
     @app.post('/api/v1/operations/delete', response_model=s.Task, status_code=202, tags=['Organize'])
     def delete(body: s.DeleteRequest):
         for target in body.targets:
@@ -220,23 +236,33 @@ def create_app(settings: Settings | None = None):
         return service.tasks.submit('delete', body.model_dump(), deduplicate=False)
 
     @app.get('/api/v1/operations', response_model=s.Page[s.Operation], tags=['Organize'])
-    def operations(offset: Offset = 0, limit: Limit = 100):
-        return catalog.page('SELECT * FROM operations', '', [], 'created DESC,id', offset, limit, '')
+    def operations(offset: Offset = 0, limit: Limit = 100, task_id: str | None = None):
+        return catalog.page('SELECT * FROM operations', 'WHERE task_id=?' if task_id else '',
+                             [task_id] if task_id else [], 'created DESC,id', offset, limit, '')
 
     @app.get('/api/v1/cache', tags=['System'])
     def cache_stats() -> dict[str, int]:
         return {**catalog.one('SELECT COUNT(*) count,COALESCE(SUM(size),0) bytes FROM cache_entries'),
                 'limit': settings.cache_limit}
 
-    @app.get('/api/v1/events', response_class=EventSourceResponse, tags=['Tasks'])
-    async def events(request: Request):
-        sequence = int(request.headers.get('last-event-id', 0))
-        yield ServerSentEvent(event='snapshot', data={'instance_id': instance_id})
-        while not await request.is_disconnected():
-            for event in service.events.since(sequence):
-                sequence = event['id']
-                yield ServerSentEvent(event=event['event'], id=str(sequence), data=event['data'])
-            await asyncio.sleep(.2)
+    @app.get('/api/v1/events', response_class=Response, tags=['Tasks'],
+             responses={200: {'content': {'text/event-stream': {}}}})
+    async def events(last_event_id: Annotated[int, Header(ge=0)] = 0):
+        async def stream():
+            sequence = last_event_id
+            yield format_sse_event(event='snapshot', data_str=json.dumps({'instance_id': instance_id}))
+            last_message = time.monotonic()
+            while not service.stop_event.is_set():
+                for event in service.events.since(sequence):
+                    sequence = event['id']
+                    yield format_sse_event(event=event['event'], id=str(sequence), data_str=json.dumps(event['data']))
+                    last_message = time.monotonic()
+                if time.monotonic() - last_message >= 15:
+                    yield format_sse_event(comment='ping')
+                    last_message = time.monotonic()
+                await asyncio.sleep(.2)
+        # Keep disconnect cancellation inside the response rather than FastAPI's producer task group.
+        return EventSourceResponse(stream(), headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
     @app.post('/api/v1/system/shutdown', status_code=202, include_in_schema=False)
     async def shutdown(request: Request):

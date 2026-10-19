@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-import httpx
+import httpx2 as httpx
 import pytest
 from PIL import Image
 
@@ -53,11 +53,14 @@ def running(tmp_path_factory):
                 else:
                     pytest.fail(str(tasks))
                 yield client, descriptor, data, startup
-                response = client.post('/api/v1/system/shutdown', headers={'X-Gallery-Desktop': 'temporary-test-token'})
-                assert response.status_code == 202
-            process.wait(timeout=25)
+                with client.stream('GET', '/api/v1/events') as events:
+                    assert next(events.iter_lines())
+                    response = client.post('/api/v1/system/shutdown', headers={'X-Gallery-Desktop': 'temporary-test-token'})
+                    assert response.status_code == 202
+                    process.wait(timeout=8)
             assert process.returncode == 0
             assert not ready.exists()
+            assert ' ERROR ' not in (data / 'server.log').read_text(encoding='utf-8')
         finally:
             if process.poll() is None:
                 process.terminate()
@@ -71,19 +74,19 @@ def test_process_handshake_and_index(running):
     assert health['api_version'] == '1'
     assert (data / 'catalog.sqlite').is_file()
     assert startup < 10
-    lib = client.get('/api/v1/libraries').json()[0]
+    lib = client.get('/api/v1/libraries').json()['items'][0]
     group = client.get(f"/api/v1/libraries/{lib['id']}/groups").json()['items'][0]
     assert group['image_count'] == 2
 
 
 def test_process_image_and_static_assets(running):
     client, _descriptor, _data, _startup = running
-    lib = client.get('/api/v1/libraries').json()[0]
+    lib = client.get('/api/v1/libraries').json()['items'][0]
     group = client.get(f"/api/v1/libraries/{lib['id']}/groups").json()['items'][0]
     package = client.get(f"/api/v1/groups/{group['id']}/packages").json()['items'][0]
     image = client.get(f"/api/v1/packages/{package['id']}/images").json()['items'][0]
     response = client.get(f"/api/v1/images/{image['id']}/thumbnail?edge=800")
-    assert response.status_code == 200 and response.headers['content-type'] == 'image/webp'
+    assert response.status_code == 200 and response.headers['content-type'] == 'image/jpeg'
     response = client.get(f"/api/v1/images/{image['id']}/original", headers={'Range': 'bytes=0-15'})
     assert response.status_code == 206 and len(response.content) == 16
     assert client.get('/').status_code == 200
@@ -101,3 +104,43 @@ def test_process_sse_and_shutdown_protection(running):
         assert any('snapshot' in line for line in first)
     assert client.post('/api/v1/system/shutdown').status_code == 403
     assert descriptor['pid'] > 0
+
+
+def test_process_sse_reconnect_after_instance_restart(running):
+    client, _descriptor, _data, _startup = running
+    with client.stream('GET', '/api/v1/events', headers={'Last-Event-ID': '999999999'}) as response:
+        events = []
+        for line in response.iter_lines():
+            if line.startswith('event: '):
+                events.append(line.removeprefix('event: '))
+                if len(events) == 2:
+                    break
+        assert events == ['snapshot', 'reset']
+    assert client.get('/api/v1/events', headers={'Last-Event-ID': 'invalid'}).status_code == 422
+
+
+def test_process_sse_repeated_disconnects(running):
+    client, _descriptor, _data, _startup = running
+    for _ in range(8):
+        with client.stream('GET', '/api/v1/events') as response:
+            assert next(response.iter_lines()).startswith('event: snapshot')
+        assert client.get('/api/v1/health').status_code == 200
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Recycle Bin')
+def test_process_recycles_temporary_image(running):
+    client, _descriptor, _data, _startup = running
+    library = client.get('/api/v1/libraries').json()['items'][0]
+    group = client.get(f"/api/v1/libraries/{library['id']}/groups").json()['items'][0]
+    package = client.get(f"/api/v1/groups/{group['id']}/packages").json()['items'][0]
+    image = client.get(f"/api/v1/packages/{package['id']}/images").json()['items'][0]
+    request = client.post('/api/v1/operations/delete', json={'targets': [{'kind': 'image', 'id': image['id']}]})
+    assert request.status_code == 202
+    for _ in range(500):
+        job = client.get('/api/v1/tasks/' + request.json()['id']).json()
+        if job['state'] in ('completed', 'failed'):
+            break
+        time.sleep(.02)
+    assert job['state'] == 'completed', job
+    assert job['result']['failed'] == 0, job
+    assert client.get(f"/api/v1/images/{image['id']}/original").status_code == 404

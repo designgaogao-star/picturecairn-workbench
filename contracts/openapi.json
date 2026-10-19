@@ -33,17 +33,48 @@
         ],
         "summary": "Libraries",
         "operationId": "libraries_api_v1_libraries_get",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Library"
-                  },
-                  "type": "array",
-                  "title": "Response Libraries Api V1 Libraries Get"
+                  "$ref": "#/components/schemas/Page_Library_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -57,14 +88,14 @@
         "summary": "Add Library",
         "operationId": "add_library_api_v1_libraries_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/LibraryCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1032,6 +1063,87 @@
         }
       }
     },
+    "/api/v1/tasks/{task_id}/findings": {
+      "get": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Findings",
+        "operationId": "findings_api_v1_tasks__task_id__findings_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "left_unique",
+                "right_unique",
+                "shell",
+                "advertisement",
+                "incomplete"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Union_ComparedFile__ShellPackage__AuditPackage__IncompletePackage__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/operations/delete": {
       "post": {
         "tags": [
@@ -1103,6 +1215,22 @@
               "default": 100,
               "title": "Limit"
             }
+          },
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Id"
+            }
           }
         ],
         "responses": {
@@ -1161,28 +1289,32 @@
         ],
         "summary": "Events",
         "operationId": "events_api_v1_events_get",
+        "parameters": [
+          {
+            "name": "last-event-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
-              "text/event-stream": {
-                "itemSchema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "string"
-                    },
-                    "event": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "retry": {
-                      "type": "integer",
-                      "minimum": 0
-                    }
-                  }
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1312,6 +1444,18 @@
             "type": "array",
             "title": "Incomplete"
           },
+          "shells_total": {
+            "type": "integer",
+            "title": "Shells Total"
+          },
+          "advertisements_total": {
+            "type": "integer",
+            "title": "Advertisements Total"
+          },
+          "incomplete_total": {
+            "type": "integer",
+            "title": "Incomplete Total"
+          },
           "evidence": {
             "type": "string",
             "const": "heuristic-only",
@@ -1324,6 +1468,9 @@
           "shells",
           "advertisements",
           "incomplete",
+          "shells_total",
+          "advertisements_total",
+          "incomplete_total",
           "evidence"
         ],
         "title": "AuditResult"
@@ -1448,6 +1595,14 @@
             "type": "array",
             "title": "Right Unique"
           },
+          "left_unique_total": {
+            "type": "integer",
+            "title": "Left Unique Total"
+          },
+          "right_unique_total": {
+            "type": "integer",
+            "title": "Right Unique Total"
+          },
           "exact_equal": {
             "type": "boolean",
             "title": "Exact Equal"
@@ -1479,6 +1634,8 @@
           "right_files",
           "left_unique",
           "right_unique",
+          "left_unique_total",
+          "right_unique_total",
           "exact_equal",
           "left_contained",
           "right_contained",
@@ -1522,6 +1679,10 @@
       },
       "DeleteItem": {
         "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -1564,6 +1725,7 @@
         },
         "type": "object",
         "required": [
+          "task_id",
           "id",
           "target_id",
           "kind",
@@ -2161,6 +2323,17 @@
       },
       "Operation": {
         "properties": {
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
           "id": {
             "type": "string",
             "title": "Id"
@@ -2207,6 +2380,7 @@
         },
         "type": "object",
         "required": [
+          "task_id",
           "id",
           "target_id",
           "target_kind",
@@ -2437,6 +2611,42 @@
         ],
         "title": "Page[ImageItem]"
       },
+      "Page_Library_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Library"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Library]"
+      },
       "Page_Operation_": {
         "properties": {
           "items": {
@@ -2580,6 +2790,55 @@
           "revision"
         ],
         "title": "Page[Task]"
+      },
+      "Page_Union_ComparedFile__ShellPackage__AuditPackage__IncompletePackage__": {
+        "properties": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ComparedFile"
+                },
+                {
+                  "$ref": "#/components/schemas/ShellPackage"
+                },
+                {
+                  "$ref": "#/components/schemas/AuditPackage"
+                },
+                {
+                  "$ref": "#/components/schemas/IncompletePackage"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Union[ComparedFile, ShellPackage, AuditPackage, IncompletePackage]]"
       },
       "Pair": {
         "properties": {
@@ -2766,6 +3025,11 @@
               }
             ],
             "title": "Directory Id"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": true
           }
         },
         "additionalProperties": false,

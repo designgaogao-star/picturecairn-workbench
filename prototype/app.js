@@ -24,7 +24,7 @@ function iconButton(icon, title, action) {
 const thumb = (id, edge = 400) => `${apiBase}/images/${id}/thumbnail?edge=${edge}`;
 async function loadLibraries() {
   const oldRevision = state.library?.revision;
-  state.libraries = await api('/libraries');
+  state.libraries = (await api('/libraries')).items;
   const previous = state.library?.id || localStorage.getItem('gallery-library');
   $('libraries').replaceChildren(...state.libraries.map((lib) => new Option(lib.name, lib.id)));
   state.library = state.libraries.find((lib) => lib.id === previous) || state.libraries[0] || null;
@@ -153,7 +153,8 @@ async function loadTasks() {
     const actions = document.createElement('div'); actions.className = 'task-actions';
     if (['queued', 'running', 'paused'].includes(task.state)) {
       const action = task.state === 'paused' ? 'resume' : 'pause';
-      actions.append(iconButton(action === 'pause' ? 'pause' : 'play', action === 'pause' ? '暂停' : '继续', () => controlTask(task.id, action)), iconButton('x', '取消', () => controlTask(task.id, 'cancel')));
+      if (task.kind !== 'delete') actions.append(iconButton(action === 'pause' ? 'pause' : 'play', action === 'pause' ? '暂停' : '继续', () => controlTask(task.id, action)));
+      actions.append(iconButton('x', '取消', () => controlTask(task.id, 'cancel')));
     }
     row.append(name, body, actions); return row;
   })); icons();
@@ -191,6 +192,8 @@ new ResizeObserver(() => renderWall()).observe($('wall'));
 const events = new EventSource(apiBase + '/events');
 events.addEventListener('catalog', () => { clearTimeout(catalogTimer); catalogTimer = setTimeout(safely(loadLibraries), 750); });
 events.addEventListener('task', () => { clearTimeout(taskTimer); taskTimer = setTimeout(safely(loadTasks), 250); });
-events.addEventListener('reset', safely(async () => { await loadLibraries(); await loadTasks(); }));
+const reloadSnapshots = safely(async () => { await loadLibraries(); await loadTasks(); });
+events.addEventListener('snapshot', reloadSnapshots);
+events.addEventListener('reset', reloadSnapshots);
 events.onerror = () => notice('图库服务连接中断'); events.onopen = () => notice();
-icons(); safely(async () => { await loadLibraries(); await loadTasks(); })();
+icons();

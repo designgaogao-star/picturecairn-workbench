@@ -7,6 +7,7 @@ import time
 
 from gallery.catalog import new_id
 from gallery.indexer import Indexer
+from gallery.jobs import Cancelled
 from gallery.recycle import recycle
 
 
@@ -32,6 +33,8 @@ class Organize:
             entity = self.catalog.entity(table, entity_id)
             if not entity:
                 raise FileNotFoundError('Target not found')
+            if kind == 'image' and not entity['is_image']:
+                raise ValueError('Target is not an image')
             if kind == 'package':
                 if entity['loose']:
                     raise ValueError('Loose images are not a deletable package')
@@ -40,8 +43,9 @@ class Organize:
                 raise ValueError('Target is not a top-level group')
             path = self.access.path(entity)
             operation_id, now = new_id(), time.time()
-            self.catalog.execute('INSERT INTO operations VALUES(?,?,?,?,?,?,NULL,?,?)',
-                                 (operation_id, entity_id, kind, str(path), mode, 'pending', now, now))
+            self.catalog.execute('INSERT INTO operations(id,target_id,target_kind,path,mode,state,created,updated,task_id) '
+                                 'VALUES(?,?,?,?,?,?,?,?,?)',
+                                 (operation_id, entity_id, kind, str(path), mode, 'pending', now, now, context.id))
             state, error = 'completed', None
             try:
                 with context.io(path):
@@ -56,12 +60,15 @@ class Organize:
                         db.execute('UPDATE files SET present=0 WHERE id=?', (entity_id,))
                     else:
                         Indexer.mark_missing(db, entity['id'])
+                    self.catalog.refresh_group(db, entity['group_id'])
             except OSError as exc:
                 state, error = 'failed', str(exc)
+            except Cancelled:
+                state, error = 'cancelled', 'Cancelled before operation'
             self.catalog.execute('UPDATE operations SET state=?,error=?,updated=? WHERE id=?',
                                  (state, error, time.time(), operation_id))
             record = {'id': operation_id, 'target_id': entity_id, 'kind': kind, 'path': str(path),
-                      'mode': mode, 'state': state, 'error': error, 'time': now}
+                      'mode': mode, 'state': state, 'error': error, 'time': now, 'task_id': context.id}
             with (self.data / 'delete_journal.jsonl').open('a', encoding='utf-8') as log:
                 log.write(json.dumps(record, ensure_ascii=False) + '\n')
             self.catalog.bump(entity['library_id'])

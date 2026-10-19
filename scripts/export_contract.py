@@ -16,6 +16,7 @@ def main():
         app = create_app(Settings(Path(temporary), watch=False, scan_on_start=False))
         schema = app.openapi()
         (root / 'contracts' / 'openapi.json').write_text(json.dumps(schema, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+        app.state.service.stop()
 
 
 if __name__ == '__main__':

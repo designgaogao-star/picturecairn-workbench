@@ -38,11 +38,31 @@ class Catalog:
         with self.write() as db:
             db.execute('PRAGMA journal_mode=WAL')
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version > 1:
+            if version > 6:
                 raise RuntimeError('Catalog was created by a newer application')
             if version == 0:
                 sql = (Path(__file__).parent / 'sql' / '001_catalog.sql').read_text(encoding='utf-8')
                 db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=1;\nCOMMIT;')
+                version = 1
+            if version == 1:
+                sql = (Path(__file__).parent / 'sql' / '002_group_stats.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=2;\nCOMMIT;')
+                version = 2
+            if version == 2:
+                sql = (Path(__file__).parent / 'sql' / '003_directory_mtime.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=3;\nCOMMIT;')
+                version = 3
+            if version == 3:
+                sql = (Path(__file__).parent / 'sql' / '004_findings.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=4;\nCOMMIT;')
+                version = 4
+            if version == 4:
+                sql = (Path(__file__).parent / 'sql' / '005_pending_positions.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=5;\nCOMMIT;')
+                version = 5
+            if version == 5:
+                sql = (Path(__file__).parent / 'sql' / '006_operation_tasks.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=6;\nCOMMIT;')
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -75,6 +95,22 @@ class Catalog:
     def bump(self, library_id):
         self.execute('UPDATE libraries SET revision=revision+1 WHERE id=?', (library_id,))
 
+    @staticmethod
+    def refresh_group(db, group_id):
+        db.execute('UPDATE directories SET image_count=(SELECT COUNT(*) FROM files WHERE group_id=? '
+                   'AND present=1 AND is_image=1), bytes=(SELECT COALESCE(SUM(size),0) FROM files '
+                   'WHERE group_id=? AND present=1) WHERE id=?', (group_id, group_id, group_id))
+        pending = db.execute('SELECT legacy_index FROM review WHERE group_id=? AND image_id IS NULL '
+                             'AND legacy_index IS NOT NULL', (group_id,)).fetchone()
+        if pending:
+            image = db.execute('SELECT id FROM files WHERE group_id=? AND present=1 AND is_image=1 '
+                               'ORDER BY sort_key,id LIMIT 1 OFFSET ?', (group_id, pending['legacy_index'])).fetchone()
+            if not image:
+                image = db.execute('SELECT id FROM files WHERE group_id=? AND present=1 AND is_image=1 '
+                                   'ORDER BY sort_key DESC,id DESC LIMIT 1', (group_id,)).fetchone()
+            if image:
+                db.execute('UPDATE review SET image_id=?,legacy_index=NULL WHERE group_id=?', (image['id'], group_id))
+
     def entity(self, table, entity_id):
         if table not in {'libraries', 'directories', 'packages', 'files'}:
             raise ValueError(table)
@@ -84,6 +120,9 @@ class Catalog:
         return self.rows('SELECT * FROM libraries ORDER BY name COLLATE NOCASE,id')
 
     def add_library(self, path, name=None):
+        existing = self.one('SELECT * FROM libraries WHERE path_key=?', (path_key(Path(path).absolute()),))
+        if existing:
+            return existing
         path = Path(path).resolve(strict=True)
         if not path.is_dir() or not path.drive and str(path).startswith('//'):
             raise ValueError('Select a local directory')
@@ -103,10 +142,14 @@ class Catalog:
         return self.entity('libraries', library_id)
 
     def page(self, select, where, args, order, offset, limit, library_id):
-        total = self.one(f'SELECT COUNT(*) n FROM ({select} {where})', args)['n']
-        rows = self.rows(f'{select} {where} ORDER BY {order} LIMIT ? OFFSET ?', (*args, limit, offset))
+        with contextlib.closing(self.connect()) as db, db:
+            db.execute('BEGIN')
+            total = db.execute(f'SELECT COUNT(*) n FROM ({select} {where})', args).fetchone()['n']
+            rows = [dict(row) for row in db.execute(f'{select} {where} ORDER BY {order} LIMIT ? OFFSET ?',
+                                                   (*args, limit, offset))]
+            library = db.execute('SELECT revision FROM libraries WHERE id=?', (library_id,)).fetchone()
         return {'items': rows, 'total': total, 'offset': offset, 'limit': limit,
-                'revision': self.revision(library_id)}
+                'revision': library['revision'] if library else 0}
 
     def groups(self, library_id, offset, limit, state=None, category_filter=None):
         where = ('WHERE d.library_id=? AND d.present=1 AND (d.id=d.group_id) '
@@ -120,9 +163,7 @@ class Catalog:
         elif category_filter:
             where += ' AND d.name LIKE ?'
             args.append(f'[{category_filter}]%')
-        select = """SELECT d.*,COALESCE(r.state,'none') state,r.image_id resume_image_id,
-          (SELECT COUNT(*) FROM files f WHERE f.group_id=d.id AND f.present=1 AND f.is_image=1) image_count,
-          (SELECT COALESCE(SUM(size),0) FROM files f WHERE f.group_id=d.id AND f.present=1) bytes
+        select = """SELECT d.*,COALESCE(r.state,'none') state,r.image_id resume_image_id
           FROM directories d LEFT JOIN review r ON r.group_id=d.id"""
         result = self.page(select, where, args, 'bytes DESC,d.sort_key,d.id', offset, limit, library_id)
         for row in result['items']:
@@ -152,7 +193,7 @@ class Catalog:
             if state is not None:
                 db.execute('UPDATE review SET state=?,updated=? WHERE group_id=?', (state, time.time(), group_id))
             if image_id is not None:
-                db.execute('UPDATE review SET image_id=?,updated=? WHERE group_id=?',
+                db.execute('UPDATE review SET image_id=?,updated=?,legacy_index=NULL WHERE group_id=?',
                            (image_id, time.time(), group_id))
         return self.one('SELECT * FROM review WHERE group_id=?', (group_id,))
 
@@ -177,3 +218,8 @@ class Catalog:
             row['payload'] = json.loads(row['payload'])
             row['result'] = json.loads(row['result']) if row['result'] else None
         return row
+
+    def save_findings(self, task_id, kind, items):
+        with self.write() as db:
+            db.executemany('INSERT INTO findings VALUES(?,?,?,?)',
+                           ((task_id, kind, i, json.dumps(item, ensure_ascii=False)) for i, item in enumerate(items)))

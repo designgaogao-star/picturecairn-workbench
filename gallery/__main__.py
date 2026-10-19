@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -33,7 +34,7 @@ def main(argv=None):
     settings = replace(Settings.environment(), watch=not args.no_watch, scan_on_start=not args.no_scan)
     settings.data.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=settings.data / 'server.log', encoding='utf-8', level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(name)s %(message)s')
+                        format='%(asctime)s %(levelname)s %(name)s %(message)s', force=True)
     if sys.stdout is None:
         sys.stdout = open(settings.data / 'console.log', 'a', encoding='utf-8')
     if sys.stderr is None:
@@ -48,7 +49,15 @@ def main(argv=None):
     config = uvicorn.Config(app, host='127.0.0.1', port=port, workers=1, log_config=None, access_log=False,
                             timeout_graceful_shutdown=20)
     server = uvicorn.Server(config)
-    app.state.service.shutdown_callback = lambda: setattr(server, 'should_exit', True)
+    def shutdown():
+        app.state.service.stop_event.set()
+        server.should_exit = True
+    app.state.service.shutdown_callback = shutdown
+    original_handle_exit = server.handle_exit
+    def handle_exit(sig, frame):
+        app.state.service.stop_event.set()
+        original_handle_exit(sig, frame)
+    server.handle_exit = handle_exit
 
     async def run():
         future = asyncio.create_task(server.serve(sockets=[sock]))
@@ -58,7 +67,8 @@ def main(argv=None):
                 return
             await asyncio.sleep(.01)
         descriptor = {'url': f'http://127.0.0.1:{port}', 'api_version': '1', 'version': '2.0.0',
-                      'instance_id': app.state.instance_id, 'pid': os.getpid()}
+                      'instance_id': app.state.instance_id, 'pid': os.getpid(),
+                      'session_id': hashlib.sha256((settings.desktop_token or '').encode()).hexdigest()}
         if args.ready_file:
             args.ready_file.parent.mkdir(parents=True, exist_ok=True)
             temporary = args.ready_file.with_suffix('.tmp')
@@ -67,7 +77,9 @@ def main(argv=None):
         print('GALLERY_READY ' + json.dumps(descriptor), flush=True)
         await future
     try:
-        asyncio.run(run())
+        # Python 3.14's Windows Proactor can skip transport cleanup after a peer reset.
+        loop_factory = asyncio.SelectorEventLoop if sys.platform == 'win32' else None
+        asyncio.run(run(), loop_factory=loop_factory)
     finally:
         sock.close()
         if args.ready_file:

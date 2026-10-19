@@ -10,7 +10,7 @@
     "build": "pwsh -NoProfile -File scripts/build.ps1",
     "contract": "uv run python scripts/export_contract.py && openapi-typescript contracts/openapi.json -o contracts/schema.d.ts",
     "check": "tsc -p contracts/tsconfig.json --noEmit",
-    "prepare": "node scripts/prepare-icons.mjs"
+    "prepare": "node scripts/prepare-icons.mjs && node node_modules/electron/install.js"
   },
   "devDependencies": {
     "electron": "44.9.0",

@@ -1,10 +1,13 @@
 """Incremental directory enumeration. A failed enumeration never implies deletion."""
 
+import contextlib
 import os
+import stat as stat_module
 import threading
 import time
 from pathlib import Path
 
+from gallery.access import Access
 from gallery.catalog import image_sort_key, new_id, path_key
 from gallery.config import IMG_EXT
 from gallery.jobs import Cancelled
@@ -17,6 +20,7 @@ def identity(stat):
 class Indexer:
     def __init__(self, catalog, events, excluded=()):
         self.catalog, self.events = catalog, events
+        self.access = Access(catalog)
         self.excluded = {Path(p).resolve() for p in excluded}
         self.locks = {}
         self.lock = threading.Lock()
@@ -49,12 +53,21 @@ class Indexer:
 
     def scan(self, context, payload):
         library_id = payload['library_id']
+        with self.exclusive(context, library_id):
+            try:
+                return self._scan(context, payload)
+            except Cancelled:
+                self.catalog.execute("UPDATE libraries SET scan_status='interrupted' WHERE id=?", (library_id,))
+                raise
+
+    @contextlib.contextmanager
+    def exclusive(self, context, library_id):
         with self.lock:
             lock = self.locks.setdefault(library_id, threading.Lock())
         while not lock.acquire(timeout=.1):
             context.check()
         try:
-            return self._scan(context, payload)
+            yield
         finally:
             lock.release()
 
@@ -62,6 +75,10 @@ class Indexer:
         library_id = payload['library_id']
         library = self.catalog.entity('libraries', library_id)
         root = Path(library['path'])
+        subtree = payload.get('directory_id')
+        directory = self.catalog.entity('directories', subtree) if subtree else None
+        if directory and directory['library_id'] != library_id:
+            raise ValueError('Directory belongs to another library')
         self.catalog.execute("UPDATE libraries SET scan_status='scanning',error=NULL WHERE id=?", (library_id,))
         try:
             with context.io(root):
@@ -74,10 +91,6 @@ class Indexer:
             self.events.publish('catalog', {'library_id': library_id})
             return {'online': False}
         self.catalog.execute('UPDATE libraries SET online=1 WHERE id=?', (library_id,))
-        subtree = payload.get('directory_id')
-        directory = self.catalog.entity('directories', subtree) if subtree else None
-        if directory and directory['library_id'] != library_id:
-            raise ValueError('Directory belongs to another library')
         with self.catalog.write() as db:
             root_id, _ = self._upsert_directory(db, library_id, '', None, None, root_stat)
             root_pkg = self._package(db, library_id, root_id, root_id, '', True)
@@ -92,64 +105,101 @@ class Indexer:
         else:
             stack = [('', root_id, root_id, root_pkg)]
         visited = failed = files_seen = 0
-        try:
-            while stack:
-                context.check()
-                rel, directory_id, group_id, package_id = stack.pop()
-                base = root / rel
-                try:
-                    with context.io(base), os.scandir(base) as entries:
-                        items = []
-                        for entry in entries:
-                            if entry.name.startswith('.') or Path(entry.path).resolve() in self.excluded:
+        while stack:
+            context.check()
+            rel, directory_id, group_id, package_id = stack.pop()
+            base = root / rel
+            try:
+                with context.io(base):
+                    base = self.access.path({'library_id': library_id, 'rel': rel}, allow_root=True)
+                    directory_stat = base.stat()
+                old_directory = self.catalog.entity('directories', directory_id)
+                if not payload.get('force', False) and old_directory['mtime_ns'] == directory_stat.st_mtime_ns:
+                    for child in self.catalog.rows('SELECT * FROM directories WHERE parent_id=? AND present=1', (directory_id,)):
+                        if not rel:
+                            child_pkg = self.catalog.one('SELECT id FROM packages WHERE directory_id=? AND loose=1', (child['id'],))['id']
+                        elif directory_id == group_id:
+                            child_pkg = self.catalog.one('SELECT id FROM packages WHERE directory_id=? AND loose=0', (child['id'],))['id']
+                        else:
+                            child_pkg = package_id
+                        stack.append((child['rel'], child['id'], child['group_id'], child_pkg))
+                    visited += 1
+                    context.update(current=rel)
+                    continue
+                with context.io(base):
+                    entries = os.scandir(base)
+                with entries:
+                    items = []
+                    while True:
+                        with context.io(base):
+                            entry = next(entries, None)
+                            if entry is None:
+                                break
+                            if (not rel and entry.name.startswith('.') and entry.is_dir(follow_symlinks=False)
+                                    or Path(entry.path).resolve() in self.excluded):
                                 continue
                             if entry.is_symlink() or (hasattr(os.path, 'isjunction') and os.path.isjunction(entry.path)):
+                                items.append((entry.name, False, os.lstat(entry.path)))
                                 continue
                             # DirEntry.stat on Windows reports st_ino=0; os.stat exposes the NTFS file ID.
                             stat = os.stat(entry.path, follow_symlinks=False)
                             items.append((entry.name, entry.is_dir(follow_symlinks=False), stat))
-                except OSError as exc:
-                    failed += 1
-                    self.catalog.execute('UPDATE directories SET error=? WHERE id=?', (str(exc), directory_id))
+            except (OSError, ValueError) as exc:
+                failed += 1
+                self.catalog.execute('UPDATE directories SET error=? WHERE id=?', (str(exc), directory_id))
+                continue
+            seen_dirs, seen_files = set(), set()
+            group_rel = self.catalog.entity('directories', group_id)['rel']
+            known_paths = {row['path_key'] for row in self.catalog.rows(
+                'SELECT path_key FROM files WHERE directory_id=?', (directory_id,))}
+            hard_links = set()
+            for name, is_dir, stat in items:
+                child_rel = f'{rel}/{name}' if rel else name
+                if is_dir or path_key(child_rel) in known_paths or not identity(stat):
                     continue
-                seen_dirs, seen_files = set(), set()
-                group_rel = self.catalog.entity('directories', group_id)['rel']
-                with self.catalog.write() as db:
-                    for name, is_dir, stat in items:
-                        child_rel = f'{rel}/{name}' if rel else name
-                        if is_dir:
-                            child_group = None if not rel else group_id
-                            child_id, child_group = self._upsert_directory(
-                                db, library_id, child_rel, directory_id, child_group, stat)
-                            if not rel:
-                                child_pkg = self._package(db, library_id, child_id, child_id, '', True)
-                            elif directory_id == group_id:
-                                child_pkg = self._package(db, library_id, group_id, child_id, name)
-                            else:
-                                child_pkg = package_id
-                            seen_dirs.add(child_id)
-                            stack.append((child_rel, child_id, child_group, child_pkg))
+                candidates = self.catalog.rows('SELECT rel FROM files WHERE library_id=? AND identity=? LIMIT 2',
+                                               (library_id, identity(stat)))
+                if len(candidates) == 1:
+                    with context.io(root):
+                        if (root / candidates[0]['rel']).exists():
+                            hard_links.add(name)
+            with self.catalog.write() as db:
+                for name, is_dir, stat in items:
+                    child_rel = f'{rel}/{name}' if rel else name
+                    if is_dir:
+                        child_group = None if not rel else group_id
+                        child_id, child_group = self._upsert_directory(
+                            db, library_id, child_rel, directory_id, child_group, stat)
+                        if not rel:
+                            child_pkg = self._package(db, library_id, child_id, child_id, '', True)
+                        elif directory_id == group_id:
+                            child_pkg = self._package(db, library_id, group_id, child_id, name)
                         else:
-                            file_id = self._file(db, library_id, directory_id, group_id, package_id, child_rel, stat, group_rel)
-                            seen_files.add(file_id)
-                            files_seen += 1
-                    for row in db.execute('SELECT id FROM files WHERE directory_id=? AND present=1', (directory_id,)):
-                        if row['id'] not in seen_files:
-                            db.execute('UPDATE files SET present=0 WHERE id=?', (row['id'],))
-                    missing = [row['id'] for row in db.execute(
-                        'SELECT id FROM directories WHERE parent_id=? AND present=1', (directory_id,))
-                        if row['id'] not in seen_dirs]
-                    for removed in missing:
-                        self.mark_missing(db, removed)
-                    db.execute('UPDATE directories SET error=NULL,present=1 WHERE id=?', (directory_id,))
-                    db.execute('UPDATE libraries SET revision=revision+1 WHERE id=?', (library_id,))
-                visited += 1
-                context.update(progress=files_seen, current=rel)
-                if visited % 20 == 0:
-                    self.events.publish('catalog', {'library_id': library_id})
-        except Cancelled:
-            self.catalog.execute("UPDATE libraries SET scan_status='interrupted' WHERE id=?", (library_id,))
-            raise
+                            child_pkg = package_id
+                        seen_dirs.add(child_id)
+                        stack.append((child_rel, child_id, child_group, child_pkg))
+                    else:
+                        file_id = self._file(db, library_id, directory_id, group_id, package_id,
+                                             child_rel, stat, group_rel, name not in hard_links)
+                        seen_files.add(file_id)
+                        files_seen += 1
+                for row in db.execute('SELECT id FROM files WHERE directory_id=? AND present=1', (directory_id,)):
+                    if row['id'] not in seen_files:
+                        db.execute('UPDATE files SET present=0 WHERE id=?', (row['id'],))
+                missing = [row['id'] for row in db.execute(
+                    'SELECT id FROM directories WHERE parent_id=? AND present=1', (directory_id,))
+                    if row['id'] not in seen_dirs]
+                for removed in missing:
+                    self.mark_missing(db, removed)
+                db.execute('UPDATE directories SET error=NULL,present=1,mtime_ns=? WHERE id=?',
+                           (directory_stat.st_mtime_ns, directory_id))
+                db.execute('UPDATE libraries SET revision=revision+1 WHERE id=?', (library_id,))
+                if not stack or stack[-1][2] != group_id:
+                    self.catalog.refresh_group(db, group_id)
+            visited += 1
+            context.update(progress=files_seen, current=rel)
+            if visited % 20 == 0:
+                self.events.publish('catalog', {'library_id': library_id})
         self.catalog.execute('UPDATE libraries SET scan_status=?,last_scan=? WHERE id=?',
                              ('partial' if failed else 'ready', time.time(), library_id))
         self.events.publish('catalog', {'library_id': library_id})
@@ -165,10 +215,10 @@ class Indexer:
         db.executemany('UPDATE files SET present=0 WHERE directory_id=?', [(i,) for i in ids])
 
     @staticmethod
-    def _file(db, library_id, directory_id, group_id, package_id, rel, stat, group_rel=''):
+    def _file(db, library_id, directory_id, group_id, package_id, rel, stat, group_rel='', allow_identity_move=True):
         key, file_identity = path_key(rel), identity(stat)
         row = db.execute('SELECT * FROM files WHERE library_id=? AND path_key=?', (library_id, key)).fetchone()
-        if not row and file_identity:
+        if not row and file_identity and allow_identity_move:
             matches = db.execute('SELECT * FROM files WHERE library_id=? AND identity=?',
                                  (library_id, file_identity)).fetchall()
             if len(matches) == 1:
@@ -189,5 +239,6 @@ class Indexer:
                    'is_image=excluded.is_image,present=1',
                    (file_id, library_id, directory_id, group_id, package_id, rel, key, Path(rel).name,
                     image_sort_key(rel[len(group_rel) + 1:] if group_rel else rel), file_identity,
-                    stat.st_size, stat.st_mtime_ns, int(Path(rel).suffix.lower() in IMG_EXT)))
+                    stat.st_size, stat.st_mtime_ns, int(Path(rel).suffix.lower() in IMG_EXT
+                                                       and not stat_module.S_ISLNK(stat.st_mode))))
         return file_id

@@ -14,7 +14,7 @@ from PIL import Image, ImageCms, ImageOps
 from gallery.jobs import Busy
 
 EDGES = (400, 800, 1600, 2560, 4200)
-PIPELINE = 'pillow-srgb-exif-alpha-v1'
+PIPELINE = 'pillow-srgb-exif-jpeg-alpha-webp-v2'
 
 
 class Images:
@@ -46,6 +46,13 @@ class Images:
             raise FileNotFoundError('Image not found')
         if edge not in EDGES:
             raise ValueError('Unsupported image size')
+        if not image['mtime_ns']:
+            path = self.access.path(image)
+            with self.resources.io(path, foreground=True):
+                stat = path.stat()
+            self.catalog.execute('UPDATE files SET size=?,mtime_ns=? WHERE id=? AND mtime_ns=0',
+                                 (stat.st_size, stat.st_mtime_ns, image_id))
+            image['size'], image['mtime_ns'] = stat.st_size, stat.st_mtime_ns
         key = self.key(image, edge)
         cached = self.cached(key)
         if cached:
@@ -113,8 +120,14 @@ class Images:
                                 pass
                         if frame.mode not in ('RGB', 'RGBA'):
                             frame = frame.convert('RGBA' if 'transparency' in frame.info else 'RGB')
+                        opaque = frame.mode == 'RGB'
+                        if opaque:
+                            target = target.with_suffix('.jpg')
                         temporary = target.with_suffix('.tmp')
-                        frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=3)
+                        if opaque:
+                            frame.save(temporary, 'JPEG', quality=82 if edge > 800 else 75, optimize=False)
+                        else:
+                            frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=1)
                         os.replace(temporary, target)
             self.catalog.execute('UPDATE files SET width=?,height=?,animated=?,error=NULL WHERE id=? AND mtime_ns=?',
                                  (width, height, int(animated), image['id'], image['mtime_ns']))

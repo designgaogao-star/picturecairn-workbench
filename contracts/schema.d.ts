@@ -279,6 +279,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/{task_id}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Findings */
+        get: operations["findings_api_v1_tasks__task_id__findings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operations/delete": {
         parameters: {
             query?: never;
@@ -394,6 +411,12 @@ export interface components {
             advertisements: components["schemas"]["AuditPackage"][];
             /** Incomplete */
             incomplete: components["schemas"]["IncompletePackage"][];
+            /** Shells Total */
+            shells_total: number;
+            /** Advertisements Total */
+            advertisements_total: number;
+            /** Incomplete Total */
+            incomplete_total: number;
             /**
              * Evidence
              * @constant
@@ -452,6 +475,10 @@ export interface components {
             left_unique: components["schemas"]["ComparedFile"][];
             /** Right Unique */
             right_unique: components["schemas"]["ComparedFile"][];
+            /** Left Unique Total */
+            left_unique_total: number;
+            /** Right Unique Total */
+            right_unique_total: number;
             /** Exact Equal */
             exact_equal: boolean;
             /** Left Contained */
@@ -481,6 +508,8 @@ export interface components {
         };
         /** DeleteItem */
         DeleteItem: {
+            /** Task Id */
+            task_id: string;
             /** Id */
             id: string;
             /** Target Id */
@@ -713,6 +742,8 @@ export interface components {
         };
         /** Operation */
         Operation: {
+            /** Task Id */
+            task_id: string | null;
             /** Id */
             id: string;
             /** Target Id */
@@ -817,6 +848,19 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** Page[Library] */
+        Page_Library_: {
+            /** Items */
+            items: components["schemas"]["Library"][];
+            /** Total */
+            total: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+            /** Revision */
+            revision: number;
+        };
         /** Page[Operation] */
         Page_Operation_: {
             /** Items */
@@ -860,6 +904,19 @@ export interface components {
         Page_Task_: {
             /** Items */
             items: components["schemas"]["Task"][];
+            /** Total */
+            total: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+            /** Revision */
+            revision: number;
+        };
+        /** Page[Union[ComparedFile, ShellPackage, AuditPackage, IncompletePackage]] */
+        Page_Union_ComparedFile__ShellPackage__AuditPackage__IncompletePackage__: {
+            /** Items */
+            items: (components["schemas"]["ComparedFile"] | components["schemas"]["ShellPackage"] | components["schemas"]["AuditPackage"] | components["schemas"]["IncompletePackage"])[];
             /** Total */
             total: number;
             /** Offset */
@@ -941,6 +998,11 @@ export interface components {
             library_id: string;
             /** Directory Id */
             directory_id?: string | null;
+            /**
+             * Force
+             * @default true
+             */
+            force: boolean;
         };
         /** ScanResult */
         ScanResult: {
@@ -1055,7 +1117,10 @@ export interface operations {
     };
     libraries_api_v1_libraries_get: {
         parameters: {
-            query?: never;
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1068,7 +1133,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Library"][];
+                    "application/json": components["schemas"]["Page_Library_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1646,6 +1720,41 @@ export interface operations {
             };
         };
     };
+    findings_api_v1_tasks__task_id__findings_get: {
+        parameters: {
+            query: {
+                kind: "left_unique" | "right_unique" | "shell" | "advertisement" | "incomplete";
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_Union_ComparedFile__ShellPackage__AuditPackage__IncompletePackage__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_api_v1_operations_delete_post: {
         parameters: {
             query?: never;
@@ -1684,6 +1793,7 @@ export interface operations {
             query?: {
                 offset?: number;
                 limit?: number;
+                task_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -1736,7 +1846,9 @@ export interface operations {
     events_api_v1_events_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "last-event-id"?: number;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1749,6 +1861,15 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

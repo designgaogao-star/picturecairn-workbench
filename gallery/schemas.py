@@ -177,6 +177,8 @@ class CompareResult(Result):
     right_files: int
     left_unique: list[ComparedFile]
     right_unique: list[ComparedFile]
+    left_unique_total: int
+    right_unique_total: int
     exact_equal: bool
     left_contained: bool
     right_contained: bool
@@ -204,6 +206,7 @@ class MigrationResult(Result):
 
 
 class DeleteItem(BaseModel):
+    task_id: str
     id: str
     target_id: str
     kind: str
@@ -246,6 +249,9 @@ class AuditResult(Result):
     shells: list[ShellPackage]
     advertisements: list[AuditPackage]
     incomplete: list[IncompletePackage]
+    shells_total: int
+    advertisements_total: int
+    incomplete_total: int
     evidence: Literal['heuristic-only']
 
 
@@ -267,6 +273,7 @@ class ScanJob(Input):
     kind: Literal['scan']
     library_id: str
     directory_id: str | None = None
+    force: bool = True
 
 
 class HashJob(Input):
@@ -329,6 +336,7 @@ class Pair(BaseModel):
 
 
 class Operation(BaseModel):
+    task_id: str | None
     id: str
     target_id: str
     target_kind: str

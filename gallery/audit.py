@@ -62,4 +62,9 @@ class Audit:
                 incomplete.append({'package_id': package['id'], 'bytes': size, 'images': len(images),
                                    'declared_bytes': expected_bytes, 'declared_images': expected_images})
             context.update(i + 1, len(rows), package['name'])
-        return {'shells': shells, 'advertisements': ads, 'incomplete': incomplete, 'evidence': 'heuristic-only'}
+        self.catalog.save_findings(context.id, 'shell', shells)
+        self.catalog.save_findings(context.id, 'advertisement', ads)
+        self.catalog.save_findings(context.id, 'incomplete', incomplete)
+        return {'shells': shells[:100], 'advertisements': ads[:100], 'incomplete': incomplete[:100],
+                'shells_total': len(shells), 'advertisements_total': len(ads), 'incomplete_total': len(incomplete),
+                'evidence': 'heuristic-only'}

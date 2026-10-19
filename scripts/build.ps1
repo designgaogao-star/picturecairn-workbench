@@ -1,18 +1,27 @@
-# GalleryTool portable build. Requires PowerShell 7, Node.js and Python 3.9+.
+# GalleryTool portable build. Requires PowerShell 7, uv and Node.js.
 param([switch]$NoZip)
 
 $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $PSScriptRoot
-$pythonPath = $env:GALLERY_PYTHON
-if (-not $pythonPath) {
-    $pythonPath = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'
-    if (-not (Test-Path -LiteralPath $pythonPath)) { $pythonPath = 'python' }
-}
+$pythonPath = Join-Path $projectDir '.venv\Scripts\python.exe'
+Push-Location $projectDir
+try {
+    & uv sync --frozen --extra dev --extra desktop --link-mode copy
+    if ($LASTEXITCODE -ne 0) { throw 'Locked Python environment setup failed.' }
+    & npm ci
+    if ($LASTEXITCODE -ne 0) { throw 'Locked Node dependency setup failed.' }
+    & node node_modules/electron/install.js
+    if ($LASTEXITCODE -ne 0) { throw 'Electron runtime download failed.' }
+    & npm run contract
+    if ($LASTEXITCODE -ne 0) { throw 'API contract export failed.' }
+    & npm run check
+    if ($LASTEXITCODE -ne 0) { throw 'TypeScript contract check failed.' }
+} finally { Pop-Location }
 $electronDir = Join-Path $projectDir 'node_modules\electron\dist'
 if (-not (Test-Path -LiteralPath (Join-Path $electronDir 'electron.exe'))) {
     throw 'Electron is missing. Run npm ci first.'
 }
-& $pythonPath -c 'import PIL, numpy, scipy, PyInstaller'
+& $pythonPath -c 'import PIL, numpy, scipy, fastapi, uvicorn, watchfiles, pythoncom, PyInstaller'
 if ($LASTEXITCODE -ne 0) { throw 'Install Python dependencies: pip install -e ".[desktop]"' }
 
 $package = Get-Content -LiteralPath (Join-Path $projectDir 'package.json') -Raw | ConvertFrom-Json

@@ -24,6 +24,17 @@ function request(url, method = 'GET', headers = {}) {
   });
 }
 async function startBackend() {
+  const serviceFile = path.join(data, 'service.json');
+  if (fs.existsSync(serviceFile)) {
+    try {
+      const descriptor = JSON.parse(fs.readFileSync(serviceFile, 'utf8'));
+      const health = await request(descriptor.url + '/api/v1/health');
+      if (health.api_version === '1' && health.instance_id === descriptor.instance_id) {
+        base = descriptor.url;
+        return;
+      }
+    } catch (error) { console.warn('Background service unavailable:', error.message); }
+  }
   const project = path.join(__dirname, '..');
   const packed = path.join(process.resourcesPath, 'backend', 'gallery_server.exe');
   const python = process.env.GALLERY_PYTHON || path.join(project, '.venv', 'Scripts', 'python.exe');
@@ -33,7 +44,8 @@ async function startBackend() {
   const log = fs.openSync(path.join(data, 'desktop-backend.log'), 'a');
   let spawnError;
   backend = spawn(command, args, { cwd: app.isPackaged ? path.dirname(packed) : project,
-    env: { ...process.env, GALLERY_DATA: data, GALLERY_DESKTOP_TOKEN: token, PYTHONIOENCODING: 'utf-8' },
+    env: { ...process.env, GALLERY_DATA: data, GALLERY_APPLICATION: app.isPackaged ? path.dirname(process.execPath) : project,
+      GALLERY_DESKTOP_TOKEN: token, PYTHONIOENCODING: 'utf-8' },
     stdio: ['ignore', log, log], windowsHide: true });
   fs.closeSync(log);
   backend.on('error', (error) => { spawnError = error; });
@@ -54,7 +66,8 @@ async function startBackend() {
         await new Promise((resolve) => setTimeout(resolve, 50)); continue;
       }
       const health = await request(descriptor.url + '/api/v1/health');
-      if (health.api_version !== '1' || health.instance_id !== descriptor.instance_id || descriptor.pid !== backend.pid) {
+      if (health.api_version !== '1' || health.instance_id !== descriptor.instance_id
+          || descriptor.session_id !== crypto.createHash('sha256').update(token).digest('hex')) {
         throw new Error('图库服务版本或实例不匹配');
       }
       base = descriptor.url;
@@ -103,7 +116,10 @@ ipcMain.handle('gallery:choose-directory', async (event) => {
 });
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on('second-instance', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
+  app.on('second-instance', (_event, argv) => {
+    if (argv.includes('--quit')) { app.quit(); return; }
+    if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+  });
   app.whenReady().then(async () => {
     try {
       await startBackend(); createWindow();

@@ -1,6 +1,8 @@
 """Application ownership and lifecycle. No module-global catalog or worker instances."""
 
+import contextlib
 import threading
+from pathlib import Path
 
 from gallery.access import Access
 from gallery.catalog import Catalog
@@ -16,16 +18,25 @@ from gallery.watcher import Watcher
 class Service:
     def __init__(self, settings):
         self.settings = settings
-        self.catalog = Catalog(settings.data / 'catalog.sqlite')
+        settings.data.mkdir(parents=True, exist_ok=True)
+        self.instance = Instance(settings.data / '.gallery.lock')
+        self.instance.acquire()
+        try:
+            self.catalog = Catalog(settings.data / 'catalog.sqlite')
+        except Exception:
+            self.instance.release()
+            raise
         self.events = Events()
         self.resources = Resources()
         self.access = Access(self.catalog)
-        self.indexer = Indexer(self.catalog, self.events, [settings.data, settings.resources])
+        self.indexer = Indexer(self.catalog, self.events, [settings.data, settings.resources, settings.application])
+        for imported in self.catalog.rows('SELECT source FROM imports'):
+            self._exclude_legacy(imported['source'])
         self.tasks = Tasks(self.catalog, self.events, self.resources)
         self.images = Images(self.catalog, self.access, self.resources, settings)
         self.organize = Organize(self.catalog, self.access, self.events, settings.data)
         self.tasks.handlers.update(scan=self.indexer.scan, prewarm=self.images.prewarm,
-                                   collect=self.images.collect, delete=self.organize.delete,
+                                   collect=self.images.collect, delete=self._delete,
                                    build=self._build, analyze=self._analyze, compare=self._compare,
                                    migrate=self._migrate, audit=self._audit)
         self.images.cache_pressure = self._cache_pressure
@@ -33,7 +44,6 @@ class Service:
         self.stop_event = threading.Event()
         self.maintenance = None
         self.shutdown_callback = lambda: None
-        self.instance = Instance(settings.data / '.gallery.lock')
 
     def _dedup(self):
         from gallery.dedup import Dedup
@@ -52,15 +62,35 @@ class Service:
         from gallery.audit import Audit
         return Audit(self.catalog).run(context, payload)
 
+    def _delete(self, context, payload):
+        libraries = set()
+        for target in payload['targets']:
+            table = {'image': 'files', 'package': 'packages', 'group': 'directories'}[target['kind']]
+            row = self.catalog.entity(table, target['id'])
+            if row:
+                libraries.add(row['library_id'])
+        with contextlib.ExitStack() as stack:
+            for library_id in sorted(libraries):
+                stack.enter_context(self.indexer.exclusive(context, library_id))
+            return self.organize.delete(context, payload)
+
     def _migrate(self, context, payload):
         from gallery.migration import import_legacy
         report = import_legacy(self.catalog, payload['source'], payload['root'], self.indexer, context)
+        self._exclude_legacy(payload['source'])
         self.watcher.add(self.catalog.entity('libraries', report['library_id']))
-        self.tasks.submit('scan', {'library_id': report['library_id']})
+        self.tasks.submit('scan', {'library_id': report['library_id'], 'force': True})
         return report
 
+    def _exclude_legacy(self, source):
+        source = Path(source).resolve()
+        roots = {Path(library['path']) for library in self.catalog.libraries()}
+        excluded = [source / 'cache', source / 'thumbs'] if source in roots else [source]
+        self.indexer.excluded.update(excluded)
+
     def start(self):
-        self.instance.acquire()
+        from gallery.migration import restore_pending_positions
+        restore_pending_positions(self.catalog)
         self.catalog.execute("UPDATE tasks SET state='interrupted',error='Application stopped' "
                              "WHERE state IN ('queued','running','paused','cancelling')")
         existing_libraries = self.catalog.libraries()
@@ -75,7 +105,7 @@ class Service:
                 continue
             self.watcher.add(library)
             if self.settings.scan_on_start:
-                self.tasks.submit('scan', {'library_id': library['id']})
+                self.tasks.submit('scan', {'library_id': library['id'], 'force': True})
         self.maintenance = threading.Thread(target=self._maintain, daemon=True, name='gallery-maintenance')
         self.maintenance.start()
 
@@ -88,12 +118,14 @@ class Service:
                 pass
 
     def _maintain(self):
+        cycles = 0
         while not self.stop_event.wait(600):
+            cycles += 1
             try:
                 self.tasks.submit('collect', {})
                 for library in self.catalog.libraries():
                     self.watcher.add(library)
-                    self.tasks.submit('scan', {'library_id': library['id']})
+                    self.tasks.submit('scan', {'library_id': library['id'], 'force': cycles % 6 == 0})
             except Busy:
                 continue
 

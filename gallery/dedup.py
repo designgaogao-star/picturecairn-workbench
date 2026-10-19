@@ -15,6 +15,10 @@ class Dedup:
 
     def build(self, context, payload):
         group_id = payload['group_id']
+        group = self.catalog.entity('directories', group_id)
+        scanned = self.indexer.scan(context, {'library_id': group['library_id'], 'directory_id': group_id, 'force': True})
+        if not scanned['online'] or scanned['failed_directories']:
+            raise OSError('The group could not be fully indexed')
         rows = self.catalog.rows('SELECT * FROM files WHERE group_id=? AND present=1 AND is_image=1 ORDER BY sort_key',
                                   (group_id,))
         done = failed = 0
@@ -110,7 +114,9 @@ class Dedup:
         group = self.catalog.entity('directories', a['group_id'])
         # Refresh both trees before exact verification, so non-image additions cannot be missed.
         for package in (a, b):
-            self.indexer.scan(context, {'library_id': group['library_id'], 'directory_id': package['directory_id']})
+            scanned = self.indexer.scan(context, {'library_id': group['library_id'], 'directory_id': package['directory_id'], 'force': True})
+            if not scanned['online'] or scanned['failed_directories']:
+                raise OSError('Package enumeration is incomplete; exact comparison refused')
         sides = []
         for package in (a, b):
             rows = self.catalog.rows('SELECT * FROM files WHERE package_id=? AND present=1 ORDER BY sort_key',
@@ -120,12 +126,18 @@ class Dedup:
                 context.check()
                 path = self.access.path(row)
                 digest = hashlib.sha256()
-                with context.io(path), path.open('rb') as stream:
+                with context.io(path):
                     before = path.stat()
-                    while chunk := stream.read(1024**2):
-                        context.check()
+                    stream = path.open('rb')
+                with stream:
+                    while True:
+                        with context.io(path):
+                            chunk = stream.read(1024**2)
+                        if not chunk:
+                            break
                         digest.update(chunk)
-                    after = path.stat()
+                    with context.io(path):
+                        after = path.stat()
                 if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
                     raise ValueError('File changed during exact comparison')
                 hashes.append({'id': row['id'], 'name': row['name'], 'is_image': bool(row['is_image']),
@@ -143,8 +155,11 @@ class Dedup:
                     result.append(row)
             return result
         left_unique, right_unique = unique(sides[0], sides[1]), unique(sides[1], sides[0])
+        self.catalog.save_findings(context.id, 'left_unique', left_unique)
+        self.catalog.save_findings(context.id, 'right_unique', right_unique)
         return {'left_id': a['id'], 'right_id': b['id'], 'left_files': len(sides[0]), 'right_files': len(sides[1]),
-                'left_unique': left_unique, 'right_unique': right_unique,
+                'left_unique': left_unique[:100], 'right_unique': right_unique[:100],
+                'left_unique_total': len(left_unique), 'right_unique_total': len(right_unique),
                 'exact_equal': bool(sides[0]) and not left_unique and not right_unique,
                 'left_contained': bool(sides[0]) and not left_unique,
                 'right_contained': bool(sides[1]) and not right_unique, 'algorithm': 'sha256-all-files',

@@ -1,12 +1,8 @@
 # -*- coding: utf-8 -*-
-"""pHash 与汉明距离的单元测试 —— 零依赖，自己造图，不需要任何真实素材。
+"""固定 pHash 规范的回归检查，使用合成图片，不访问真实图库。
 
-为什么要守这条：整套去重都建立在"**缩放不改变 pHash**"这个假设上 ——
-`get_thumb_bytes()` 会拿缩略图算的哈希当原图的哈希存进索引。
-假设一旦破了，去重建议就会指向错误的图，而且完全无声。
-
-注意 `dedup_build.phash()` 收的是**文件路径**（内部会先找缩略图缓存、
-没命中才读原图），不是 PIL.Image 对象 —— 传 Image 它会静默返回 None。
+新哈希只从原图生成；缩放和压缩样例检查相似度的合理范围，
+不表示可将旧缩略图哈希当成相同算法版本。
 """
 
 import io
@@ -21,7 +17,7 @@ TOOL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if TOOL not in sys.path:
     sys.path.insert(0, TOOL)
 
-import dedup_build as db  # noqa: E402
+from gallery import hashing as db  # noqa: E402
 
 
 def hamming(a, b):
@@ -82,7 +78,7 @@ def test_same_file_same_hash(imgs):
 
 @pytest.mark.parametrize("key,scale", [("s25", 0.25), ("s50", 0.5)])
 def test_scaling_does_not_change_hash(imgs, key, scale):
-    """缩放后哈希必须几乎不变 —— 这是"缩略图代原图"能成立的前提。"""
+    """固定样例在缩放后仍应位于近重复范围。"""
     d = hamming(db.phash(imgs["orig2"]), db.phash(imgs[key]))
     assert d <= 4, "缩到 %.0f%% 后偏差 %d，超过阈值 4（去重会因此看错图）" % (scale * 100, d)
 

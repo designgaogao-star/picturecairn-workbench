@@ -81,6 +81,7 @@ class Context:
         self.paused = threading.Event()
         self.last_update = 0
         self.progress = 0
+        self.started = False
 
     def check(self):
         while self.paused.is_set():
@@ -147,7 +148,7 @@ class Tasks:
             if action == 'cancel':
                 context.cancel.set()
                 context.paused.clear()
-                state = 'cancelling'
+                state = 'cancelling' if context.started else 'cancelled'
             elif action == 'pause':
                 if self.catalog.task(task_id)['kind'] == 'delete':
                     raise ValueError('Delete operations can be cancelled between items but cannot be paused')
@@ -155,7 +156,7 @@ class Tasks:
                 state = 'paused'
             else:
                 context.paused.clear()
-                state = 'queued' if self.catalog.task(task_id)['state'] == 'queued' else 'running'
+                state = 'running' if context.started else 'queued'
             self.catalog.execute('UPDATE tasks SET state=?,updated=? WHERE id=?', (state, time.time(), task_id))
             self.events.publish('task', {'id': task_id})
             return self.catalog.task(task_id)
@@ -169,6 +170,7 @@ class Tasks:
             context = self.contexts[task_id]
             state, result, error = 'completed', None, None
             try:
+                context.started = True
                 context.check()
                 self.catalog.execute("UPDATE tasks SET state='running',updated=? WHERE id=?", (time.time(), task_id))
                 job = self.catalog.task(task_id)

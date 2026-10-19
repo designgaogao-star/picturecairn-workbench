@@ -1,84 +1,71 @@
-# GalleryTool
+# GalleryTool V2
 
-本地图片浏览器，面向机械硬盘上的大型图片库。目录即图库，不联网、不上传。支持图包墙、单张查看、缩放、旋转、全屏和胶片条；筛选、抽样、去重及清理是辅助功能。
+Windows 本地纯图片图库。支持多个本地目录、目录与图包浏览、GIF/WebP 动图、浏览位置恢复、筛选标记、抽样、去重候选、内容核验和回收站删除。
 
-2026-10-19 确定产品只做图片，视频播放及相关计划已移除。支持 JPG、JPEG、PNG、GIF、WebP、BMP。
+后端为 Python 3.14、FastAPI、SQLite WAL、Pillow、NumPy、SciPy。Electron 提供窗口和目录选择；`prototype/` 是可运行的接口原型，正式前端可独立替换。
 
-## 开发运行
+## 开发
 
-需要 Python 3.9+、Node.js 和 Windows。后端依赖 Pillow、NumPy、SciPy，数据库使用 SQLite。前端为原生 HTML/CSS/JS，无前端构建步骤或 CDN。
+安装 uv、Node.js 22.12+、PowerShell 7 后执行：
 
 ```powershell
-Set-Location F:\图库\_gallery_tool
-python -m pip install -e ".[dev,desktop]"
+uv sync --frozen --extra dev --extra desktop
 npm ci
-python gallery_cli.py info
-python gallery_server.py --no-open
+uv run python -m gallery --port 8765
 ```
 
-浏览器访问 http://127.0.0.1:8765。现有服务会复用端口；后端改动需要重启，前端改动刷新即可。
+打开 `http://127.0.0.1:8765` 添加本地目录。现有后台服务可通过 `启动图库预览.bat` 打开，通过 `停止图库服务.bat` 正常停止。
 
-本机已验证的解释器是 `%LOCALAPPDATA%\Programs\Python\Python312\python.exe`。PATH 中可能有其他 Python，运行前确认已安装依赖。
-
-启动 Electron：
+默认数据位于 `%LOCALAPPDATA%\GalleryTool`。`GALLERY_DATA` 可指定其他本地数据目录；原图留在注册的图库根目录中。
 
 ```powershell
-$env:GALLERY_PYTHON = "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe"
+# 独立临时数据，避免与已经运行的桌面程序争用同一数据库
+uv run python -m gallery --data C:\Temp\gallery-dev --port 8766
 npm start
 ```
 
-也可使用根目录的 `启动图库预览.bat`、`后台启动图库.vbs`、`停止图库服务.bat`。窗口关闭后收进托盘，从托盘菜单退出应用。
+桌面启动使用动态端口和实例握手；已有受匹配的后台服务时复用它。关闭窗口收至托盘，托盘“退出”或 `GalleryTool.exe --quit` 退出应用，并停止应用自己启动的后端。
 
-## 数据位置
+## 前端交接
 
-| 配置 | 默认值 | 用途 |
-|---|---|---|
-| `GALLERY_ROOT` | 项目目录的父目录 | 原始图片库 |
-| `GALLERY_DATA` | 项目目录 | 可写数据目录 |
-| 打包版数据目录 | `%APPDATA%\GalleryTool` | 由 Electron 设置 |
+接口前缀 `/api/v1`，运行时 OpenAPI 为 `/openapi.json`。
 
-开发数据：`cache/gallery.db`、`cache/dedup.db`、`thumbs/`、`review_state.json`、`folders_meta.json`。删除日志是 `cache/delete_journal.jsonl`。这些都不是源码，不纳入 Git，也不随安装包分发。
-
-打包版从 `%APPDATA%\GalleryTool\config.json` 读取根目录：
-
-```json
-{"root": "F:\\图库"}
-```
-
-## 构建桌面版
-
-使用 PowerShell 7，所有构建统一走一个入口：
+- `contracts/openapi.json`：生成的 API 契约。
+- `contracts/schema.d.ts`：从 OpenAPI 生成的 TypeScript 类型。
+- `contracts/client.ts`：使用生成类型的 HTTP 客户端与图片 URL 工具。
+- `contracts/mock.json`：不包含真实图库信息的示例响应。
+- `docs/frontend-handoff.md`：分页、位置恢复、任务和事件约定。
 
 ```powershell
-npm run build
-# 只生成可运行目录，不压缩：
-& .\scripts\build.ps1 -NoZip
+npm run contract
+npm run check
 ```
 
-产物在 `build-out/<时间戳>/GalleryTool/GalleryTool.exe`，默认附带 zip。构建会同时打包当前 Python 后端与 Electron 壳，遇到失败查看同目录的 `build.log`。不再保留 electron-builder 或只输出前端的构建路径。
+开发前端独立运行时，后端进程可设置 `GALLERY_FRONTEND_ORIGIN=http://localhost:5173`；默认仅允许同源请求。
 
-## 验证
+## 验证与构建
 
 ```powershell
-python -m pytest
-python -m ruff check .
-python -m ruff format --check .
+uv run python -m pytest
+uv run python -m ruff check .
+node --check prototype/app.js
+node --check electron/main.js
+npm run check
+pwsh -NoProfile -File scripts/build.ps1
 ```
 
-自动测试使用合成图片和临时数据库，覆盖图片清单、旧库过滤、pHash、路径校验、HTTP 字节与缩略图、删除确认闸门和非图片内容保护。
+测试使用临时图库。`GALLERY_TEST_BACKEND` 指定打包后端路径后，`tests/test_v2_http.py` 对实际 exe 执行相同的 HTTP、图片、SSE、退出与临时图片回收检查。
 
-`tests/api_regression.py`、`hardening_check.py`、`browser_probe.py`、`dedup_ui_probe.py` 和 `delete_path_check.py` 是既有人工集成探针，部分依赖本机图库，可能写浏览状态或操作测试组。日常回归优先使用 pytest；运行旧探针前先阅读各文件说明。
+构建输出为 `build-out/<时间>/GalleryTool/GalleryTool.exe`。运行不需要另外安装 Python，不下载运行资源。
 
-## 维护入口
+本机迁移核对、性能实测与桌面验收见 [V2 Review 与验收](docs/review-v2-20261020.md)。
+
+## 数据迁移
 
 ```powershell
-python gallery_cli.py dedup build-all --scope gap
-python gallery_cli.py dedup report
-python gallery_cli.py dedup clean
-python dedup_analyze.py --help
-python dedup_verify.py --help
+uv run python -m gallery --root F:\图库 --legacy F:\图库\_gallery_tool --data C:\Temp\gallery-migrated
 ```
 
-所有图片格式判断来自 `gallery/config.py`，路径来自 `gallery/paths.py`。pHash 是相似度线索；整包对比还会核验其他文件，不能忽略包内独有内容。
+迁移在后台执行，先使用 SQLite backup 获取一致快照，并保留原始浏览记录与删除日志。旧下标转换为图片 ID，旧哈希注明算法来源，不与新规范的哈希混用；兼容的旧 JPEG 缩略图按需复制复用。重复迁移同一来源返回原报告，不覆盖已有用户状态。
 
-项目结构见 [架构说明](docs/architecture.md)，产品方向见 [UX/UI 需求](UX-UI需求.md)，本轮进展见 [接手报告](接手报告.md) 和 [清理计划](docs/cleanup-plan.md)。历史性能测量保存在 `docs/reference/`。
+目录离线不清空索引；任务中断保留已提交的数据。永久删除必须明确传入 `confirm_permanent: true`。相似度与空壳报告是判断证据，完全重复结论需要 SHA-256 遍历图包内所有文件，包括隐藏文件和非图片文件。

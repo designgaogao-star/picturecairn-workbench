@@ -24,6 +24,15 @@ thumbs/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+derivatives/
+legacy/
+.gallery.lock
+service.json
+service-token.txt
+desktop-*.json
 review_state.json*
 folders_meta.json*
 config.json

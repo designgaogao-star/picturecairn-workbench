@@ -17,6 +17,6 @@ class Events:
 
     def since(self, sequence):
         with self.lock:
-            if self.items and sequence < self.items[0]['id'] - 1:
+            if sequence > self.sequence or self.items and sequence < self.items[0]['id'] - 1:
                 return [{'id': self.sequence, 'event': 'reset', 'data': {}}]
             return [item for item in self.items if item['id'] > sequence]

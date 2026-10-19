@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 
 from gallery.catalog import image_sort_key, new_id, path_key
-from gallery.hashing import LEGACY_HASH_VERSION
 
 
 def backup_sqlite(source, target):
@@ -19,6 +18,7 @@ def backup_sqlite(source, target):
 
 
 def import_legacy(catalog, source, root, indexer, context):
+    from gallery.hashing import LEGACY_HASH_VERSION
     source = Path(source).resolve()
     marker = str(source)
     prior = catalog.one('SELECT report FROM imports WHERE source=?', (marker,))
@@ -115,10 +115,34 @@ def import_legacy(catalog, source, root, indexer, context):
                 group_id = directories[folder]
                 image = db.execute('SELECT id FROM files WHERE group_id=? ORDER BY sort_key,id LIMIT 1 OFFSET ?',
                                    (group_id, max(0, int(value.get('index', 0))))).fetchone()
-                db.execute('INSERT OR REPLACE INTO review VALUES(?,?,?,?)',
-                           (group_id, value.get('state', 'none'), image[0] if image else None, time.time()))
+                db.execute('INSERT OR REPLACE INTO review(group_id,state,image_id,updated,legacy_index) VALUES(?,?,?,?,?)',
+                           (group_id, value.get('state', 'none'), image[0] if image else None, time.time(),
+                            None if image else max(0, int(value.get('index', 0)))))
         report = {'library_id': library['id'], 'images': imported, 'legacy_hash_rows': hash_count,
                   'snapshot': str(destination), 'legacy_thumbs': str(source / 'thumbs')}
+        for group in db.execute('SELECT id FROM directories WHERE library_id=? AND id=group_id', (library['id'],)).fetchall():
+            catalog.refresh_group(db, group['id'])
         db.execute('INSERT INTO imports VALUES(?,?,?)', (marker, time.time(), json.dumps(report)))
     catalog.bump(library['id'])
     return report
+
+
+def restore_pending_positions(catalog):
+    """Resolve positions from legacy groups whose file lists were never stored in the old DB."""
+    for imported in catalog.rows('SELECT report FROM imports'):
+        report = json.loads(imported['report'])
+        source = Path(report['snapshot']) / 'review_state.json'
+        if not source.is_file():
+            continue
+        state = json.loads(source.read_text(encoding='utf-8-sig'))
+        with catalog.write() as db:
+            for folder, value in state.items():
+                if not isinstance(value, dict):
+                    continue
+                row = db.execute('SELECT d.id FROM directories d JOIN review r ON r.group_id=d.id '
+                                 'WHERE d.library_id=? AND d.path_key=? AND r.image_id IS NULL',
+                                 (report['library_id'], path_key(folder))).fetchone()
+                if row:
+                    db.execute('UPDATE review SET legacy_index=? WHERE group_id=?',
+                               (max(0, int(value.get('index', 0))), row['id']))
+                    catalog.refresh_group(db, row['id'])
