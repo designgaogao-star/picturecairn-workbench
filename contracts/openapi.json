@@ -1,0 +1,3018 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GalleryTool API",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries": {
+      "get": {
+        "tags": [
+          "Libraries"
+        ],
+        "summary": "Libraries",
+        "operationId": "libraries_api_v1_libraries_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Library"
+                  },
+                  "type": "array",
+                  "title": "Response Libraries Api V1 Libraries Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Libraries"
+        ],
+        "summary": "Add Library",
+        "operationId": "add_library_api_v1_libraries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Library"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries/{library_id}/groups": {
+      "get": {
+        "tags": [
+          "Browse"
+        ],
+        "summary": "Groups",
+        "operationId": "groups_api_v1_libraries__library_id__groups_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "none",
+                    "kept",
+                    "marked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "R16",
+                    "R18",
+                    "非R18",
+                    "其他"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Group_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries/{library_id}/directories": {
+      "get": {
+        "tags": [
+          "Browse"
+        ],
+        "summary": "Directories",
+        "operationId": "directories_api_v1_libraries__library_id__directories_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Directory_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_id}/packages": {
+      "get": {
+        "tags": [
+          "Browse"
+        ],
+        "summary": "Packages",
+        "operationId": "packages_api_v1_groups__group_id__packages_get",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Package_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/packages/{package_id}/images": {
+      "get": {
+        "tags": [
+          "Browse"
+        ],
+        "summary": "Images",
+        "operationId": "images_api_v1_packages__package_id__images_get",
+        "parameters": [
+          {
+            "name": "package_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Package Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ImageItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/images/{image_id}/context": {
+      "get": {
+        "tags": [
+          "Browse"
+        ],
+        "summary": "Image Context",
+        "operationId": "image_context_api_v1_images__image_id__context_get",
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageContext"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/images/{image_id}/thumbnail": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Thumbnail",
+        "operationId": "thumbnail_api_v1_images__image_id__thumbnail_get",
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          },
+          {
+            "name": "edge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Edge",
+              "default": 400
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/webp": {},
+              "image/jpeg": {}
+            }
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/images/{image_id}/original": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Original",
+        "operationId": "original_api_v1_images__image_id__original_get",
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_id}/review": {
+      "get": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Review",
+        "operationId": "review_api_v1_groups__group_id__review_get",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Mark",
+        "operationId": "mark_api_v1_groups__group_id__review_patch",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_id}/position": {
+      "put": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Position",
+        "operationId": "position_api_v1_groups__group_id__position_put",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_id}/samples": {
+      "get": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Samples",
+        "operationId": "samples_api_v1_groups__group_id__samples_get",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Id"
+            }
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Count"
+            }
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Seed"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImageItem"
+                  },
+                  "title": "Response Samples Api V1 Groups  Group Id  Samples Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "post": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Create Task",
+        "operationId": "create_task_api_v1_tasks_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ScanJob"
+                  },
+                  {
+                    "$ref": "#/components/schemas/HashJob"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PrewarmJob"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CompareJob"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CollectJob"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "scan": "#/components/schemas/ScanJob",
+                    "build": "#/components/schemas/HashJob",
+                    "analyze": "#/components/schemas/HashJob",
+                    "audit": "#/components/schemas/HashJob",
+                    "prewarm": "#/components/schemas/PrewarmJob",
+                    "compare": "#/components/schemas/CompareJob",
+                    "collect": "#/components/schemas/CollectJob"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Tasks",
+        "operationId": "tasks_api_v1_tasks_get",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Task_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Task",
+        "operationId": "task_api_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/control": {
+      "post": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Control Task",
+        "operationId": "control_task_api_v1_tasks__task_id__control_post",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskControl"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/pairs": {
+      "get": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Pairs",
+        "operationId": "pairs_api_v1_tasks__task_id__pairs_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Pair_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/delete": {
+      "post": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Delete",
+        "operationId": "delete_api_v1_operations_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations": {
+      "get": {
+        "tags": [
+          "Organize"
+        ],
+        "summary": "Operations",
+        "operationId": "operations_api_v1_operations_get",
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Operation_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cache": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Cache Stats",
+        "operationId": "cache_stats_api_v1_cache_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Cache Stats Api V1 Cache Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "tags": [
+          "Tasks"
+        ],
+        "summary": "Events",
+        "operationId": "events_api_v1_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/event-stream": {
+                "itemSchema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "retry": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalyzeResult": {
+        "properties": {
+          "indexed": {
+            "type": "integer",
+            "title": "Indexed"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "hash_version": {
+            "type": "string",
+            "title": "Hash Version"
+          },
+          "images": {
+            "type": "integer",
+            "title": "Images"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "pairs": {
+            "type": "integer",
+            "title": "Pairs"
+          },
+          "package_pairs": {
+            "items": {
+              "$ref": "#/components/schemas/PackageSimilarity"
+            },
+            "type": "array",
+            "title": "Package Pairs"
+          },
+          "package_pairs_total": {
+            "type": "integer",
+            "title": "Package Pairs Total"
+          },
+          "pair_task_id": {
+            "type": "string",
+            "title": "Pair Task Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "indexed",
+          "failed",
+          "hash_version",
+          "images",
+          "coverage",
+          "pairs",
+          "package_pairs",
+          "package_pairs_total",
+          "pair_task_id"
+        ],
+        "title": "AnalyzeResult"
+      },
+      "AuditImage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "verified"
+        ],
+        "title": "AuditImage"
+      },
+      "AuditPackage": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "title": "Package Id"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/AuditImage"
+            },
+            "type": "array",
+            "title": "Images"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package_id",
+          "images"
+        ],
+        "title": "AuditPackage"
+      },
+      "AuditResult": {
+        "properties": {
+          "shells": {
+            "items": {
+              "$ref": "#/components/schemas/ShellPackage"
+            },
+            "type": "array",
+            "title": "Shells"
+          },
+          "advertisements": {
+            "items": {
+              "$ref": "#/components/schemas/AuditPackage"
+            },
+            "type": "array",
+            "title": "Advertisements"
+          },
+          "incomplete": {
+            "items": {
+              "$ref": "#/components/schemas/IncompletePackage"
+            },
+            "type": "array",
+            "title": "Incomplete"
+          },
+          "evidence": {
+            "type": "string",
+            "const": "heuristic-only",
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shells",
+          "advertisements",
+          "incomplete",
+          "evidence"
+        ],
+        "title": "AuditResult"
+      },
+      "BuildResult": {
+        "properties": {
+          "indexed": {
+            "type": "integer",
+            "title": "Indexed"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "hash_version": {
+            "type": "string",
+            "title": "Hash Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "indexed",
+          "failed",
+          "hash_version"
+        ],
+        "title": "BuildResult"
+      },
+      "CacheResult": {
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bytes",
+          "removed",
+          "limit"
+        ],
+        "title": "CacheResult"
+      },
+      "CollectJob": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "collect",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "CollectJob"
+      },
+      "CompareJob": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "compare",
+            "title": "Kind"
+          },
+          "left_id": {
+            "type": "string",
+            "title": "Left Id"
+          },
+          "right_id": {
+            "type": "string",
+            "title": "Right Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "left_id",
+          "right_id"
+        ],
+        "title": "CompareJob"
+      },
+      "CompareResult": {
+        "properties": {
+          "left_id": {
+            "type": "string",
+            "title": "Left Id"
+          },
+          "right_id": {
+            "type": "string",
+            "title": "Right Id"
+          },
+          "left_files": {
+            "type": "integer",
+            "title": "Left Files"
+          },
+          "right_files": {
+            "type": "integer",
+            "title": "Right Files"
+          },
+          "left_unique": {
+            "items": {
+              "$ref": "#/components/schemas/ComparedFile"
+            },
+            "type": "array",
+            "title": "Left Unique"
+          },
+          "right_unique": {
+            "items": {
+              "$ref": "#/components/schemas/ComparedFile"
+            },
+            "type": "array",
+            "title": "Right Unique"
+          },
+          "exact_equal": {
+            "type": "boolean",
+            "title": "Exact Equal"
+          },
+          "left_contained": {
+            "type": "boolean",
+            "title": "Left Contained"
+          },
+          "right_contained": {
+            "type": "boolean",
+            "title": "Right Contained"
+          },
+          "algorithm": {
+            "type": "string",
+            "const": "sha256-all-files",
+            "title": "Algorithm"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "left_id",
+          "right_id",
+          "left_files",
+          "right_files",
+          "left_unique",
+          "right_unique",
+          "exact_equal",
+          "left_contained",
+          "right_contained",
+          "algorithm",
+          "revision"
+        ],
+        "title": "CompareResult"
+      },
+      "ComparedFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_image": {
+            "type": "boolean",
+            "title": "Is Image"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "is_image",
+          "size",
+          "sha256"
+        ],
+        "title": "ComparedFile"
+      },
+      "DeleteItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "time": {
+            "type": "number",
+            "title": "Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "kind",
+          "path",
+          "mode",
+          "state",
+          "error",
+          "time"
+        ],
+        "title": "DeleteItem"
+      },
+      "DeleteRequest": {
+        "properties": {
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteTarget"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Targets"
+          },
+          "permanent": {
+            "type": "boolean",
+            "title": "Permanent",
+            "default": false
+          },
+          "confirm_permanent": {
+            "type": "boolean",
+            "title": "Confirm Permanent",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targets"
+        ],
+        "title": "DeleteRequest"
+      },
+      "DeleteResult": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeleteItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "failed"
+        ],
+        "title": "DeleteResult"
+      },
+      "DeleteTarget": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "package",
+              "group"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "DeleteTarget"
+      },
+      "Directory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "rel": {
+            "type": "string",
+            "title": "Rel"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "present": {
+            "type": "boolean",
+            "title": "Present"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "parent_id",
+          "group_id",
+          "rel",
+          "name",
+          "present",
+          "error"
+        ],
+        "title": "Directory"
+      },
+      "Edge": {
+        "type": "integer",
+        "enum": [
+          400,
+          800,
+          1600,
+          2560,
+          4200
+        ],
+        "title": "Edge"
+      },
+      "Group": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "rel": {
+            "type": "string",
+            "title": "Rel"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "kept",
+              "marked"
+            ],
+            "title": "State"
+          },
+          "image_count": {
+            "type": "integer",
+            "title": "Image Count"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "resume_image_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Image Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "rel",
+          "name",
+          "category",
+          "state",
+          "image_count",
+          "bytes",
+          "resume_image_id"
+        ],
+        "title": "Group"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HashJob": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "build",
+              "analyze",
+              "audit"
+            ],
+            "title": "Kind"
+          },
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "threshold": {
+            "type": "integer",
+            "maximum": 16.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "default": 8
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "group_id"
+        ],
+        "title": "HashJob"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ready",
+            "title": "Status",
+            "default": "ready"
+          },
+          "api_version": {
+            "type": "string",
+            "const": "1",
+            "title": "Api Version",
+            "default": "1"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "2.0.0"
+          },
+          "instance_id": {
+            "type": "string",
+            "title": "Instance Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instance_id"
+        ],
+        "title": "Health"
+      },
+      "ImageContext": {
+        "properties": {
+          "image": {
+            "$ref": "#/components/schemas/ImageItem"
+          },
+          "previous_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Id"
+          },
+          "next_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Id"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image",
+          "previous_id",
+          "next_id",
+          "index",
+          "revision"
+        ],
+        "title": "ImageContext"
+      },
+      "ImageItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "package_id": {
+            "type": "string",
+            "title": "Package Id"
+          },
+          "rel": {
+            "type": "string",
+            "title": "Rel"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "mtime_ns": {
+            "type": "integer",
+            "title": "Mtime Ns"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "animated": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Animated"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "group_id",
+          "package_id",
+          "rel",
+          "name",
+          "size",
+          "mtime_ns",
+          "width",
+          "height",
+          "animated",
+          "error"
+        ],
+        "title": "ImageItem"
+      },
+      "IncompletePackage": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "title": "Package Id"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "images": {
+            "type": "integer",
+            "title": "Images"
+          },
+          "declared_bytes": {
+            "type": "integer",
+            "title": "Declared Bytes"
+          },
+          "declared_images": {
+            "type": "integer",
+            "title": "Declared Images"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package_id",
+          "bytes",
+          "images",
+          "declared_bytes",
+          "declared_images"
+        ],
+        "title": "IncompletePackage"
+      },
+      "Library": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "online": {
+            "type": "boolean",
+            "title": "Online"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "scan_status": {
+            "type": "string",
+            "title": "Scan Status"
+          },
+          "last_scan": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Scan"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "path",
+          "online",
+          "revision",
+          "scan_status",
+          "last_scan",
+          "error"
+        ],
+        "title": "Library"
+      },
+      "LibraryCreate": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "LibraryCreate"
+      },
+      "MigrationResult": {
+        "properties": {
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "images": {
+            "type": "integer",
+            "title": "Images"
+          },
+          "legacy_hash_rows": {
+            "type": "integer",
+            "title": "Legacy Hash Rows"
+          },
+          "snapshot": {
+            "type": "string",
+            "title": "Snapshot"
+          },
+          "legacy_thumbs": {
+            "type": "string",
+            "title": "Legacy Thumbs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "library_id",
+          "images",
+          "legacy_hash_rows",
+          "snapshot",
+          "legacy_thumbs"
+        ],
+        "title": "MigrationResult"
+      },
+      "Operation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "target_id": {
+            "type": "string",
+            "title": "Target Id"
+          },
+          "target_kind": {
+            "type": "string",
+            "title": "Target Kind"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created": {
+            "type": "number",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "number",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "target_id",
+          "target_kind",
+          "path",
+          "mode",
+          "state",
+          "error",
+          "created",
+          "updated"
+        ],
+        "title": "Operation"
+      },
+      "Package": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "directory_id": {
+            "type": "string",
+            "title": "Directory Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "rel": {
+            "type": "string",
+            "title": "Rel"
+          },
+          "loose": {
+            "type": "boolean",
+            "title": "Loose"
+          },
+          "image_count": {
+            "type": "integer",
+            "title": "Image Count"
+          },
+          "cover_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "group_id",
+          "directory_id",
+          "name",
+          "rel",
+          "loose",
+          "image_count",
+          "cover_id"
+        ],
+        "title": "Package"
+      },
+      "PackageSimilarity": {
+        "properties": {
+          "left_id": {
+            "type": "string",
+            "title": "Left Id"
+          },
+          "right_id": {
+            "type": "string",
+            "title": "Right Id"
+          },
+          "left_match_rate": {
+            "type": "number",
+            "title": "Left Match Rate"
+          },
+          "right_match_rate": {
+            "type": "number",
+            "title": "Right Match Rate"
+          },
+          "left_coverage": {
+            "type": "number",
+            "title": "Left Coverage"
+          },
+          "right_coverage": {
+            "type": "number",
+            "title": "Right Coverage"
+          },
+          "evidence": {
+            "type": "string",
+            "const": "similarity",
+            "title": "Evidence"
+          },
+          "exact_verified": {
+            "type": "boolean",
+            "const": false,
+            "title": "Exact Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "left_id",
+          "right_id",
+          "left_match_rate",
+          "right_match_rate",
+          "left_coverage",
+          "right_coverage",
+          "evidence",
+          "exact_verified"
+        ],
+        "title": "PackageSimilarity"
+      },
+      "Page_Directory_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Directory"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Directory]"
+      },
+      "Page_Group_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Group"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Group]"
+      },
+      "Page_ImageItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ImageItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[ImageItem]"
+      },
+      "Page_Operation_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Operation"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Operation]"
+      },
+      "Page_Package_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Package"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Package]"
+      },
+      "Page_Pair_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Pair"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Pair]"
+      },
+      "Page_Task_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "revision"
+        ],
+        "title": "Page[Task]"
+      },
+      "Pair": {
+        "properties": {
+          "left_id": {
+            "type": "string",
+            "title": "Left Id"
+          },
+          "right_id": {
+            "type": "string",
+            "title": "Right Id"
+          },
+          "distance": {
+            "type": "integer",
+            "title": "Distance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "left_id",
+          "right_id",
+          "distance"
+        ],
+        "title": "Pair"
+      },
+      "PositionChange": {
+        "properties": {
+          "image_id": {
+            "type": "string",
+            "title": "Image Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "image_id"
+        ],
+        "title": "PositionChange"
+      },
+      "PrewarmJob": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "prewarm",
+            "title": "Kind"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "package_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Id"
+          },
+          "edge": {
+            "type": "integer",
+            "enum": [
+              400,
+              800,
+              1600,
+              2560,
+              4200
+            ],
+            "title": "Edge",
+            "default": 400
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "PrewarmJob"
+      },
+      "PrewarmResult": {
+        "properties": {
+          "generated_or_cached": {
+            "type": "integer",
+            "title": "Generated Or Cached"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "generated_or_cached",
+          "failed"
+        ],
+        "title": "PrewarmResult"
+      },
+      "Review": {
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "title": "Group Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "kept",
+              "marked"
+            ],
+            "title": "State"
+          },
+          "image_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Id"
+          },
+          "updated": {
+            "type": "number",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "group_id",
+          "state",
+          "image_id",
+          "updated"
+        ],
+        "title": "Review"
+      },
+      "ReviewChange": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "kept",
+              "marked"
+            ],
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "ReviewChange"
+      },
+      "ScanJob": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "scan",
+            "title": "Kind"
+          },
+          "library_id": {
+            "type": "string",
+            "title": "Library Id"
+          },
+          "directory_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directory Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "library_id"
+        ],
+        "title": "ScanJob"
+      },
+      "ScanResult": {
+        "properties": {
+          "online": {
+            "type": "boolean",
+            "title": "Online"
+          },
+          "directories": {
+            "type": "integer",
+            "title": "Directories",
+            "default": 0
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files",
+            "default": 0
+          },
+          "failed_directories": {
+            "type": "integer",
+            "title": "Failed Directories",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "online"
+        ],
+        "title": "ScanResult"
+      },
+      "ShellPackage": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "title": "Package Id"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/AuditImage"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "verified": {
+            "type": "boolean",
+            "title": "Verified"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package_id",
+          "images",
+          "bytes",
+          "verified"
+        ],
+        "title": "ShellPackage"
+      },
+      "Task": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "paused",
+              "cancelling",
+              "cancelled",
+              "completed",
+              "failed",
+              "interrupted"
+            ],
+            "title": "State"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanResult"
+              },
+              {
+                "$ref": "#/components/schemas/BuildResult"
+              },
+              {
+                "$ref": "#/components/schemas/AnalyzeResult"
+              },
+              {
+                "$ref": "#/components/schemas/CompareResult"
+              },
+              {
+                "$ref": "#/components/schemas/PrewarmResult"
+              },
+              {
+                "$ref": "#/components/schemas/CacheResult"
+              },
+              {
+                "$ref": "#/components/schemas/MigrationResult"
+              },
+              {
+                "$ref": "#/components/schemas/DeleteResult"
+              },
+              {
+                "$ref": "#/components/schemas/AuditResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created": {
+            "type": "number",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "number",
+            "title": "Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "payload",
+          "progress",
+          "total",
+          "current",
+          "error",
+          "created",
+          "updated"
+        ],
+        "title": "Task"
+      },
+      "TaskControl": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "pause",
+              "resume",
+              "cancel"
+            ],
+            "title": "Action"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "TaskControl"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

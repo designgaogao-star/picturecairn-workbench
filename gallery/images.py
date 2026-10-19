@@ -1,0 +1,194 @@
+"""Fixed-size, versioned derivatives with bounded cold reads and decode memory."""
+
+import hashlib
+import json
+import os
+import shutil
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from PIL import Image, ImageCms, ImageOps
+
+from gallery.jobs import Busy
+
+EDGES = (400, 800, 1600, 2560, 4200)
+PIPELINE = 'pillow-srgb-exif-alpha-v1'
+
+
+class Images:
+    def __init__(self, catalog, access, resources, settings):
+        self.catalog, self.access, self.resources, self.settings = catalog, access, resources, settings
+        self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='gallery-image')
+        self.slots = threading.BoundedSemaphore(64)
+        self.lock = threading.RLock()
+        self.pending = {}
+        self.stopping = threading.Event()
+        self.generation_locks = [threading.Lock() for _ in range(64)]
+        self.cache_pressure = lambda: None
+        self.generated = 0
+
+    def key(self, image, edge):
+        return hashlib.sha256(f"{image['id']}|{image['size']}|{image['mtime_ns']}|{edge}|{PIPELINE}".encode()).hexdigest()
+
+    def cached(self, key):
+        entry = self.catalog.one('SELECT * FROM cache_entries WHERE key=?', (key,))
+        if entry and Path(entry['path']).is_file():
+            if time.time() - entry['accessed'] > 60:
+                self.catalog.execute('UPDATE cache_entries SET accessed=? WHERE key=?', (time.time(), key))
+            return Path(entry['path'])
+        return None
+
+    def get(self, image_id, edge):
+        image = self.catalog.entity('files', image_id)
+        if not image or not image['is_image'] or not image['present']:
+            raise FileNotFoundError('Image not found')
+        if edge not in EDGES:
+            raise ValueError('Unsupported image size')
+        key = self.key(image, edge)
+        cached = self.cached(key)
+        if cached:
+            return cached
+        with self.lock:
+            future = self.pending.get(key)
+            if future is None:
+                if self.stopping.is_set() or not self.slots.acquire(blocking=False):
+                    raise Busy('Image queue is full')
+                future = self.pool.submit(self.generate, image, edge, key)
+                self.pending[key] = future
+                future.add_done_callback(lambda _f: self._finish(key))
+        return future.result()
+
+    def _finish(self, key):
+        with self.lock:
+            self.pending.pop(key, None)
+            self.slots.release()
+
+    def _check(self):
+        if self.stopping.is_set():
+            raise Busy('Image service is stopping')
+
+    def generate(self, image, edge, key, context=None):
+        with self.generation_locks[int(key[:2], 16) % 64]:
+            return self._generate(image, edge, key, context)
+
+    def _generate(self, image, edge, key, context=None):
+        cached = self.cached(key)
+        if cached:
+            return cached
+        checkpoint = context.check if context else self._check
+        checkpoint()
+        legacy = self._reuse_legacy(image, edge, key)
+        if legacy:
+            return legacy
+        path = self.access.path(image)
+        cache_dir = self.settings.data / 'derivatives' / key[:2]
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        target = cache_dir / (key + '.webp')
+        try:
+            with self.resources.io(path, foreground=context is None, checkpoint=checkpoint):
+                stat = path.stat()
+                if (stat.st_size, stat.st_mtime_ns) != (image['size'], image['mtime_ns']):
+                    raise ValueError('Image changed; refresh the library')
+                with Image.open(path) as opened:
+                    width, height = opened.size
+                    animated = bool(getattr(opened, 'is_animated', False))
+                    orientation = opened.getexif().get(274, 1)
+                    if orientation in (5, 6, 7, 8):
+                        width, height = height, width
+                    opened.draft('RGB', (edge, edge))
+                    estimate = opened.width * opened.height * 8 + edge * edge * 8
+                    with self.resources.decode(estimate, checkpoint):
+                        frame = ImageOps.exif_transpose(opened)
+                        frame.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+                        profile = frame.info.get('icc_profile')
+                        if profile:
+                            import io
+                            try:
+                                source = ImageCms.ImageCmsProfile(io.BytesIO(profile))
+                                frame = ImageCms.profileToProfile(frame, source, ImageCms.createProfile('sRGB'),
+                                                                  outputMode='RGBA' if 'A' in frame.getbands() else 'RGB')
+                            except (ImageCms.PyCMSError, OSError):
+                                pass
+                        if frame.mode not in ('RGB', 'RGBA'):
+                            frame = frame.convert('RGBA' if 'transparency' in frame.info else 'RGB')
+                        temporary = target.with_suffix('.tmp')
+                        frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=3)
+                        os.replace(temporary, target)
+            self.catalog.execute('UPDATE files SET width=?,height=?,animated=?,error=NULL WHERE id=? AND mtime_ns=?',
+                                 (width, height, int(animated), image['id'], image['mtime_ns']))
+            self.catalog.execute('INSERT OR REPLACE INTO cache_entries VALUES(?,?,?,?)',
+                                 (key, str(target), target.stat().st_size, time.time()))
+            self.generated += 1
+            if self.generated % 64 == 0:
+                self.cache_pressure()
+            return target
+        except (OSError, ValueError, Image.DecompressionBombError) as exc:
+            self.catalog.execute('UPDATE files SET error=? WHERE id=?', (str(exc), image['id']))
+            raise
+
+    def _reuse_legacy(self, image, edge, key):
+        if Path(image['name']).suffix.lower() not in ('.jpg', '.jpeg') or not image['mtime_ns']:
+            return None
+        library = self.catalog.entity('libraries', image['library_id'])
+        target = str(Path(library['path']) / image['rel'])
+        for imported in self.catalog.rows('SELECT report FROM imports'):
+            report = json.loads(imported['report'])
+            if report['library_id'] != image['library_id']:
+                continue
+            for quality in (72, 80, 84):
+                old_key = hashlib.md5(f"{target}|{image['mtime_ns']}|{image['size']}|{edge}|{quality}".encode()).hexdigest()
+                old_path = Path(report['legacy_thumbs']) / (old_key + '.jpg')
+                if old_path.is_file():
+                    destination = self.settings.data / 'derivatives' / key[:2] / (key + '.jpg')
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(old_path, destination)
+                    self.catalog.execute('INSERT OR REPLACE INTO cache_entries VALUES(?,?,?,?)',
+                                         (key, str(destination), destination.stat().st_size, time.time()))
+                    self.cache_pressure()
+                    return destination
+        return None
+
+    def prewarm(self, context, payload):
+        scope, scope_id = ('package_id', payload['package_id']) if payload.get('package_id') else ('group_id', payload['group_id'])
+        total = self.catalog.one(f'SELECT COUNT(*) n FROM files WHERE {scope}=? AND present=1 AND is_image=1', (scope_id,))['n']
+        last, done, failed = '', 0, 0
+        while True:
+            rows = self.catalog.rows(f'SELECT * FROM files WHERE {scope}=? AND id>? AND present=1 AND is_image=1 '
+                                     'ORDER BY id LIMIT 100', (scope_id, last))
+            if not rows:
+                break
+            for image in rows:
+                context.check()
+                try:
+                    self.generate(image, payload.get('edge', 400), self.key(image, payload.get('edge', 400)), context)
+                except (OSError, ValueError):
+                    failed += 1
+                done += 1
+                context.update(done, total, image['name'])
+            last = rows[-1]['id']
+            self.collect(context)
+        return {'generated_or_cached': done - failed, 'failed': failed}
+
+    def collect(self, context=None, _payload=None):
+        total = self.catalog.one('SELECT COALESCE(SUM(size),0) n FROM cache_entries')['n']
+        removed = 0
+        if total > self.settings.cache_limit:
+            for entry in self.catalog.rows('SELECT * FROM cache_entries ORDER BY accessed'):
+                if context:
+                    context.check()
+                if total <= self.settings.cache_limit * .85:
+                    break
+                try:
+                    Path(entry['path']).unlink(missing_ok=True)
+                except OSError:
+                    continue
+                self.catalog.execute('DELETE FROM cache_entries WHERE key=?', (entry['key'],))
+                total -= entry['size']
+                removed += 1
+        return {'bytes': total, 'removed': removed, 'limit': self.settings.cache_limit}
+
+    def stop(self):
+        self.stopping.set()
+        self.pool.shutdown(wait=True, cancel_futures=True)

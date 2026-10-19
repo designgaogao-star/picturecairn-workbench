@@ -1,15 +1,21 @@
 {
   "name": "gallery-tool",
-  "version": "0.4.0",
+  "version": "2.0.0",
   "private": true,
   "description": "本地图片浏览与去重工具",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "pwsh -NoProfile -File scripts/build.ps1"
+    "build": "pwsh -NoProfile -File scripts/build.ps1",
+    "contract": "uv run python scripts/export_contract.py && openapi-typescript contracts/openapi.json -o contracts/schema.d.ts",
+    "check": "tsc -p contracts/tsconfig.json --noEmit",
+    "prepare": "node scripts/prepare-icons.mjs"
   },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "44.9.0",
+    "lucide": "1.59.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
   }
 }

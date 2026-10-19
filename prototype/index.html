@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>图库</title><link rel="stylesheet" href="/style.css">
+  <script src="/lucide.js" defer></script><script src="/app.js" defer></script>
+</head>
+<body>
+  <aside id="sidebar">
+    <header><strong>图库</strong><button id="add-library" title="添加图库" aria-label="添加图库"><i data-lucide="folder-plus"></i></button></header>
+    <select id="libraries" aria-label="图库"></select>
+    <div class="filters"><select id="mark-filter" aria-label="整理状态"><option value="">全部状态</option><option value="none">未标记</option><option value="kept">保留</option><option value="marked">待整理</option></select><button id="scan" title="刷新索引" aria-label="刷新索引"><i data-lucide="refresh-cw"></i></button></div>
+    <nav id="groups" aria-label="文件夹"></nav>
+    <div class="pager"><button id="group-prev" title="上一页"><i data-lucide="chevron-left"></i></button><span id="group-count"></span><button id="group-next" title="下一页"><i data-lucide="chevron-right"></i></button></div>
+    <footer><span id="library-status"></span><button id="tasks-toggle" title="后台任务" aria-label="后台任务"><i data-lucide="list-checks"></i></button></footer>
+  </aside>
+  <main>
+    <div id="toolbar">
+      <button id="back" title="图包墙" aria-label="图包墙"><i data-lucide="layout-grid"></i></button>
+      <div class="breadcrumb"><strong id="title">图库</strong><span id="subtitle"></span></div>
+      <div id="marks" class="segment"><button data-mark="none" title="未标记"><i data-lucide="circle"></i></button><button data-mark="kept" title="保留"><i data-lucide="check"></i></button><button data-mark="marked" title="待整理"><i data-lucide="flag"></i></button></div>
+      <select id="job-kind" aria-label="后台操作"><option value="prewarm">生成封面</option><option value="build">建立相似索引</option><option value="analyze">分析相似图片</option><option value="audit">检查空壳与广告图</option></select>
+      <button id="job-start" title="开始任务" aria-label="开始任务"><i data-lucide="play"></i></button>
+      <button id="resume" title="继续浏览" aria-label="继续浏览"><i data-lucide="history"></i></button>
+    </div>
+    <div id="notice" role="status" hidden></div>
+    <section id="wall" aria-label="图包"><div id="wall-space"></div></section>
+    <section id="viewer" hidden aria-label="单张图片">
+      <div id="image-stage"><img id="picture" alt="" draggable="false"></div>
+      <div id="viewer-controls">
+        <button id="previous" title="上一张" aria-label="上一张"><i data-lucide="chevron-left"></i></button>
+        <span id="image-name"></span>
+        <button id="next" title="下一张" aria-label="下一张"><i data-lucide="chevron-right"></i></button>
+        <span class="divider"></span>
+        <button id="zoom-out" title="缩小" aria-label="缩小"><i data-lucide="zoom-out"></i></button>
+        <button id="fit" title="适应窗口" aria-label="适应窗口"><i data-lucide="scan"></i></button>
+        <button id="zoom-in" title="放大" aria-label="放大"><i data-lucide="zoom-in"></i></button>
+        <button id="rotate" title="旋转" aria-label="旋转"><i data-lucide="rotate-cw"></i></button>
+        <button id="fullscreen" title="全屏" aria-label="全屏"><i data-lucide="maximize"></i></button>
+        <button id="original" title="原图" aria-label="原图"><i data-lucide="image"></i></button>
+        <button id="remove-image" title="移至回收站" aria-label="移至回收站"><i data-lucide="trash-2"></i></button>
+      </div>
+      <div id="film" aria-label="胶片条"></div>
+    </section>
+    <section id="tasks-panel" hidden><header><strong>后台任务</strong><button id="tasks-close" title="关闭"><i data-lucide="x"></i></button></header><div id="tasks"></div></section>
+    <div id="empty" hidden>暂无图片</div>
+  </main>
+  <dialog id="library-dialog"><form id="library-form"><h2>添加图库</h2><label>目录<input id="library-path" required autocomplete="off"></label><label>名称<input id="library-name" autocomplete="off"></label><div class="dialog-actions"><button type="button" id="library-cancel">取消</button><button type="submit">添加</button></div></form></dialog>
+</body>
+</html>

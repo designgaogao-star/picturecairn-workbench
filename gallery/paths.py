@@ -10,6 +10,8 @@
 
 import os
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 
 # 【打包后必须区分代码、资源和数据】
 #   APP_DIR = 可执行程序目录
@@ -81,3 +83,23 @@ def describe():
 
 if __name__ == "__main__":
     print(describe())
+
+
+@dataclass(frozen=True)
+class Settings:
+    data: Path
+    resources: Path = Path(RES_DIR)
+    root: Path | None = None
+    legacy: Path | None = None
+    cache_limit: int = 12 * 1024**3
+    watch: bool = True
+    scan_on_start: bool = True
+    desktop_token: str | None = None
+
+    @classmethod
+    def environment(cls):
+        default = Path(os.environ.get('LOCALAPPDATA', Path.home() / '.local' / 'share')) / 'GalleryTool'
+        return cls(data=Path(os.environ.get('GALLERY_DATA') or default),
+                   root=Path(os.environ['GALLERY_ROOT']) if os.environ.get('GALLERY_ROOT') else None,
+                   legacy=Path(os.environ['GALLERY_LEGACY']) if os.environ.get('GALLERY_LEGACY') else None,
+                   desktop_token=os.environ.get('GALLERY_DESKTOP_TOKEN'))
