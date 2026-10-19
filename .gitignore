@@ -1,0 +1,49 @@
+# ---- 程序产物（可再生，别提交）----
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+dist_*/
+build-out/
+release*/
+node_modules/
+.pytest_cache/
+.ruff_cache/
+tests/_shots/
+.playwright-cli/
+output/
+.venv/
+venv/
+
+# ---- 运行时数据（都是本机生成的，含隐私路径）----
+cache/
+thumbs/
+*.db
+*.db-wal
+*.db-shm
+review_state.json*
+folders_meta.json*
+config.json
+marks.json
+server.log
+*.log
+*.jsonl
+
+# ---- 备份文件 ----
+*.bak
+*.bak-*
+*.probe-backup
+*.diag-backup
+*.huskui-backup
+*.shot-backup
+_r.txt
+
+# ---- 整理报告（含真实文件名，不要公开）----
+图库整理报告*.html
+整包去重清单*.md
+
+# ---- 系统 ----
+.DS_Store
+Thumbs.db
+desktop.ini

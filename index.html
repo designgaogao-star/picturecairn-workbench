@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-ver="FE_VER_MARK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GalleryTool</title>
+<link rel="stylesheet" href="/ui/base.css">
+<link rel="stylesheet" href="/ui/layout.css">
+<link rel="stylesheet" href="/ui/panels.css">
+</head>
+<body>
+<div id="offline" style="position:fixed;top:0;left:0;right:0;background:#7a2b2b;color:#fff;text-align:center;font-size:12px;padding:6px;z-index:999;display:none">⚠ 本地服务已断开，正在重连…（若一直显示，请双击「启动图库预览.bat」）</div>
+<div id="app">
+  <!-- 侧栏 -->
+  <aside id="sidebar">
+    <div id="side-head">
+      <h1>图库审查台</h1>
+      <div id="rootPath"></div>
+      <div class="controls">
+        <input type="text" id="search" placeholder="搜索文件夹名…">
+        <select id="catFilter"><option value="">全分类</option><option value="R18">R18</option><option value="R16">R16</option><option value="非R18">非R18</option><option value="其他">其他</option></select>
+        <select id="stateFilter"><option value="">全部状态</option><option value="unreviewed">未看</option><option value="kept">保留</option><option value="marked">待删</option></select>
+      </div>
+      <div class="row2"><div id="progressWrap"><div id="progressBar"></div></div><span id="progressTxt"></span><span id="markedStat"></span></div>
+    </div>
+    <div id="folderList"></div>
+    <div id="side-foot">
+      <button id="purgeBtn">🗑 删除待删</button>
+      <button id="rescanBtn">重扫体积</button>
+      <button id="clearBtn">清空标记</button>
+      <button id="prewarmBtn" title="提前生成封面缩略图，切换图包就不再等加载">⚡ 预热</button>
+      <button id="thumbGcBtn" title="清理过大的缩略图缓存（只删缓存、不碰原图）">清缩略图</button>
+      <button id="helpBtn">快捷键 ?</button>
+    </div>
+  </aside>
+
+  <!-- 查看区 -->
+  <main id="viewer">
+    <div id="v-head">
+      <div id="v-title">未选择文件夹</div>
+      <div id="v-file"></div>
+      <div id="zoomInfo"></div>
+      <div class="seg"><button id="viewGrid">图包</button><button id="viewSingle">单张</button></div>
+      <button class="chip" id="huskBtn" hidden title="空壳 / 残缺 / 夹广告图的图包">🧹 <span id="huskCnt">0</span></button>
+      <button class="chip" id="pkBtn" hidden title="整包重复：打开对比，看完再决定删不删">⇄ <span id="pkCnt">0</span></button>
+      <button class="chip" id="btnKept">✓ 保留</button>
+      <button class="chip" id="btnMarked">✕ 待删</button>
+    </div>
+
+    <div id="stage">
+      <div id="emptyHint">← 从左侧选择文件夹，或按 <b>N</b> 开始<br><br>
+        点开先看<b>图包封面墙</b>，点封面进入图包<br>
+        <b>← →</b> 图包内翻图（或滚动滚轮）· <b>空格</b>下一图包 · <b>Tab</b>上一图包<br>
+        <b>Ctrl+滚轮</b> 缩放 · <b>R</b>旋转 · <b>双击</b>1:1 · <b>F</b>全屏 · <b>H</b>胶片 · <b>?</b>全部快捷键
+      </div>
+
+      <!-- 图包墙（虚拟） -->
+      <div id="wall"><div id="wallSpacer"><div id="wallTape"></div></div></div>
+
+      <!-- 单张 -->
+      <div id="singleView">
+        <div id="mediaStage"><div id="mediaHost"></div></div>
+        <div class="hit" id="hitPrev">‹</div>
+        <div class="hit" id="hitNext">›</div>
+        <div id="zoomBar">
+          <button id="zOut" title="缩小 (-)">−</button>
+          <span class="zlbl" id="zLbl">适应</span>
+          <button id="zIn" title="放大 (+)">＋</button>
+          <button id="zReset" title="复位 (0)">1:1↺</button>
+          <button id="zRot" title="旋转 (R)">⟳</button>
+        </div>
+        <div id="filmstrip"><div id="filmScroller"><div id="filmSpacer"><div id="filmTape"></div></div></div></div>
+      </div>
+
+      <div id="toast"></div>
+    </div>
+
+    <div id="v-bar">
+      <button id="prevFolderBtn" title="上一文件夹 (P)">‹ 文件夹</button>
+      <button id="prevAlbumBtn" title="上一图包 (Tab)">‹ 图包</button>
+      <button id="prevBtn">‹</button>
+      <span id="counter">– / –</span>
+      <input type="number" id="jump" min="1" placeholder="#"><button id="goBtn">跳转</button>
+      <button id="nextBtn">›</button>
+      <button id="nextAlbumBtn" title="下一图包 (空格)">图包 ›</button>
+      <button id="nextFolderBtn" title="下一文件夹 (N)">文件夹 ›</button>
+      <span class="sep"></span>
+      <button id="filmBtn" title="胶片条 (H)">胶片</button>
+      <button id="fsBtn" title="全屏 (F)">全屏</button>
+      <button id="dupBtn" title="重复对裁决 (D)">去重</button>
+      <span class="sep"></span>
+      <button class="ok" id="keepNextBtn" title="保留并下一文件夹 (K)">✓ 保留 K</button>
+      <button class="del" id="markNextBtn" title="待删并下一文件夹 (X)">✕ 待删 X</button>
+    </div>
+  </main>
+</div>
+
+<!-- 全屏（#mediaHost 会在进入时迁移到 #lbStage，退出迁回，避免重复加载） -->
+<div id="lightbox">
+  <div id="lbStage"></div>
+  <div id="lbTip">Esc / F 退出 · 滚轮缩放 · 双击复位 · ← → 翻图</div>
+  <div id="lbBar">
+    <button id="lbPrev" title="上一张">‹</button><button id="lbRot" title="旋转">⟳</button>
+    <button id="lbZOut">−</button><span class="lbl" id="lbLbl"></span><button id="lbZIn">＋</button>
+    <button id="lbNext" title="下一张">›</button><button id="lbClose" title="退出">✕</button>
+  </div>
+</div>
+
+<!-- 预热缩略图 -->
+<div id="pw"><div class="box">
+  <h2>预热缩略图</h2>
+  <div class="hint">把封面和单张预览提前生成到缓存目录（<code>thumbs/</code>，重启也还在）。
+    注意：生成一张必须把<b>整张原图读进来解码</b>，实测中位 163ms/张 ——
+    「当前组」连单张预览一起做，几百张约 1–4 分钟；「未判定组」只生成封面，约 1.5–3 小时。
+    后台跑，不影响你继续浏览。</div>
+  <div class="row">
+    <button class="chip" id="pwGroup">预热当前组</button>
+    <button class="chip" id="pwUnrev">预热全部未判定组</button>
+  </div>
+  <div id="pwProg">空闲</div>
+  <div class="close">
+    <button class="chip" id="pwStop">停止</button>
+    <button class="chip" id="pwClose">关闭</button>
+  </div>
+</div></div>
+
+<!-- 重复对裁决（B 级）—— 左右并排，键盘裁决，一次一个键 -->
+<div id="dup"><div class="box">
+  <div class="dupTop">
+    <h2>重复对裁决</h2>
+    <span id="dupProg">–</span>
+    <button class="chip" id="dupClose">关闭 (Esc)</button>
+  </div>
+  <div id="dupHint" class="hint"></div>
+  <div id="dupCov" class="hint dupCov">
+    <span id="dupCovTxt"></span>
+    <button class="chip" id="dupBuild" hidden>补索引（后台，可边跑边看图）</button>
+  </div>
+  <div class="dupPair">
+    <figure id="dupL"><img alt=""><figcaption></figcaption></figure>
+    <figure id="dupR"><img alt=""><figcaption></figcaption></figure>
+  </div>
+  <div id="dupWhy"></div>
+  <div class="dupKeys">
+    <button class="chip" id="dupKeepL">删右 · 留左 (2)</button>
+    <button class="chip" id="dupKeepR">删左 · 留右 (1)</button>
+    <button class="chip" id="dupSkip">两个都留 (3)</button>
+    <span class="sep"></span>
+    <button class="chip" id="dupPrev">‹ 上一对</button>
+    <button class="chip" id="dupNext">下一对 ›</button>
+  </div>
+</div></div>
+
+<!-- 图包对比（删整包前的肉眼复核）—— 左右两个包并排，先看再删 -->
+<div id="pkgdup"><div class="box">
+  <div class="pkTop">
+    <h2>图包对比</h2>
+    <span id="pkProg">–</span>
+    <button class="chip" id="pkClose">关闭 (Esc)</button>
+  </div>
+  <div id="pkHint" class="hint" style="color:var(--dim);font-size:12.5px;margin-bottom:12px">
+    左=建议保留 · 右=建议删除。看完缩略图和「删掉会丢」那一行再按键。</div>
+  <div class="pkPair">
+    <figure id="pkL"><figcaption></figcaption></figure>
+    <figure id="pkR"><figcaption></figcaption></figure>
+  </div>
+  <div id="pkWhy"></div>
+  <div class="pkKeys">
+    <button class="chip" id="pkKeepL">删右 · 留左 (2)</button>
+    <button class="chip" id="pkKeepR">删左 · 留右 (1)</button>
+    <button class="chip" id="pkSkip">两个都留 (3)</button>
+    <span class="sep"></span>
+    <button class="chip" id="pkPrev">‹ 上一对</button>
+    <button class="chip" id="pkNext">下一对 ›</button>
+  </div>
+</div></div>
+
+<!-- 帮助 -->
+<div id="help"><div class="box">
+  <h2>快捷键</h2>
+  <div class="grid">
+    <div><kbd>←</kbd>/<kbd>→</kbd> 当前图包内上/下一张</div>
+    <div><kbd>Home</kbd>/<kbd>End</kbd> 本图包首/末张</div>
+    <div><kbd>空格</kbd> 下一图包　<kbd>Tab</kbd> 上一图包</div>
+    <div><kbd>G</kbd> 图包墙 / 单张 切换</div>
+    <div><kbd>Enter</kbd> 封面墙进入选中图包</div>
+    <div><kbd>P</kbd>/<kbd>N</kbd> 上/下一个文件夹</div>
+    <div><kbd>滚轮</kbd> 上一张 / 下一张</div>
+    <div><kbd>Ctrl</kbd>+<kbd>滚轮</kbd> 以光标为中心缩放</div>
+    <div><kbd>+</kbd>/<kbd>-</kbd> 缩放　<kbd>0</kbd> 复位</div>
+    <div><kbd>R</kbd> 旋转 90°　双击 适应⇄1:1</div>
+    <div><kbd>F</kbd> 全屏　<kbd>H</kbd> 胶片条</div>
+    <div><kbd>K</kbd> <span style="color:var(--ok)">保留</span>并下一文件夹</div>
+    <div><kbd>X</kbd> <span style="color:var(--danger)">待删</span>并下一文件夹</div>
+  </div>
+  <div style="margin-top:10px;color:var(--dim);font-size:12px">标记与浏览位置自动存盘，关掉重开可续审；删除需你最终确认后由助手执行。</div>
+  <div class="close"><button class="chip" id="helpClose">关闭</button></div>
+</div></div>
+
+<script src="/ui/00-core.js"></script>
+<script src="/ui/40-view.js"></script>
+<script src="/ui/60-dedup-pkg.js"></script>
+<script src="/ui/61-dedup-pair.js"></script>
+<script src="/ui/62-pkg-compare.js"></script>
+<script src="/ui/70-wall.js"></script>
+<script src="/ui/90-shell.js"></script>
+</body>
+</html>

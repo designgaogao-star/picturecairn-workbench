@@ -1,0 +1,15 @@
+{
+  "name": "gallery-tool",
+  "version": "0.4.0",
+  "private": true,
+  "description": "本地图片浏览与去重工具",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "pwsh -NoProfile -File scripts/build.ps1"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}
