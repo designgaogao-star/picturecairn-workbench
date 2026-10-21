@@ -19,6 +19,10 @@ uv run python -m gallery --port 8765
 
 默认数据位于 `%LOCALAPPDATA%\GalleryTool`。`GALLERY_DATA` 可指定其他本地数据目录；原图留在注册的图库根目录中。
 
+本机正式运行通过被 Git 忽略的 runtime.local.json 指定独立数据目录和已验证的桌面包。`启动图库.bat` 打开桌面，`启动图库预览.bat` 打开同一后台服务的浏览器页面，`停止图库服务.bat` 正常停止后台。动态端口会由脚本读取和展示，不能假定为 8765。桌面保存上次路由，重启后跨端口恢复。
+
+runtime.local.json 支持 dataDirectory、backendPath、desktopPath；启动脚本显式参数优先于配置，GALLERY_DATA 优先于 dataDirectory。便携 exe 可从相邻的 GalleryTool.local.json 读取 dataDirectory；本机配置不进入 ZIP 或 Git。自行启动的桌面后端随桌面退出；复用脚本启动的后台服务时，用停止脚本结束它。
+
 ```powershell
 # 独立临时数据，避免与已经运行的桌面程序争用同一数据库
 # 动态端口在 GALLERY_READY 输出和 ready.json 中，不占用其他程序的端口
@@ -69,6 +73,8 @@ pwsh -NoProfile -File scripts/build.ps1
 
 本机迁移核对、性能实测与桌面验收见 [V2 Review 与验收](docs/review-v2-20261020.md)。
 
+正式前端接入、全库 215,243 张图片核对与当前运行入口见 [正式图库落地与验收](docs/review-live-20261022.md)。
+
 ## 数据迁移
 
 ```powershell
@@ -78,3 +84,7 @@ uv run python -m gallery --root F:\图库 --legacy F:\图库\_gallery_tool --dat
 迁移在后台执行，先使用 SQLite backup 获取一致快照，并保留原始浏览记录与删除日志。旧下标转换为图片 ID，旧哈希注明算法来源，不与新规范的哈希混用；兼容的旧 JPEG 缩略图按需复制复用。重复迁移同一来源返回原报告，不覆盖已有用户状态。
 
 目录离线不清空索引；任务中断保留已提交的数据。永久删除必须明确传入 `confirm_permanent: true`。相似度与空壳报告是判断证据，完全重复结论需要 SHA-256 遍历图包内所有文件，包括隐藏文件和非图片文件。
+
+已运行 V2 的数据可用 `python scripts/prepare_live_data.py <旧数据目录> <新目录>` 建立独立副本：SQLite backup 获取一致索引，复制并改写缓存路径，保留位置和日志，不修改来源。`python -m scripts.verify_library --data <新目录> --report output/verification.json` 独立只读遍历原图目录，检查索引是否完整。全量加载指全部图片进入持久索引，预览按需生成，不会一次解码全部图片。
+
+`--no-scan` 同时禁止启动和定期扫描，`--no-watch` 禁止监听；维护间隔可用 `--maintenance-interval <秒>` 配置。只读排查仍应使用独立数据副本。

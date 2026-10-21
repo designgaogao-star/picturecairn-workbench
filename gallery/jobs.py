@@ -81,6 +81,9 @@ class Context:
         self.paused = threading.Event()
         self.last_update = 0
         self.progress = 0
+        self.total = None
+        self.current = ''
+        self.partial_result = None
         self.started = False
 
     def check(self):
@@ -90,16 +93,20 @@ class Context:
         if self.cancel.is_set() or self.manager.stopping.is_set():
             raise Cancelled()
 
-    def update(self, progress=None, total=None, current='', force=False):
-        self.check()
+    def update(self, progress=None, total=None, current=None, force=False):
         if progress is not None:
             self.progress = progress
+        if total is not None:
+            self.total = total
+        if current is not None:
+            self.current = current
+        self.check()
         now = time.monotonic()
         if not force and now - self.last_update < .25:
             return
         self.last_update = now
         self.manager.catalog.execute('UPDATE tasks SET progress=?,total=?,current=?,updated=? WHERE id=?',
-                                     (self.progress, total, current, time.time(), self.id))
+                                     (self.progress, self.total, self.current, time.time(), self.id))
         self.manager.events.publish('task', {'id': self.id})
 
     def io(self, path):
@@ -122,19 +129,40 @@ class Tasks:
             self.workers.append(worker)
             worker.start()
 
-    def submit(self, kind, payload, deduplicate=True):
+    def ensure_capacity(self):
+        if self.stopping.is_set() or self.queue.full():
+            raise Busy('Background queue is full or stopping')
+
+    def submit(self, kind, payload, deduplicate=True, trigger='user'):
         with self.lock:
-            if self.stopping.is_set() or self.queue.full():
+            if self.stopping.is_set():
                 raise Busy('Background queue is full or stopping')
             encoded = json.dumps(payload, sort_keys=True)
+            if deduplicate and kind == 'scan':
+                pending = self.catalog.rows("SELECT id,payload FROM tasks WHERE kind='scan' "
+                                            "AND state IN ('queued','paused') ORDER BY created")
+                for old in pending:
+                    if self.contexts.get(old['id']) and self.contexts[old['id']].started:
+                        continue
+                    previous = json.loads(old['payload'])
+                    if previous.get('library_id') != payload.get('library_id'):
+                        continue
+                    merged = {**previous, 'force': previous.get('force', False) or payload.get('force', False)}
+                    if previous.get('directory_id') != payload.get('directory_id'):
+                        merged.pop('directory_id', None)
+                    self.catalog.execute('UPDATE tasks SET payload=?,updated=? WHERE id=?',
+                                         (json.dumps(merged, sort_keys=True), time.time(), old['id']))
+                    self.events.publish('task', {'id': old['id']})
+                    return self.catalog.task(old['id'])
             if deduplicate:
                 old = self.catalog.one("SELECT id FROM tasks WHERE kind=? AND payload=? "
-                                       "AND state IN ('queued','running','paused')", (kind, encoded))
+                                       "AND state IN ('queued','running','paused')", (kind, encoded)) if kind != 'scan' else None
                 if old:
                     return self.catalog.task(old['id'])
+            self.ensure_capacity()
             task_id, now = new_id(), time.time()
-            self.catalog.execute('INSERT INTO tasks(id,kind,state,payload,created,updated) VALUES(?,?,?,?,?,?)',
-                                 (task_id, kind, 'queued', encoded, now, now))
+            self.catalog.execute('INSERT INTO tasks(id,kind,state,payload,created,updated,trigger) VALUES(?,?,?,?,?,?,?)',
+                                 (task_id, kind, 'queued', encoded, now, now, trigger))
             self.contexts[task_id] = Context(self, task_id)
             self.queue.put_nowait(task_id)
         self.events.publish('task', {'id': task_id})
@@ -143,14 +171,16 @@ class Tasks:
     def control(self, task_id, action):
         with self.lock:
             context = self.contexts.get(task_id)
-            if not context:
-                return self.catalog.task(task_id)
+            job = self.catalog.task(task_id)
+            allowed = {'pause': ('queued', 'running'), 'resume': ('paused',), 'cancel': ('queued', 'running', 'paused')}
+            if not context or action not in allowed or job['state'] not in allowed[action]:
+                raise ValueError('Task cannot perform this action in its current state')
             if action == 'cancel':
                 context.cancel.set()
                 context.paused.clear()
                 state = 'cancelling' if context.started else 'cancelled'
             elif action == 'pause':
-                if self.catalog.task(task_id)['kind'] == 'delete':
+                if job['kind'] == 'delete':
                     raise ValueError('Delete operations can be cancelled between items but cannot be paused')
                 context.paused.set()
                 state = 'paused'
@@ -167,13 +197,15 @@ class Tasks:
                 task_id = self.queue.get(timeout=.1)
             except queue.Empty:
                 continue
-            context = self.contexts[task_id]
+            with self.lock:
+                context = self.contexts[task_id]
+                context.started = True
+                job = self.catalog.task(task_id)
+                if not context.paused.is_set() and not context.cancel.is_set():
+                    self.catalog.execute("UPDATE tasks SET state='running',updated=? WHERE id=?", (time.time(), task_id))
             state, result, error = 'completed', None, None
             try:
-                context.started = True
                 context.check()
-                self.catalog.execute("UPDATE tasks SET state='running',updated=? WHERE id=?", (time.time(), task_id))
-                job = self.catalog.task(task_id)
                 result = self.handlers[job['kind']](context, job['payload'])
                 context.update(force=True)
             except Cancelled:
@@ -183,9 +215,12 @@ class Tasks:
                 logging.getLogger(__name__).exception('Job %s failed', task_id)
                 state, error = 'failed', str(exc)
             finally:
+                if context.partial_result is not None:
+                    result = context.partial_result
                 with self.lock:
-                    self.catalog.execute('UPDATE tasks SET state=?,result=?,error=?,updated=? WHERE id=?',
-                                         (state, json.dumps(result, ensure_ascii=False), error, time.time(), task_id))
+                    self.catalog.execute('UPDATE tasks SET state=?,result=?,error=?,updated=?,progress=?,total=?,current=? '
+                                         'WHERE id=?', (state, json.dumps(result, ensure_ascii=False), error, time.time(),
+                                                       context.progress, context.total, context.current, task_id))
                     self.contexts.pop(task_id, None)
                 self.queue.task_done()
                 self.events.publish('task', {'id': task_id})

@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
-import { client, describeError, isAbort, type Group, type ImageItem } from '../api';
+import { client, describeError, isAbort, rememberImages, type Group, type ImageItem } from '../api';
 import { Thumb } from '../components/Thumb';
 import { count } from '../lib/format';
 import { Icon } from '../lib/icons';
@@ -36,6 +36,7 @@ export function loadSamples(group: string, params = savedParams(group)) {
   client.request('get', '/api/v1/groups/{group_id}/samples', {
     params: { path: { group_id: group }, query: { count: params.count, seed: params.seed } }, signal: own.signal,
   }).then((items) => {
+    rememberImages(items);
     if (controller === own) samples.value = { group, ...params, items, error: null };
   }).catch((error) => {
     if (!isAbort(error) && controller === own) samples.value = { group, ...params, items: null, error: describeError(error) };

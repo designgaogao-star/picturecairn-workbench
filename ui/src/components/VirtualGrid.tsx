@@ -46,6 +46,7 @@ interface Props<T> {
 export function VirtualGrid<T>(props: Props<T>) {
   const { list, tile, height, gap = narrow.value ? 8 : 12, pad = narrow.value ? 12 : 16, keyOf, render, anchorKey, reveal, empty } = props;
   const scroller = useRef<HTMLDivElement>(null);
+  const frame = useRef(0);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [rows, setRows] = useState<[number, number]>([0, 0]);
   const anchor = useRef(anchors.get(anchorKey) ?? 0);
@@ -88,8 +89,10 @@ export function VirtualGrid<T>(props: Props<T>) {
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element || !size.width || !rowHeight) return;
+    cancelAnimationFrame(frame.current);
     if (total === null) { measure(); return; }
     if (!restored.current) restored.current = true;
+    anchor.current = Math.min(anchor.current, Math.max(0, total - 1));
     element.scrollTop = Math.floor(anchor.current / columns) * rowHeight;
     measure();
   }, [columns, rowHeight, total === null, anchorKey]);
@@ -105,7 +108,7 @@ export function VirtualGrid<T>(props: Props<T>) {
   }, [reveal, columns, rowHeight, total === null]);
 
   const overscan = 2;
-  const firstRow = Math.max(0, rows[0] - overscan);
+  const firstRow = Math.min(Math.max(0, rowCount - 1), Math.max(0, rows[0] - overscan));
   const lastRow = Math.min(Math.max(0, rowCount - 1), rows[1] + overscan);
 
   useEffect(() => {
@@ -114,11 +117,13 @@ export function VirtualGrid<T>(props: Props<T>) {
   }, [list, firstRow, lastRow, columns, size.width, list.version.value]);
   useEffect(() => () => list.release(consumer), [list]);
 
-  const frame = useRef(0);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   const onScroll = () => {
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(() => {
+      const element = scroller.current;
+      // Resize can dispatch scroll before ResizeObserver has updated the grid tracks.
+      if (!element || element.clientWidth !== size.width || element.clientHeight !== size.height) return;
       const first = measure();
       if (first !== undefined && restored.current && total !== null) {
         anchor.current = first * columns;

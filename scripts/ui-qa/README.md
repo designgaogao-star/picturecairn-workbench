@@ -25,3 +25,7 @@ npm run ui:qa -- --desktop <GalleryTool.exe绝对路径>
 删除先验证默认回收方式与永久删除确认约束，随后仅显式永久删除本轮生成的临时图片。不能传入真实图库路径，也不支持复用真实数据库。
 
 旧的 `%TEMP%/gallery-ui-qa/shoot/` 全量 QA 场景未整体迁入；本目录保存本轮工程收尾所需的独立回归，未携带旧 ID、数据副本或 `real.js`。
+
+## 真实图库只读检查
+
+`node scripts/ui-qa/inspect-live.mjs <后端地址> <非R18图包ID> [输出目录]` 只允许明确标记为非R18的分组，拦截全部非 GET，检查大图包顶部、中部、末页、刷新与窄屏锚点。默认输出为 output/playwright/live；截图会先禁用过渡、验证图片的 blur(32px)，再保存。不要把此入口用于 R18 内容，也不要提交输出数据。

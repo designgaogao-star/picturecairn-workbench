@@ -93,6 +93,8 @@ class Service:
         restore_pending_positions(self.catalog)
         self.catalog.execute("UPDATE tasks SET state='interrupted',error='Application stopped' "
                              "WHERE state IN ('queued','running','paused','cancelling')")
+        self.catalog.execute("UPDATE libraries SET scan_status=CASE WHEN scan_status='scanning' "
+                             "THEN 'interrupted' ELSE 'unscanned' END WHERE scan_status IN ('scanning','pending')")
         existing_libraries = self.catalog.libraries()
         self.tasks.start()
         if self.settings.legacy and self.settings.root:
@@ -105,7 +107,7 @@ class Service:
                 continue
             self.watcher.add(library)
             if self.settings.scan_on_start:
-                self.tasks.submit('scan', {'library_id': library['id'], 'force': True})
+                self.tasks.submit('scan', {'library_id': library['id'], 'force': True}, trigger='startup')
         self.maintenance = threading.Thread(target=self._maintain, daemon=True, name='gallery-maintenance')
         self.maintenance.start()
 
@@ -119,13 +121,15 @@ class Service:
 
     def _maintain(self):
         cycles = 0
-        while not self.stop_event.wait(600):
+        while not self.stop_event.wait(self.settings.maintenance_interval):
             cycles += 1
             try:
-                self.tasks.submit('collect', {})
-                for library in self.catalog.libraries():
-                    self.watcher.add(library)
-                    self.tasks.submit('scan', {'library_id': library['id'], 'force': cycles % 6 == 0})
+                self.tasks.submit('collect', {}, trigger='maintenance')
+                if self.settings.scan_on_start:
+                    for library in self.catalog.libraries():
+                        self.watcher.add(library)
+                        self.tasks.submit('scan', {'library_id': library['id'], 'force': cycles % 6 == 0},
+                                          trigger='maintenance')
             except Busy:
                 continue
 

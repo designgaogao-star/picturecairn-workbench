@@ -23,6 +23,7 @@ def main(argv=None):
     parser.add_argument('--no-watch', action='store_true')
     parser.add_argument('--no-open', action='store_true')
     parser.add_argument('--no-scan', action='store_true')
+    parser.add_argument('--maintenance-interval', type=float)
     args = parser.parse_args(argv)
     if args.data:
         os.environ['GALLERY_DATA'] = str(args.data.resolve())
@@ -32,6 +33,10 @@ def main(argv=None):
         os.environ['GALLERY_LEGACY'] = str(args.legacy.resolve())
     from dataclasses import replace
     settings = replace(Settings.environment(), watch=not args.no_watch, scan_on_start=not args.no_scan)
+    if args.maintenance_interval is not None:
+        settings = replace(settings, maintenance_interval=args.maintenance_interval)
+    if settings.maintenance_interval <= 0:
+        parser.error('--maintenance-interval must be positive')
     settings.data.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=settings.data / 'server.log', encoding='utf-8', level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(name)s %(message)s', force=True)

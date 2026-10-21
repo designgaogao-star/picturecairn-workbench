@@ -171,7 +171,7 @@ export function Pager({ page, pages, onPage }: { page: number; pages: number; on
  * One page of server-side findings. Page 0 is the preview embedded in the task result; later pages are
  * read from /tasks/{id}/findings so only `size` rows exist at a time.
  */
-export function useFindings<T>(taskId: string, kind: 'left_unique' | 'right_unique' | 'shell' | 'advertisement' | 'incomplete',
+export function useFindings<T>(taskId: string, kind: 'left_unique' | 'right_unique' | 'shell' | 'advertisement' | 'incomplete' | 'package_pair',
   preview: T[], total: number, size: number) {
   const [page, setPage] = useState(0);
   const [state, setState] = useState<{ key: string; items?: T[]; error?: string }>({ key: '' });

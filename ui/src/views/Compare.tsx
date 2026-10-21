@@ -185,7 +185,7 @@ function Side({ which, group, task, result, names, stale }: {
                   {file.is_image
                     ? <button class="file-thumb" aria-label={`查看 ${file.name}`} onClick={() => void openImage(group, 'compare', file.id, id)}><Thumb id={file.id} edge={400} /></button>
                     : <span class="file-icon" title="非图片文件"><Icon name="FileText" size={18} /></span>}
-                  <span class="file-name" title={file.name}>{file.name}</span>
+                  <span class="file-name" title={file.rel || file.name}>{file.rel || file.name}</span>
                   <span class="muted num">{bytes(file.size)}</span>
                 </li>
               ))}

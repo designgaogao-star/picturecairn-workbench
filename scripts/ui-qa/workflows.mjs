@@ -129,6 +129,31 @@ export async function workflows(page, base, library, output) {
   await snapshot(page, output, 'animation-narrow');
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  const largeGroup = groups.find((item) => item.name.includes('大图包'));
+  const largePackage = (await get(`/api/v1/groups/${largeGroup.id}/packages`)).items[0];
+  const largeTail = (await get(`/api/v1/packages/${largePackage.id}/images?offset=619&limit=1`)).items[0];
+  const offsets = [];
+  const countPages = (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === `/api/v1/packages/${largePackage.id}/images`) offsets.push(Number(url.searchParams.get('offset') || 0));
+  };
+  page.on('request', countPages);
+  await page.goto(`${base}#/l/${registered.id}/g/${largeGroup.id}/p/${largePackage.id}`);
+  await page.locator('.image-card img').first().waitFor();
+  await page.locator('.image-wall .vgrid').evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await page.getByRole('button', { name: largeTail.name, exact: true }).waitFor();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.waitForFunction(() => {
+    const grid = document.querySelector('.image-wall .vgrid');
+    return grid && grid.scrollTop / (grid.scrollHeight - grid.clientHeight) > .9;
+  });
+  await page.locator('.image-wall .vgrid').evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await page.getByRole('button', { name: largeTail.name, exact: true }).waitFor();
+  await snapshot(page, output, 'large-package-resize-narrow');
+  assert.ok(offsets.every((offset) => offset < largePackage.image_count), 'Resize requested a page beyond the package');
+  page.off('request', countPages);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}#/l/${registered.id}/g/${group.id}`);
   await page.getByRole('button', { name: '更多操作', exact: true }).click();
   await page.getByRole('menuitem', { name: '预先生成缩略图' }).click();
@@ -144,7 +169,26 @@ export async function workflows(page, base, library, output) {
   assert.equal(prewarm?.state, 'completed', prewarm?.error || 'Prewarm did not finish');
   assert.equal(prewarm.result.generated_or_cached, group.image_count);
   assert.equal(prewarm.result.failed, 0);
+  const drawer = page.locator('.drawer');
+  await drawer.getByRole('combobox', { name: '任务类型', exact: true }).selectOption('prewarm');
+  await drawer.getByRole('combobox', { name: '任务状态', exact: true }).selectOption('completed');
+  await drawer.getByRole('combobox', { name: '任务图库', exact: true }).selectOption(registered.id);
+  await page.locator('.task-row').filter({ hasText: '生成缩略图' }).filter({ hasText: '山色' }).waitFor();
+  assert.equal(await page.locator('.task-row').count(), 1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await snapshot(page, output, 'tasks-filtered-narrow');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('.drawer').getByRole('button', { name: '关闭', exact: true }).click();
+
+  const broken = animationImages.find((item) => item.name === '06-broken.jpg');
+  let brokenRequests = 0;
+  const countBroken = (request) => { if (request.url().includes(`/images/${broken.id}/thumbnail`)) brokenRequests++; };
+  page.on('request', countBroken);
+  await page.goto(`${base}#/l/${registered.id}/g/${animationGroup.id}/p/${animationPackage.id}`);
+  await page.locator('.image-card').filter({ hasText: broken.name }).locator('.thumb-error').waitFor();
+  assert.equal(brokenRequests, 1, 'A thumbnail failure should not issue a second resource probe');
+  page.off('request', countBroken);
+  await snapshot(page, output, 'broken-image-reason');
 
   const deleteGroup = groups.find((item) => item.name.includes('删除测试'));
   const deletePackage = (await get(`/api/v1/groups/${deleteGroup.id}/packages`)).items[0];
@@ -168,4 +212,5 @@ export async function workflows(page, base, library, output) {
   assert.equal(missing.status, 404);
   assert.deepEqual(errors, []);
   console.log('PASS production UI: register, browse, view, boundary, position/reload, GIF/WebP pixels, tasks, confirmed temporary delete');
+  return { restoreHash: new URL(before).hash };
 }

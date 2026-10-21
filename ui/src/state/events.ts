@@ -1,6 +1,6 @@
 import { client } from '../api';
 import {
-  connection, currentGroup, loadLibraries, loadTasks, lists, mediaEpoch, refreshCurrentGroup, refreshTask,
+  connection, currentGroup, invalidateCatalog, loadLibraries, loadTasks, lists, mediaEpoch, refreshCurrentGroup, refreshTask,
 } from './app';
 
 /**
@@ -15,6 +15,9 @@ let failures = 0;
 let connected = false;
 let instance: string | null = null;
 const pendingTasks = new Set<string>();
+const catalogChanges = new Map<string, { groups: Set<string>; packages: Set<string> } | null>();
+let lastMessage = Date.now();
+let heartbeatTimer = 0;
 
 function snapshot(data: string) {
   let id: string | null = null;
@@ -34,10 +37,22 @@ function snapshot(data: string) {
   void refreshCurrentGroup();
 }
 
-function onCatalog() {
-  // Library rows carry the index revision; loadLibraries invalidates lists whose revision moved.
+function onCatalog(data: string) {
+  try {
+    const change = JSON.parse(data) as { library_id: string; group_ids?: string[]; package_ids?: string[] };
+    const previous = catalogChanges.get(change.library_id);
+    if (!change.group_ids || !change.package_ids || previous === null) catalogChanges.set(change.library_id, null);
+    else catalogChanges.set(change.library_id, {
+      groups: new Set([...(previous?.groups ?? []), ...change.group_ids]),
+      packages: new Set([...(previous?.packages ?? []), ...change.package_ids]),
+    });
+  } catch { return; }
   clearTimeout(catalogTimer);
-  catalogTimer = window.setTimeout(() => void loadLibraries(), 600);
+  catalogTimer = window.setTimeout(() => {
+    for (const [id, change] of catalogChanges) invalidateCatalog(id, change ? [...change.groups] : undefined, change ? [...change.packages] : undefined);
+    catalogChanges.clear();
+    void loadLibraries(false);
+  }, 600);
 }
 
 function onReview(data: string) {
@@ -63,9 +78,11 @@ function open() {
   source?.close();
   connection.value = failures || connected ? 'reconnecting' : 'connecting';
   const events = source = client.events();
+  lastMessage = Date.now();
+  for (const name of ['snapshot', 'reset', 'catalog', 'review', 'task', 'ping']) events.addEventListener(name, () => { lastMessage = Date.now(); });
   events.addEventListener('snapshot', (event) => snapshot((event as MessageEvent).data));
   events.addEventListener('reset', () => { void loadLibraries(); void loadTasks(); lists.each(() => true, (list) => list.invalidate()); });
-  events.addEventListener('catalog', onCatalog);
+  events.addEventListener('catalog', (event) => onCatalog((event as MessageEvent).data));
   events.addEventListener('review', (event) => onReview((event as MessageEvent).data));
   events.addEventListener('task', (event) => onTask((event as MessageEvent).data));
   events.onerror = () => {
@@ -84,6 +101,8 @@ function open() {
 
 export function startEvents() {
   open();
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = window.setInterval(() => { if (Date.now() - lastMessage > 45000) open(); }, 5000);
   window.addEventListener('online', () => { if (connection.value !== 'online') reconnectNow(); });
 }
 

@@ -29,8 +29,8 @@ export class GalleryClient {
     return (response.status === 204 ? undefined : await response.json()) as JsonResponse<Operation<P, M>>;
   }
 
-  thumbnail(imageId: string, edge: 400 | 800 | 1600 | 2560 | 4200 = 400): string {
-    return `${this.baseUrl}/api/v1/images/${encodeURIComponent(imageId)}/thumbnail?edge=${edge}`;
+  thumbnail(imageId: string, edge: 400 | 800 | 1600 | 2560 | 4200 = 400, version?: string): string {
+    return `${this.baseUrl}/api/v1/images/${encodeURIComponent(imageId)}/thumbnail?edge=${edge}${version ? '&version=' + encodeURIComponent(version) : ''}`;
   }
 
   original(imageId: string): string { return `${this.baseUrl}/api/v1/images/${encodeURIComponent(imageId)}/original`; }

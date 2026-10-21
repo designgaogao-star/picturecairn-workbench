@@ -102,6 +102,7 @@ class Dedup:
                                   'right_coverage': (cb['indexed_count'] or 0) / max(1, cb['total']),
                                   'evidence': 'similarity', 'exact_verified': False})
         package_pairs.sort(key=lambda x: -max(x['left_match_rate'], x['right_match_rate']))
+        self.catalog.save_findings(context.id, 'package_pair', package_pairs)
         return {**build, 'images': total, 'coverage': len(rows) / max(1, total), 'pairs': pair_count,
                 'package_pairs': package_pairs[:500], 'package_pairs_total': len(package_pairs),
                 'pair_task_id': context.id}
@@ -140,7 +141,7 @@ class Dedup:
                         after = path.stat()
                 if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
                     raise ValueError('File changed during exact comparison')
-                hashes.append({'id': row['id'], 'name': row['name'], 'is_image': bool(row['is_image']),
+                hashes.append({'id': row['id'], 'name': row['name'], 'rel': row['rel'], 'is_image': bool(row['is_image']),
                                'size': after.st_size, 'sha256': digest.hexdigest()})
                 context.update(i + 1, len(rows), row['name'])
             sides.append(hashes)

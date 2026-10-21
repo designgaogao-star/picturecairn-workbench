@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.sse import EventSourceResponse, format_sse_event
 from fastapi.staticfiles import StaticFiles
@@ -39,10 +40,15 @@ def create_app(settings: Settings | None = None):
             await asyncio.to_thread(service.stop)
 
     app = FastAPI(title='GalleryTool API', version='2.0.0', lifespan=lifespan,
-                  docs_url=None, redoc_url=None)
+                  docs_url=None, redoc_url=None,
+                  responses={code: {'model': s.ErrorResponse} for code in (403, 404, 409, 422, 503)})
     app.state.service = service
     app.state.instance_id = instance_id
     app.state.settings = settings
+
+    def error_response(status, code, message, path=None, headers=None):
+        return JSONResponse({'error': {'code': code, 'message': message, 'path': str(path) if path else None}},
+                            status_code=status, headers=headers)
 
     @app.get('/favicon.ico', include_in_schema=False)
     async def favicon():
@@ -52,11 +58,11 @@ def create_app(settings: Settings | None = None):
     async def local_only(request: Request, call_next):
         host = urlsplit('//' + request.headers.get('host', '')).hostname
         if host not in ('127.0.0.1', 'localhost', 'testserver'):
-            return JSONResponse({'error': 'Local host required'}, status_code=403)
+            return error_response(403, 'local_host_required', '仅允许本机访问')
         origin = request.headers.get('origin')
         allowed_origin = os.environ.get('GALLERY_FRONTEND_ORIGIN')
         if origin and origin not in (f'{request.url.scheme}://{request.url.netloc}', allowed_origin):
-            return JSONResponse({'error': 'Origin is not allowed'}, status_code=403)
+            return error_response(403, 'origin_not_allowed', '请求来源未获允许')
         if request.method == 'OPTIONS' and origin == allowed_origin:
             response = Response(status_code=204)
         else:
@@ -70,23 +76,32 @@ def create_app(settings: Settings | None = None):
 
     @app.exception_handler(Busy)
     async def busy(_request, exc):
-        return JSONResponse({'error': str(exc)}, status_code=503, headers={'Retry-After': '1'})
+        return error_response(503, 'busy', str(exc), headers={'Retry-After': '1'})
 
     @app.exception_handler(FileNotFoundError)
     async def missing(_request, exc):
-        return JSONResponse({'error': str(exc)}, status_code=404)
+        return error_response(404, 'not_found', '文件或资源已不存在', getattr(exc, 'filename', None))
 
     @app.exception_handler(ValueError)
     async def invalid(_request, exc):
-        return JSONResponse({'error': str(exc)}, status_code=409)
+        return error_response(409, 'conflict', str(exc))
 
     @app.exception_handler(OSError)
     async def io_error(_request, exc):
-        return JSONResponse({'error': str(exc)}, status_code=422)
+        return error_response(422, 'file_unreadable', '无法读取文件或解码图片', getattr(exc, 'filename', None))
+
+    @app.exception_handler(HTTPException)
+    async def http_error(_request, exc):
+        return error_response(exc.status_code, f'http_{exc.status_code}', str(exc.detail), headers=exc.headers)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(_request, exc):
+        message = '; '.join(f"{'.'.join(map(str, item['loc']))}: {item['msg']}" for item in exc.errors())
+        return error_response(422, 'invalid_request', message)
 
     def entity(table, entity_id):
         row = catalog.entity(table, entity_id)
-        if not row:
+        if not row or table in ('files', 'directories') and not row['present']:
             raise HTTPException(404, 'Resource not found')
         return row
 
@@ -100,9 +115,11 @@ def create_app(settings: Settings | None = None):
 
     @app.post('/api/v1/libraries', response_model=s.Library, status_code=201, tags=['Libraries'])
     def add_library(body: s.LibraryCreate):
-        library = catalog.add_library(body.path, body.name)
+        with service.tasks.lock:
+            service.tasks.ensure_capacity()
+            library = catalog.add_library(body.path, body.name)
+            service.tasks.submit('scan', {'library_id': library['id'], 'force': True})
         service.watcher.add(library)
-        service.tasks.submit('scan', {'library_id': library['id']})
         return library
 
     @app.get('/api/v1/libraries/{library_id}/groups', response_model=s.Page[s.Group], tags=['Browse'])
@@ -110,6 +127,20 @@ def create_app(settings: Settings | None = None):
                state: s.Mark | None = None, category: Literal['R16', 'R18', '非R18', '其他'] | None = None):
         entity('libraries', library_id)
         return catalog.groups(library_id, offset, limit, state, category)
+
+    @app.get('/api/v1/groups/{group_id}', response_model=s.Group, tags=['Browse'])
+    def group(group_id: str):
+        result = catalog.group(group_id)
+        if not result:
+            raise HTTPException(404, 'Group not found')
+        return result
+
+    @app.get('/api/v1/packages/{package_id}', response_model=s.Package, tags=['Browse'])
+    def package(package_id: str):
+        result = catalog.package(package_id)
+        if not result:
+            raise HTTPException(404, 'Package not found')
+        return result
 
     @app.get('/api/v1/libraries/{library_id}/directories', response_model=s.Page[s.Directory], tags=['Browse'])
     def directories(library_id: str, parent_id: str | None = None, offset: Offset = 0, limit: Limit = 100):
@@ -123,12 +154,12 @@ def create_app(settings: Settings | None = None):
 
     @app.get('/api/v1/groups/{group_id}/packages', response_model=s.Page[s.Package], tags=['Browse'])
     def packages(group_id: str, offset: Offset = 0, limit: Limit = 100):
-        entity('directories', group_id)
+        group(group_id)
         return catalog.packages(group_id, offset, limit)
 
     @app.get('/api/v1/packages/{package_id}/images', response_model=s.Page[s.ImageItem], tags=['Browse'])
     def images(package_id: str, offset: Offset = 0, limit: Limit = 100):
-        entity('packages', package_id)
+        package(package_id)
         return catalog.images(package_id, offset, limit)
 
     @app.get('/api/v1/images/{image_id}/context', response_model=s.ImageContext, tags=['Browse'])
@@ -140,10 +171,11 @@ def create_app(settings: Settings | None = None):
 
     @app.get('/api/v1/images/{image_id}/thumbnail', tags=['Images'], response_class=FileResponse,
              responses={200: {'content': {'image/webp': {}, 'image/jpeg': {}}}, 304: {'description': 'Not modified'}})
-    def thumbnail(request: Request, image_id: str, edge: s.Edge = s.Edge.small):
-        path = service.images.get(image_id, edge)
+    def thumbnail(request: Request, image_id: str, edge: s.Edge = s.Edge.small, version: str | None = None):
+        path = service.images.get(image_id, edge, version)
         tag = '"' + path.stem + '"'
-        headers = {'ETag': tag, 'Cache-Control': 'private, max-age=0, must-revalidate'}
+        headers = {'ETag': tag, 'Cache-Control': 'private, max-age=31536000, immutable' if version
+                   else 'private, max-age=0, must-revalidate'}
         if request.headers.get('if-none-match') == tag:
             return Response(status_code=304, headers=headers)
         return FileResponse(path, media_type='image/webp' if path.suffix == '.webp' else 'image/jpeg', headers=headers)
@@ -193,13 +225,21 @@ def create_app(settings: Settings | None = None):
                            ('left_id', 'packages'), ('right_id', 'packages')):
             if key in payload:
                 entity(table, payload[key])
+        if kind == 'compare':
+            left, right = entity('packages', payload['left_id']), entity('packages', payload['right_id'])
+            if left['group_id'] != right['group_id'] or left['id'] == right['id']:
+                raise HTTPException(409, 'Select two different packages in the same group')
+            payload['group_id'] = left['group_id']
+        if kind == 'scan' and payload.get('directory_id'):
+            if entity('directories', payload['directory_id'])['library_id'] != payload['library_id']:
+                raise HTTPException(409, 'Directory belongs to another library')
         return service.tasks.submit(kind, payload)
 
     @app.get('/api/v1/tasks', response_model=s.Page[s.Task], tags=['Tasks'])
-    def tasks(offset: Offset = 0, limit: Limit = 100):
-        rows = catalog.rows('SELECT id FROM tasks ORDER BY created DESC LIMIT ? OFFSET ?', (limit, offset))
-        return {'items': [catalog.task(row['id']) for row in rows], 'total': catalog.one('SELECT COUNT(*) n FROM tasks')['n'],
-                'offset': offset, 'limit': limit, 'revision': 0}
+    def tasks(offset: Offset = 0, limit: Limit = 100, kind: str | None = None,
+              state: Literal['queued', 'running', 'paused', 'cancelling', 'cancelled', 'completed', 'failed', 'interrupted'] | None = None,
+              library_id: str | None = None, active: bool | None = None):
+        return catalog.tasks(offset, limit, kind, state, library_id, active)
 
     @app.get('/api/v1/tasks/{task_id}', response_model=s.Task, tags=['Tasks'])
     def task(task_id: str):
@@ -216,12 +256,14 @@ def create_app(settings: Settings | None = None):
     @app.get('/api/v1/tasks/{task_id}/pairs', response_model=s.Page[s.Pair], tags=['Organize'])
     def pairs(task_id: str, offset: Offset = 0, limit: Limit = 100):
         task(task_id)
-        return catalog.page('SELECT left_id,right_id,distance FROM similar_pairs', 'WHERE task_id=?', [task_id],
-                             'distance,left_id,right_id', offset, limit, '')
+        return catalog.page('SELECT e.left_id,e.right_id,e.distance,a.package_id left_package_id,'
+                            'b.package_id right_package_id FROM similar_pairs e JOIN files a ON a.id=e.left_id '
+                            'JOIN files b ON b.id=e.right_id', 'WHERE task_id=?', [task_id],
+                            'distance,left_id,right_id', offset, limit, '')
 
     @app.get('/api/v1/tasks/{task_id}/findings',
-             response_model=s.Page[s.ComparedFile | s.ShellPackage | s.AuditPackage | s.IncompletePackage], tags=['Organize'])
-    def findings(task_id: str, kind: Literal['left_unique', 'right_unique', 'shell', 'advertisement', 'incomplete'],
+             response_model=s.Page[s.ComparedFile | s.ShellPackage | s.AuditPackage | s.IncompletePackage | s.PackageSimilarity], tags=['Organize'])
+    def findings(task_id: str, kind: Literal['left_unique', 'right_unique', 'shell', 'advertisement', 'incomplete', 'package_pair'],
                  offset: Offset = 0, limit: Limit = 100):
         task(task_id)
         result = catalog.page('SELECT payload FROM findings', 'WHERE task_id=? AND kind=?',
@@ -232,7 +274,11 @@ def create_app(settings: Settings | None = None):
     @app.post('/api/v1/operations/delete', response_model=s.Task, status_code=202, tags=['Organize'])
     def delete(body: s.DeleteRequest):
         for target in body.targets:
-            entity({'image': 'files', 'package': 'packages', 'group': 'directories'}[target.kind], target.id)
+            row = catalog.entity({'image': 'files', 'package': 'packages', 'group': 'directories'}[target.kind], target.id)
+            if row and (target.kind == 'package' and row['loose']
+                        or target.kind == 'image' and not row['is_image']
+                        or target.kind == 'group' and (row['id'] != row['group_id'] or not row['rel'])):
+                raise HTTPException(409, 'Target is not a deletable image, package or group')
         return service.tasks.submit('delete', body.model_dump(), deduplicate=False)
 
     @app.get('/api/v1/operations', response_model=s.Page[s.Operation], tags=['Organize'])
@@ -240,8 +286,8 @@ def create_app(settings: Settings | None = None):
         return catalog.page('SELECT * FROM operations', 'WHERE task_id=?' if task_id else '',
                              [task_id] if task_id else [], 'created DESC,id', offset, limit, '')
 
-    @app.get('/api/v1/cache', tags=['System'])
-    def cache_stats() -> dict[str, int]:
+    @app.get('/api/v1/cache', response_model=s.CacheStats, tags=['System'])
+    def cache_stats():
         return {**catalog.one('SELECT COUNT(*) count,COALESCE(SUM(size),0) bytes FROM cache_entries'),
                 'limit': settings.cache_limit}
 
@@ -258,7 +304,7 @@ def create_app(settings: Settings | None = None):
                     yield format_sse_event(event=event['event'], id=str(sequence), data_str=json.dumps(event['data']))
                     last_message = time.monotonic()
                 if time.monotonic() - last_message >= 15:
-                    yield format_sse_event(comment='ping')
+                    yield format_sse_event(event='ping', data_str=json.dumps({'time': time.time()}))
                     last_message = time.monotonic()
                 await asyncio.sleep(.2)
         # Keep disconnect cancellation inside the response rather than FastAPI's producer task group.

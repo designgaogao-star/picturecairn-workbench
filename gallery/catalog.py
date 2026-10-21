@@ -17,6 +17,10 @@ def path_key(value):
     return str(value).replace('\\', '/').lower()
 
 
+def content_version(size, mtime_ns):
+    return f'v2-{size:x}-{mtime_ns:x}'
+
+
 def category(name):
     for prefix in ('R16', 'R18', '非R18'):
         if name.startswith(f'[{prefix}]'):
@@ -38,7 +42,7 @@ class Catalog:
         with self.write() as db:
             db.execute('PRAGMA journal_mode=WAL')
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version > 6:
+            if version > 7:
                 raise RuntimeError('Catalog was created by a newer application')
             if version == 0:
                 sql = (Path(__file__).parent / 'sql' / '001_catalog.sql').read_text(encoding='utf-8')
@@ -63,6 +67,10 @@ class Catalog:
             if version == 5:
                 sql = (Path(__file__).parent / 'sql' / '006_operation_tasks.sql').read_text(encoding='utf-8')
                 db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=6;\nCOMMIT;')
+                version = 6
+            if version == 6:
+                sql = (Path(__file__).parent / 'sql' / '007_task_sources.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=7;\nCOMMIT;')
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -151,6 +159,31 @@ class Catalog:
         return {'items': rows, 'total': total, 'offset': offset, 'limit': limit,
                 'revision': library['revision'] if library else 0}
 
+    @staticmethod
+    def _group_select():
+        return """SELECT d.*,COALESCE(r.state,'none') state,r.image_id resume_image_id,
+          (SELECT json_object('id',f.id,'size',f.size,'mtime_ns',f.mtime_ns) FROM files f
+           WHERE f.package_id=(SELECT p.id FROM packages p JOIN directories pd ON pd.id=p.directory_id
+             WHERE p.group_id=d.id AND pd.present=1 AND EXISTS(SELECT 1 FROM files pf
+               WHERE pf.package_id=p.id AND pf.present=1 AND pf.is_image=1)
+             ORDER BY p.sort_key,p.id LIMIT 1) AND f.present=1 AND f.is_image=1
+           ORDER BY f.sort_key,f.id LIMIT 1) cover
+          FROM directories d LEFT JOIN review r ON r.group_id=d.id"""
+
+    @staticmethod
+    def _with_cover(row):
+        cover = json.loads(row.pop('cover') or 'null')
+        row['cover_id'] = cover['id'] if cover else None
+        row['cover_version'] = content_version(cover['size'], cover['mtime_ns']) if cover else None
+        return row
+
+    def group(self, group_id):
+        row = self.one(self._group_select() + ' WHERE d.id=? AND d.id=d.group_id AND d.present=1', (group_id,))
+        if row:
+            row['category'] = category(row['name'])
+            self._with_cover(row)
+        return row
+
     def groups(self, library_id, offset, limit, state=None, category_filter=None):
         where = ('WHERE d.library_id=? AND d.present=1 AND (d.id=d.group_id) '
                  'AND (d.rel<>\'\' OR EXISTS(SELECT 1 FROM files f WHERE f.group_id=d.id AND f.present=1 AND f.is_image=1))')
@@ -163,23 +196,32 @@ class Catalog:
         elif category_filter:
             where += ' AND d.name LIKE ?'
             args.append(f'[{category_filter}]%')
-        select = """SELECT d.*,COALESCE(r.state,'none') state,r.image_id resume_image_id
-          FROM directories d LEFT JOIN review r ON r.group_id=d.id"""
-        result = self.page(select, where, args, 'bytes DESC,d.sort_key,d.id', offset, limit, library_id)
+        result = self.page(self._group_select(), where, args, 'bytes DESC,d.sort_key,d.id', offset, limit, library_id)
         for row in result['items']:
             row['category'] = category(row['name'])
+            self._with_cover(row)
         return result
+
+    @staticmethod
+    def _package_select():
+        return """SELECT p.*,d.rel,d.present,
+          (SELECT COUNT(*) FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1) image_count,
+          (SELECT json_object('id',f.id,'size',f.size,'mtime_ns',f.mtime_ns) FROM files f
+           WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1 ORDER BY f.sort_key,f.id LIMIT 1) cover
+          FROM packages p JOIN directories d ON p.directory_id=d.id"""
+
+    def package(self, package_id):
+        row = self.one(self._package_select() + ' WHERE p.id=? AND d.present=1 AND EXISTS('
+                       'SELECT 1 FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1)', (package_id,))
+        return self._with_cover(row) if row else None
 
     def packages(self, group_id, offset, limit):
         group = self.entity('directories', group_id)
-        select = """SELECT p.*,d.rel,d.present,
-          (SELECT COUNT(*) FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1) image_count,
-          (SELECT id FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1
-           ORDER BY f.sort_key,f.id LIMIT 1) cover_id
-          FROM packages p JOIN directories d ON p.directory_id=d.id"""
-        return self.page(select, 'WHERE p.group_id=? AND d.present=1 AND EXISTS('
-                         'SELECT 1 FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1)', [group_id],
-                         'p.sort_key,p.id', offset, limit, group['library_id'])
+        result = self.page(self._package_select(), 'WHERE p.group_id=? AND d.present=1 AND EXISTS('
+                           'SELECT 1 FROM files f WHERE f.package_id=p.id AND f.present=1 AND f.is_image=1)', [group_id],
+                           'p.sort_key,p.id', offset, limit, group['library_id'])
+        result['items'] = [self._with_cover(row) for row in result['items']]
+        return result
 
     def images(self, package_id, offset, limit):
         pkg = self.entity('packages', package_id)
@@ -217,7 +259,59 @@ class Catalog:
         if row:
             row['payload'] = json.loads(row['payload'])
             row['result'] = json.loads(row['result']) if row['result'] else None
+            row['targets'], row['scope'] = self.describe_targets(row['payload'])
         return row
+
+    def describe_targets(self, payload):
+        targets = payload.get('targets') or []
+        if not targets:
+            for keys, kind in ((('left_id', 'right_id', 'package_id'), 'package'),
+                               (('group_id',), 'group'), (('directory_id',), 'directory'),
+                               (('library_id',), 'library')):
+                ids = [payload[key] for key in keys if payload.get(key)]
+                if ids:
+                    targets = [{'id': value, 'kind': kind} for value in ids]
+                    break
+        described = []
+        with contextlib.closing(self.connect()) as db:
+            for target in targets:
+                table = {'library': 'libraries', 'directory': 'directories', 'group': 'directories',
+                         'package': 'packages', 'image': 'files'}[target['kind']]
+                row = db.execute(f'SELECT * FROM {table} WHERE id=?', (target['id'],)).fetchone()
+                info = dict(row) if row else {}
+                rel = info.get('rel', '')
+                if target['kind'] == 'package' and row:
+                    rel = db.execute('SELECT rel FROM directories WHERE id=?', (row['directory_id'],)).fetchone()[0]
+                described.append({**target, 'label': info.get('name') or target['id'], 'rel': rel,
+                                  'library_id': info.get('library_id', info.get('id')),
+                                  'group_id': info.get('group_id')})
+        libraries = {row['library_id'] for row in described}
+        groups = {row['group_id'] for row in described}
+        scope = {'library_id': next(iter(libraries)) if len(libraries) == 1 else None,
+                 'group_id': next(iter(groups)) if len(groups) == 1 else None}
+        return described, scope
+
+    def tasks(self, offset, limit, kind=None, state=None, library_id=None, active=None):
+        clauses, args = [], []
+        for key, value in (('kind', kind), ('state', state)):
+            if value:
+                clauses.append(f'{key}=?')
+                args.append(value)
+        if active is not None:
+            clauses.append("state " + ('' if active else 'NOT ') + "IN ('queued','running','paused','cancelling')")
+        if library_id:
+            clauses.append("""(json_extract(payload,'$.library_id')=? OR
+              json_extract(payload,'$.group_id') IN (SELECT id FROM directories WHERE library_id=?) OR
+              json_extract(payload,'$.package_id') IN (SELECT id FROM packages WHERE library_id=?) OR
+              json_extract(payload,'$.left_id') IN (SELECT id FROM packages WHERE library_id=?) OR
+              EXISTS(SELECT 1 FROM json_each(payload,'$.targets') t WHERE json_extract(t.value,'$.id') IN (
+                SELECT id FROM directories WHERE library_id=? UNION ALL
+                SELECT id FROM packages WHERE library_id=? UNION ALL SELECT id FROM files WHERE library_id=?)))""")
+            args.extend([library_id] * 7)
+        page = self.page('SELECT id FROM tasks', 'WHERE ' + ' AND '.join(clauses) if clauses else '',
+                         args, 'created DESC,id', offset, limit, '')
+        page['items'] = [self.task(row['id']) for row in page['items']]
+        return page
 
     def save_findings(self, task_id, kind, items):
         with self.write() as db:

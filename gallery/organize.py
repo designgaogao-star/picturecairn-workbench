@@ -4,6 +4,7 @@ import json
 import random
 import shutil
 import time
+from pathlib import Path
 
 from gallery.catalog import new_id
 from gallery.indexer import Indexer
@@ -26,28 +27,37 @@ class Organize:
             raise ValueError('Permanent deletion requires confirm_permanent: true')
         mode = 'permanent' if payload.get('permanent') else 'recycle'
         results = []
+        def result():
+            return {'items': results, 'failed': sum(r['state'] == 'failed' for r in results),
+                    'skipped': sum(r['state'] in ('skipped', 'cancelled') for r in results)}
+        context.partial_result = result()
         for i, target in enumerate(payload['targets']):
             context.check()
             entity_id, kind = target['id'], target['kind']
             table = {'image': 'files', 'package': 'packages', 'group': 'directories'}[kind]
             entity = self.catalog.entity(table, entity_id)
-            if not entity:
-                raise FileNotFoundError('Target not found')
-            if kind == 'image' and not entity['is_image']:
-                raise ValueError('Target is not an image')
-            if kind == 'package':
-                if entity['loose']:
-                    raise ValueError('Loose images are not a deletable package')
-                entity = self.catalog.entity('directories', entity['directory_id'])
-            if kind == 'group' and (entity['id'] != entity['group_id'] or not entity['rel']):
-                raise ValueError('Target is not a top-level group')
-            path = self.access.path(entity)
+            library = self.catalog.entity('libraries', entity['library_id']) if entity else None
+            display_entity = self.catalog.entity('directories', entity['directory_id']) if entity and kind == 'package' else entity
+            display_path = str(Path(library['path']) / display_entity['rel']) if display_entity and library else ''
             operation_id, now = new_id(), time.time()
             self.catalog.execute('INSERT INTO operations(id,target_id,target_kind,path,mode,state,created,updated,task_id) '
                                  'VALUES(?,?,?,?,?,?,?,?,?)',
-                                 (operation_id, entity_id, kind, str(path), mode, 'pending', now, now, context.id))
+                                 (operation_id, entity_id, kind, display_path, mode, 'pending', now, now, context.id))
             state, error = 'completed', None
             try:
+                if not entity:
+                    raise FileNotFoundError('Target no longer exists in the index')
+                if kind == 'image' and not entity['is_image']:
+                    raise ValueError('Target is not an image')
+                if kind == 'package':
+                    if entity['loose']:
+                        raise ValueError('Loose images are not a deletable package')
+                    entity = self.catalog.entity('directories', entity['directory_id'])
+                if kind == 'group' and (entity['id'] != entity['group_id'] or not entity['rel']):
+                    raise ValueError('Target is not a top-level group')
+                path = self.access.path(entity)
+                display_path = str(path)
+                self.catalog.execute('UPDATE operations SET path=? WHERE id=?', (display_path, operation_id))
                 with context.io(path):
                     if mode == 'recycle':
                         recycle(path)
@@ -61,18 +71,33 @@ class Organize:
                     else:
                         Indexer.mark_missing(db, entity['id'])
                     self.catalog.refresh_group(db, entity['group_id'])
-            except OSError as exc:
+            except FileNotFoundError as exc:
+                state, error = 'skipped', str(exc)
+                if entity and library and Path(library['path']).is_dir():
+                    with self.catalog.write() as db:
+                        if kind == 'image':
+                            db.execute('UPDATE files SET present=0 WHERE id=?', (entity_id,))
+                        else:
+                            Indexer.mark_missing(db, entity['id'])
+                        self.catalog.refresh_group(db, entity['group_id'])
+                elif library:
+                    state, error = 'failed', 'Library is offline; no files were removed'
+            except (OSError, ValueError) as exc:
                 state, error = 'failed', str(exc)
             except Cancelled:
                 state, error = 'cancelled', 'Cancelled before operation'
             self.catalog.execute('UPDATE operations SET state=?,error=?,updated=? WHERE id=?',
                                  (state, error, time.time(), operation_id))
-            record = {'id': operation_id, 'target_id': entity_id, 'kind': kind, 'path': str(path),
+            record = {'id': operation_id, 'target_id': entity_id, 'kind': kind, 'path': display_path,
                       'mode': mode, 'state': state, 'error': error, 'time': now, 'task_id': context.id}
+            results.append(record)
+            context.partial_result = result()
             with (self.data / 'delete_journal.jsonl').open('a', encoding='utf-8') as log:
                 log.write(json.dumps(record, ensure_ascii=False) + '\n')
-            self.catalog.bump(entity['library_id'])
-            self.events.publish('catalog', {'library_id': entity['library_id']})
-            results.append(record)
-            context.update(i + 1, len(payload['targets']), path.name)
-        return {'items': results, 'failed': sum(r['state'] != 'completed' for r in results)}
+            if entity:
+                self.catalog.bump(entity['library_id'])
+                package_ids = [entity['package_id']] if kind == 'image' else [entity_id] if kind == 'package' else []
+                self.events.publish('catalog', {'library_id': entity['library_id'], 'group_ids': [entity['group_id']],
+                                                'package_ids': package_ids})
+            context.update(i + 1, len(payload['targets']), Path(display_path).name)
+        return result()

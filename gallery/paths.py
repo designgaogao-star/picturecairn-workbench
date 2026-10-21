@@ -19,6 +19,7 @@ class Settings:
     cache_limit: int = 12 * 1024**3
     watch: bool = True
     scan_on_start: bool = True
+    maintenance_interval: float = 600
     desktop_token: str | None = None
 
     @classmethod
@@ -28,4 +29,5 @@ class Settings:
                    application=Path(os.environ.get('GALLERY_APPLICATION') or APP_DIR),
                    root=Path(os.environ['GALLERY_ROOT']) if os.environ.get('GALLERY_ROOT') else None,
                    legacy=Path(os.environ['GALLERY_LEGACY']) if os.environ.get('GALLERY_LEGACY') else None,
+                   maintenance_interval=float(os.environ.get('GALLERY_MAINTENANCE_INTERVAL', 600)),
                    desktop_token=os.environ.get('GALLERY_DESKTOP_TOKEN'))

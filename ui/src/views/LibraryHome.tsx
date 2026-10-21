@@ -4,11 +4,10 @@ import { MarkBadge } from '../components/Marks';
 import { FilterBar, libraryStatus, rescanLibrary } from '../components/Sidebar';
 import { Thumb } from '../components/Thumb';
 import { VirtualGrid } from '../components/VirtualGrid';
-import { useGroupCover } from '../lib/covers';
 import { bytes, count, stripCategory, time } from '../lib/format';
 import { Icon } from '../lib/icons';
 import { navigate } from '../lib/router';
-import { groupFilter, groupsList, mediaEpoch, narrow, scanStatus, tasks, tileSize } from '../state/app';
+import { groupFilter, groupsList, narrow, scanStatus, tasks, tileSize } from '../state/app';
 import { ProgressBar } from '../components/Progress';
 import { taskFraction } from '../lib/tasks';
 
@@ -19,14 +18,13 @@ const NARROW_TILE: Record<string, number> = { s: 100, m: 150, l: 240 };
 export const tileTarget = () => (narrow.value ? NARROW_TILE : TILE)[tileSize.value];
 
 function GroupCard({ group, width }: { group: Group; width: number }) {
-  const { cover, settled } = useGroupCover(group.id, mediaEpoch.value);
+  const cover = group.cover_id;
   const edge = pickEdge(width * Math.min(2, window.devicePixelRatio || 1));
   return (
     <button class="card group-card" onClick={() => navigate({ library: group.library_id, group: group.id })} title={group.rel || '图库根目录中的散图'}>
       <div class="card-media">
         {cover ? <Thumb id={cover} edge={edge === 400 ? 400 : 800} />
-          : cover === null || settled ? <div class="card-placeholder"><Icon name="Folder" size={32} /></div>
-            : <div class="card-placeholder loading" />}
+          : <div class="card-placeholder"><Icon name="Folder" size={32} /></div>}
         <MarkBadge state={group.state} />
       </div>
       <div class="card-body">

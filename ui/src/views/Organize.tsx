@@ -8,7 +8,7 @@ import { reportError, submitTask, trackTask } from '../state/app';
 import { Audit } from './Audit';
 import { Compare } from './Compare';
 import {
-  completed, ListState, openImage, PackageRef, Pager, Stat, startCompare, TaskBlock, usePackageNames, useTracked, type Names,
+  completed, ListState, openImage, PackageRef, Pager, Stat, startCompare, TaskBlock, useFindings, usePackageNames, useTracked, type Names,
 } from './organizeParts';
 
 const TABS: { id: OrganizeTab; label: string; icon: IconName }[] = [
@@ -104,7 +104,7 @@ function AnalyzeView({ group, result, names }: { group: Group; result: AnalyzeRe
           <span>有 {count(unhashed)} 张图片没有指纹（无法解码或分析期间发生变化），不参与比较，相关图包的匹配率会偏低。</span>
         </p>
       )}
-      <PackagePairs group={group} pairs={result.package_pairs} total={result.package_pairs_total} names={names} />
+      <PackagePairs group={group} result={result} names={names} />
       <ImagePairs group={group} taskId={result.pair_task_id} />
     </>
   );
@@ -129,21 +129,22 @@ function Rate({ rate, coverage }: { rate: number; coverage: number }) {
 
 const PAIR_PAGE = 30;
 
-function PackagePairs({ group, pairs, total, names }: { group: Group; pairs: PackageSimilarity[]; total: number; names: Names }) {
-  const [page, setPage] = useState(0);
-  useEffect(() => { setPage(0); }, [pairs]);
-  const pages = Math.max(1, Math.ceil(pairs.length / PAIR_PAGE));
-  const shown = pairs.slice(page * PAIR_PAGE, (page + 1) * PAIR_PAGE);
+function PackagePairs({ group, result, names }: { group: Group; result: AnalyzeResult; names: Names }) {
+  const total = result.package_pairs_total;
+  const findings = useFindings<PackageSimilarity>(result.pair_task_id, 'package_pair', result.package_pairs, total, PAIR_PAGE);
+  const { page, pages, setPage } = findings;
+  const shown = findings.items ?? [];
   return (
     <section class="org-block">
       <header class="org-block-head">
         <h2>相似图包</h2>
-        <span class="muted">{total > pairs.length ? `按匹配率列出前 ${count(pairs.length)} 对，共 ${count(total)} 对` : `${count(total)} 对`}</span>
+        <span class="muted">{count(total)} 对</span>
         <span class="spacer" />
         <Pager page={page} pages={pages} onPage={setPage} />
       </header>
       {names.error && <ListState error={`图包名称读取失败：${names.error}`} retry={names.retry} loading={false} />}
-      {!pairs.length && <p class="muted">没有发现相似的图包。</p>}
+      <ListState error={findings.error} retry={findings.retry} loading={!findings.items && !findings.error} />
+      {total === 0 && <p class="muted">没有发现相似的图包。</p>}
       <ul class="pair-list">
         {shown.map((pair) => {
           const verdict = pairVerdict(pair);
@@ -203,13 +204,13 @@ function ImagePairs({ group, taskId }: { group: Group; taskId: string }) {
         <ul class="image-pairs">
           {current.items.map((pair) => (
             <li key={`${pair.left_id}:${pair.right_id}`} class="image-pair">
-              <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.left_id)} aria-label="查看左图">
+              <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.left_id, pair.left_package_id)} aria-label="查看左图">
                 <Thumb id={pair.left_id} edge={400} />
               </button>
               <span class="pair-distance" title="指纹差异（0 表示几乎相同，最大 64）">
                 <Icon name="ArrowLeftRight" size={14} /><span class="num">{pair.distance}</span>
               </span>
-              <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.right_id)} aria-label="查看右图">
+              <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.right_id, pair.right_package_id)} aria-label="查看右图">
                 <Thumb id={pair.right_id} edge={400} />
               </button>
             </li>

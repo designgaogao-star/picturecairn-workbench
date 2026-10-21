@@ -28,7 +28,7 @@ export type AuditImage = S['AuditImage'];
 export type IncompletePackage = S['IncompletePackage'];
 export type PackageSimilarity = S['PackageSimilarity'];
 export type ScanResult = S['ScanResult'];
-export type JobBody = S['ScanJob'] | S['HashJob'] | S['PrewarmJob'] | S['CompareJob'] | S['CollectJob'];
+export type JobBody = S['ScanJob'] | S['HashJob'] | S['AuditJob'] | S['PrewarmJob'] | S['CompareJob'] | S['CollectJob'];
 export interface Page<T> { items: T[]; total: number; offset: number; limit: number; revision: number }
 
 /** Dev-only guard for exercising a catalog copy without submitting writes or background work. */
@@ -55,6 +55,9 @@ function detailText(detail: unknown): string | null {
   if (!detail || typeof detail !== 'object') return null;
   const record = detail as { error?: unknown; detail?: unknown };
   if (typeof record.error === 'string') return readableError(record.error);
+  if (record.error && typeof record.error === 'object' && 'message' in record.error && typeof record.error.message === 'string') {
+    return readableError(record.error.message);
+  }
   if (typeof record.detail === 'string') return readableError(record.detail);
   if (Array.isArray(record.detail)) return record.detail.map((item) => item?.msg).filter(Boolean).join('；') || null;
   return null;
@@ -89,7 +92,17 @@ export function pickEdge(needed: number): Edge {
   return EDGES.find((edge) => edge >= needed) || 4200;
 }
 
-export function thumbnailUrl(id: string, edge: Edge = 400): string { return client.thumbnail(id, edge); }
+const versions = new Map<string, string>();
+function rememberVersion(id: string, version: string) {
+  versions.delete(id);
+  versions.set(id, version);
+  while (versions.size > 4000) versions.delete(versions.keys().next().value as string);
+}
+export function rememberImages(items: ImageItem[]) { for (const item of items) rememberVersion(item.id, item.version); }
+export function rememberCovers(items: (Group | Package)[]) {
+  for (const item of items) if (item.cover_id && item.cover_version) rememberVersion(item.cover_id, item.cover_version);
+}
+export function thumbnailUrl(id: string, edge: Edge = 400): string { return client.thumbnail(id, edge, versions.get(id)); }
 export function originalUrl(id: string): string { return client.original(id); }
 
 export const ACTIVE_STATES: Task['state'][] = ['queued', 'running', 'paused', 'cancelling'];

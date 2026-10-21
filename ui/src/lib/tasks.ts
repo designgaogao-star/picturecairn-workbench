@@ -19,9 +19,8 @@ export function taskFraction(task: Task): number | null {
   return Math.max(0, Math.min(1, task.progress / task.total));
 }
 
-/** Counts while running or where it stopped; a finished task's summary says what it did (and its total is cleared). */
+/** Final counters remain available after completion or cancellation. */
 export function taskProgressText(task: Task): string {
-  if (task.state === 'completed') return '';
   if (task.total) return `${task.progress} / ${task.total}`;
   if (task.progress) return `${task.progress}`;
   return '';

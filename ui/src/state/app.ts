@@ -1,6 +1,6 @@
 import { batch, computed, effect, signal } from '@preact/signals';
 import {
-  client, describeError, isAbort, isActive, readonly, statusOf,
+  client, describeError, isAbort, isActive, readonly, rememberCovers, rememberImages, statusOf,
   type DeleteTarget, type Group, type ImageItem, type JobBody, type Library, type Mark, type Package, type Review, type Task,
 } from '../api';
 import { ListRegistry, Lru, PagedList } from '../lib/paged';
@@ -37,7 +37,7 @@ export const librariesLoaded = signal(false);
 export const librariesError = signal<string | null>(null);
 export const currentLibrary = computed(() => libraries.value.find((lib) => lib.id === route.value.library) || null);
 
-export async function loadLibraries() {
+export async function loadLibraries(invalidate = true) {
   // Libraries this read can judge: already listed, with a loaded task list showing no live scan for them.
   const settled = tasksLoaded.value ? new Set(libraries.value.filter((lib) => !liveScan(lib.id)).map((lib) => lib.id)) : null;
   try {
@@ -53,7 +53,7 @@ export async function loadLibraries() {
     batch(() => { libraries.value = items; staleScans.value = stale; librariesLoaded.value = true; librariesError.value = null; });
     for (const lib of items) {
       const previous = before.get(lib.id);
-      if (previous !== undefined && previous !== lib.revision) invalidateLibrary(lib.id);
+      if (invalidate && previous !== undefined && previous !== lib.revision) invalidateLibrary(lib.id);
     }
     const current = route.value.library;
     if ((!current || !items.some((lib) => lib.id === current)) && items.length) {
@@ -105,9 +105,13 @@ export function packagesList(groupId: string): PagedList<Package> {
 
 export function imagesList(packageId: string): PagedList<ImageItem> {
   const key = `images:${packageId}`;
-  return lists.get(key, () => new PagedList<ImageItem>(key, (offset, limit, signal) => client.request('get', '/api/v1/packages/{package_id}/images', {
+  return lists.get(key, () => new PagedList<ImageItem>(key, async (offset, limit, signal) => {
+    const page = await client.request('get', '/api/v1/packages/{package_id}/images', {
     params: { path: { package_id: packageId }, query: { offset, limit } }, signal,
-  })));
+    });
+    rememberImages(page.items);
+    return page;
+  }));
 }
 
 /** The image at `index` of a package: an already cached list page, else a one-item request. */
@@ -118,26 +122,50 @@ export async function imageAt(packageId: string, index: number, signal?: AbortSi
   const page = await client.request('get', '/api/v1/packages/{package_id}/images', {
     params: { path: { package_id: packageId }, query: { offset: index, limit: 1 } }, signal,
   });
+  rememberImages(page.items);
   return page.items[0] ?? null;
 }
 
 /** Library revision changed: every visible list of that library refetches its window. */
 export function invalidateLibrary(libraryId: string) {
-  // List keys carry group/package IDs only, so every cached list is marked stale; only mounted
-  // views refetch immediately.
-  lists.each(() => true, (list) => list.invalidate());
-  if (route.value.library === libraryId) void refreshCurrentGroup();
+  invalidateCatalog(libraryId);
+}
+
+export function invalidateCatalog(libraryId: string, groupIds?: string[], packageIds?: string[]) {
+  const groups = new Set(groupIds);
+  const packages = new Set(packageIds);
+  const full = groupIds === undefined || packageIds === undefined;
+  for (const id of [...groupCache.keys()]) {
+    const item = groupCache.get(id)!;
+    if (item.library_id === libraryId && (full || groups.has(id))) groupCache.delete(id);
+  }
+  for (const id of [...packageCache.keys()]) {
+    const item = packageCache.get(id)!;
+    if (item.library_id === libraryId && (full || groups.has(item.group_id) || packages.has(id))) {
+      packages.add(id);
+      packageCache.delete(id);
+    }
+  }
+  lists.each((key) => full || key.startsWith(`groups:${libraryId}:`) || [...groups].some((id) => key === `packages:${id}`)
+    || [...packages].some((id) => key === `images:${id}`), (list) => list.invalidate());
+  if (route.value.library === libraryId && (full || groups.has(route.value.group ?? ''))) {
+    void refreshCurrentGroup();
+  }
+  if (route.value.library === libraryId && (full || packages.has(route.value.package ?? ''))) {
+    currentPackage.value = null;
+    void refreshCurrentPackage();
+  }
 }
 
 // ---------------------------------------------------------------- group & package lookups
-// The API has no single-item endpoints for groups or packages (see docs/frontend-gaps.md),
-// so they are resolved from bounded list pages and cached by ID.
+// Details resolve by persistent ID, with bounded caches for repeated navigation.
 
 const groupCache = new Lru<Group>(200);
 const packageCache = new Lru<Package>(2000);
 
-export function rememberGroups(items: Group[]) { for (const group of items) groupCache.set(group.id, group); }
+export function rememberGroups(items: Group[]) { rememberCovers(items); for (const group of items) groupCache.set(group.id, group); }
 export function rememberPackages(items: Package[]) {
+  rememberCovers(items);
   const current = currentPackage.value?.id;
   for (const item of items) {
     packageCache.set(item.id, item);
@@ -152,17 +180,10 @@ export const currentReview = signal<Review | null>(null);
 /** Why the open folder could not be read, while no copy of it is cached to show instead. */
 export const groupError = signal<{ id: string; text: string } | null>(null);
 
-async function findGroup(libraryId: string, groupId: string, signal?: AbortSignal): Promise<Group | null> {
-  for (let offset = 0; offset < 20000; offset += 500) {
-    const page = await client.request('get', '/api/v1/libraries/{library_id}/groups', {
-      params: { path: { library_id: libraryId }, query: { offset, limit: 500 } }, signal,
-    });
-    rememberGroups(page.items);
-    const found = page.items.find((group) => group.id === groupId);
-    if (found) return found;
-    if (offset + page.items.length >= page.total) break;
-  }
-  return null;
+export async function resolveGroup(groupId: string, signal?: AbortSignal): Promise<Group> {
+  const group = await client.request('get', '/api/v1/groups/{group_id}', { params: { path: { group_id: groupId } }, signal });
+  rememberGroups([group]);
+  return group;
 }
 
 /** Loads every package of a group in 500-item pages, up to a bound, for name lookups in evidence views. */
@@ -194,9 +215,16 @@ async function scanPackages<R>(groupId: string, stop: (items: Package[], offset:
   return undefined;
 }
 
-/** Package metadata by ID: the cache, else the group's package pages. */
+/** Package metadata by persistent ID. */
 export async function resolvePackage(groupId: string, packageId: string, signal?: AbortSignal): Promise<Package | null> {
-  return packageCache.get(packageId) ?? (await scanPackages(groupId, (items) => items.find((item) => item.id === packageId), signal)) ?? null;
+  const cached = packageCache.get(packageId);
+  if (cached?.group_id === groupId) return cached;
+  try {
+    const item = await client.request('get', '/api/v1/packages/{package_id}', { params: { path: { package_id: packageId } }, signal });
+    if (item.group_id !== groupId) return null;
+    rememberPackages([item]);
+    return item;
+  } catch (error) { if (statusOf(error) === 404) return null; throw error; }
 }
 
 /** The package before or after `packageId` in its group, for the viewer's explicit "next package" step. */
@@ -256,7 +284,7 @@ export async function refreshCurrentGroup() {
   if (cached && currentGroup.value?.id !== group) currentGroup.value = cached;
   try {
     const [found, review] = await Promise.all([
-      findGroup(library, group, controller.signal),
+      resolveGroup(group, controller.signal),
       client.request('get', '/api/v1/groups/{group_id}/review', { params: { path: { group_id: group } }, signal: controller.signal }),
     ]);
     if (controller.signal.aborted) return;
@@ -354,9 +382,13 @@ effect(() => {
 
 export async function loadTasks() {
   try {
-    const page = await client.request('get', '/api/v1/tasks', { params: { query: { offset: 0, limit: 50 } } });
-    batch(() => { tasks.value = page.items; tasksTotal.value = page.total; tasksLoaded.value = true; tasksError.value = null; });
-    for (const task of page.items) watchers.get(task.id)?.forEach((fn) => fn(task));
+    const [page, live] = await Promise.all([
+      client.request('get', '/api/v1/tasks', { params: { query: { offset: 0, limit: 50 } } }),
+      client.request('get', '/api/v1/tasks', { params: { query: { active: true, limit: 500 } } }),
+    ]);
+    const items = [...new Map([...live.items, ...page.items].map((task) => [task.id, task])).values()];
+    batch(() => { tasks.value = items; tasksTotal.value = page.total; tasksLoaded.value = true; tasksError.value = null; });
+    for (const task of items) watchers.get(task.id)?.forEach((fn) => fn(task));
   } catch (error) { if (!isAbort(error)) tasksError.value = describeError(error); }
 }
 
@@ -365,7 +397,7 @@ export async function refreshTask(id: string): Promise<Task | null> {
     const task = await client.request('get', '/api/v1/tasks/{task_id}', { params: { path: { task_id: id } } });
     const index = tasks.value.findIndex((item) => item.id === id);
     if (index >= 0) { const next = tasks.value.slice(); next[index] = task; tasks.value = next; }
-    else tasks.value = [task, ...tasks.value].slice(0, 50);
+    else tasks.value = [task, ...tasks.value].slice(0, 180);
     watchers.get(id)?.forEach((fn) => fn(task));
     return task;
   } catch (error) {
@@ -403,10 +435,6 @@ function trackedMap(): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(TRACKED) || '{}') as Record<string, string>; } catch { return {}; }
 }
 export function trackedTask(scope: string): string | null { return trackedMap()[scope] ?? null; }
-/** The scope a task was tracked under, e.g. to find the group of a compare task, whose payload has none. */
-export function scopeOfTask(id: string): string | null {
-  return Object.entries(trackedMap()).find(([, value]) => value === id)?.[0] ?? null;
-}
 export function trackTask(scope: string, id: string | null) {
   try {
     const map = trackedMap();
@@ -418,20 +446,9 @@ export function trackTask(scope: string, id: string | null) {
   trackedVersion.value++;
 }
 
-// Task payloads don't say who started a scan or cache clean-up; the drawer folds the ones not started here.
-const SUBMITTED = 'gt.submittedTasks';
-const submitted = new Set<string>(((): string[] => {
-  try { return JSON.parse(localStorage.getItem(SUBMITTED) || '[]') as string[]; } catch { return []; }
-})());
-export const submittedHere = (id: string) => submitted.has(id);
-
 export async function submitTask(body: JobBody): Promise<Task> {
   const task = await client.request('post', '/api/v1/tasks', { body });
-  submitted.delete(task.id);
-  submitted.add(task.id);
-  while (submitted.size > 200) submitted.delete(submitted.values().next().value as string);
-  try { localStorage.setItem(SUBMITTED, JSON.stringify([...submitted])); } catch { /* storage unavailable */ }
-  tasks.value = [task, ...tasks.value.filter((item) => item.id !== task.id)].slice(0, 50);
+  tasks.value = [task, ...tasks.value.filter((item) => item.id !== task.id)].slice(0, 180);
   return task;
 }
 

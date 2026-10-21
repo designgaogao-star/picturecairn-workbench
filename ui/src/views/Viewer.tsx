@@ -1,7 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
-  client, describeError, isAbort, originalUrl, pickEdge, statusOf, thumbnailUrl,
+  client, describeError, isAbort, originalUrl, pickEdge, rememberImages, statusOf, thumbnailUrl,
   type Edge, type ImageContext, type ImageItem, type Mark,
 } from '../api';
 import { Filmstrip } from '../components/Filmstrip';
@@ -74,6 +74,7 @@ function freshContext(id: string): ImageContext | undefined {
 
 async function fetchContext(id: string, signal?: AbortSignal): Promise<ImageContext> {
   const context = await client.request('get', '/api/v1/images/{image_id}/context', { params: { path: { image_id: id } }, signal });
+  rememberImages([context.image]);
   contexts.set(id, context);
   return context;
 }

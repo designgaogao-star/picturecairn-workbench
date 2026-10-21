@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { describeError, GalleryError, originalUrl, thumbnailUrl, type Edge } from '../api';
+import { describeError, GalleryError, isAbort, originalUrl, statusOf, thumbnailUrl, type Edge } from '../api';
 import { Icon } from '../lib/icons';
+import { fetchPreview } from '../lib/preview';
 import { mediaEpoch } from '../state/app';
 
 /**
@@ -36,7 +37,7 @@ export function noteThumb(id: string, edge: Edge) {
 export const knownThumb = (id: string): Edge | undefined => loaded.get(id);
 
 interface Props { id: string; edge?: Edge; fit?: 'cover' | 'contain'; alt?: string }
-interface State { key: string; attempt: number; phase: Phase; reason: string; retryable: boolean }
+interface State { key: string; attempt: number; phase: Phase; reason: string; retryable: boolean; src?: string }
 const fresh = (key: string): State => ({ key, attempt: 0, phase: 'loading', reason: '', retryable: false });
 
 /**
@@ -46,37 +47,54 @@ const fresh = (key: string): State => ({ key, attempt: 0, phase: 'loading', reas
 export function Thumb({ id, edge = 400, fit = 'cover', alt = '' }: Props) {
   // Keyed to id/edge so a reset can't land after a memory-cached image already fired onLoad,
   // and late callbacks for a recycled cell's previous image are dropped.
-  const key = `${id}:${edge}`;
+  const url = thumbnailUrl(id, edge);
+  const key = url;
   const [state, setState] = useState<State>(() => fresh(key));
   const current = state.key === key ? state : fresh(key);
   const update = (patch: Partial<State>) => setState((prev) => ({ ...(prev.key === key ? prev : fresh(key)), ...patch }));
   const timer = useRef(0);
+  const element = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
   const epoch = mediaEpoch.value;
   const { attempt, phase, reason, retryable } = current;
   const retry = () => update({ attempt: attempt + 1, phase: 'loading', reason: '', retryable: false });
 
-  useEffect(() => () => clearTimeout(timer.current), [key]);
+  const original = phase.startsWith('original');
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: '200px' });
+    if (element.current) observer.observe(element.current);
+    return () => observer.disconnect();
+  }, [key]);
+
+  useEffect(() => {
+    if (!visible || original) return;
+    const controller = new AbortController();
+    let owned = '';
+    update({ phase: 'loading', src: undefined });
+    fetchPreview(url, controller.signal).then((src) => {
+      if (controller.signal.aborted) { URL.revokeObjectURL(src); return; }
+      owned = src;
+      update({ src });
+    }).catch((error) => {
+      if (isAbort(error) || controller.signal.aborted) return;
+      const retryable = error instanceof TypeError || [502, 503, 504].includes(statusOf(error) ?? 0);
+      if (retryable && attempt < 3) {
+        timer.current = window.setTimeout(() => update({ attempt: attempt + 1 }), 700 * 2 ** attempt);
+      } else update({ reason: describeError(error), phase: 'error', retryable });
+    });
+    return () => { controller.abort(); clearTimeout(timer.current); if (owned) URL.revokeObjectURL(owned); };
+  }, [url, visible, original, attempt]);
 
   // After a reconnect, failed previews get a fresh attempt.
   useEffect(() => {
     if (phase === 'error') retry();
   }, [epoch]);
 
-  const src = thumbnailUrl(id, edge) + (attempt ? `&attempt=${attempt}` : '');
-  const failed = async () => {
-    const result = await probeImage(src);
-    // The queue may free up between the failed load and the probe, so a file that was served gets one more load
-    // before it counts as undecodable.
-    if ((result.retry && attempt < 3) || (result.served && attempt === 0)) {
-      timer.current = window.setTimeout(() => update({ attempt: attempt + 1 }), 700 * 2 ** attempt);
-      return;
-    }
-    update({ reason: result.text || '预览暂时无法生成', phase: 'error', retryable: result.retry });
-  };
-
   if (phase === 'error' || phase === 'original-error') {
     return (
-      <div class="thumb thumb-error" title={reason}>
+      <div ref={element} class="thumb thumb-error" title={reason}>
         <Icon name="TriangleAlert" size={20} />
         <span class="thumb-error-text">{phase === 'error' ? '预览失败' : '原图也无法显示'}</span>
         {phase === 'error' && (retryable
@@ -85,13 +103,13 @@ export function Thumb({ id, edge = 400, fit = 'cover', alt = '' }: Props) {
       </div>
     );
   }
-  const original = phase === 'original' || phase === 'original-ready';
+  const src = original ? originalUrl(id) : current.src;
   return (
-    <div class={`thumb fit-${fit} ${phase.endsWith('ready') ? 'is-ready' : 'is-loading'}`}>
-      <img key={original ? 'original' : src} src={original ? originalUrl(id) : src} alt={alt} draggable={false}
-        loading="lazy" decoding="async"
+    <div ref={element} class={`thumb fit-${fit} ${phase.endsWith('ready') ? 'is-ready' : 'is-loading'}`}>
+      {src && <img key={src} src={src} alt={alt} draggable={false} decoding="async"
         onLoad={() => { if (!original) noteThumb(id, edge); update({ phase: original ? 'original-ready' : 'ready' }); }}
-        onError={() => { if (original) update({ phase: 'original-error' }); else void failed(); }} />
+        onError={() => update({ phase: original ? 'original-error' : 'error', retryable: false,
+          reason: '浏览器无法解码此图片（文件可能已损坏或格式不受支持）' })} />}
     </div>
   );
 }

@@ -36,6 +36,8 @@ desktop-*.json
 review_state.json*
 folders_meta.json*
 config.json
+runtime.local.json
+GalleryTool.local.json
 marks.json
 server.log
 *.log

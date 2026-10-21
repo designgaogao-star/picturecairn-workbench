@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageCms, ImageOps
 
+from gallery.catalog import content_version
 from gallery.jobs import Busy
 
 EDGES = (400, 800, 1600, 2560, 4200)
@@ -40,7 +41,7 @@ class Images:
             return Path(entry['path'])
         return None
 
-    def get(self, image_id, edge):
+    def get(self, image_id, edge, version=None):
         image = self.catalog.entity('files', image_id)
         if not image or not image['is_image'] or not image['present']:
             raise FileNotFoundError('Image not found')
@@ -53,6 +54,8 @@ class Images:
             self.catalog.execute('UPDATE files SET size=?,mtime_ns=? WHERE id=? AND mtime_ns=0',
                                  (stat.st_size, stat.st_mtime_ns, image_id))
             image['size'], image['mtime_ns'] = stat.st_size, stat.st_mtime_ns
+        if version and version != content_version(image['size'], image['mtime_ns']):
+            raise ValueError('Image version changed; refresh the image list')
         key = self.key(image, edge)
         cached = self.cached(key)
         if cached:
@@ -166,10 +169,12 @@ class Images:
     def prewarm(self, context, payload):
         scope, scope_id = ('package_id', payload['package_id']) if payload.get('package_id') else ('group_id', payload['group_id'])
         total = self.catalog.one(f'SELECT COUNT(*) n FROM files WHERE {scope}=? AND present=1 AND is_image=1', (scope_id,))['n']
-        last, done, failed = '', 0, 0
+        last, done, failed = None, 0, 0
         while True:
-            rows = self.catalog.rows(f'SELECT * FROM files WHERE {scope}=? AND id>? AND present=1 AND is_image=1 '
-                                     'ORDER BY id LIMIT 100', (scope_id, last))
+            cursor = 'AND (p.sort_key,p.id,f.sort_key,f.id)>(?,?,?,?)' if last else ''
+            rows = self.catalog.rows(f'SELECT f.*,p.sort_key package_sort FROM files f JOIN packages p ON p.id=f.package_id '
+                                     f'WHERE f.{scope}=? AND f.present=1 AND f.is_image=1 {cursor} '
+                                     'ORDER BY p.sort_key,p.id,f.sort_key,f.id LIMIT 100', (scope_id, *(last or ())))
             if not rows:
                 break
             for image in rows:
@@ -180,7 +185,8 @@ class Images:
                     failed += 1
                 done += 1
                 context.update(done, total, image['name'])
-            last = rows[-1]['id']
+            tail = rows[-1]
+            last = tail['package_sort'], tail['package_id'], tail['sort_key'], tail['id']
             self.collect(context)
         return {'generated_or_cached': done - failed, 'failed': failed}
 
@@ -194,7 +200,9 @@ class Images:
                 if total <= self.settings.cache_limit * .85:
                     break
                 try:
-                    Path(entry['path']).unlink(missing_ok=True)
+                    path = Path(entry['path']).resolve()
+                    if path.is_relative_to((self.settings.data / 'derivatives').resolve()):
+                        path.unlink(missing_ok=True)
                 except OSError:
                     continue
                 self.catalog.execute('DELETE FROM cache_entries WHERE key=?', (entry['key'],))

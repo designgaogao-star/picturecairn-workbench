@@ -288,6 +288,9 @@ button.crumb:hover { background: var(--bg-3); color: var(--text); }
 .drawer-body { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 6px 12px 16px; }
 .drawer-body h3 { display: flex; align-items: baseline; gap: 6px; padding: 8px 4px 6px; color: var(--text-2); font-size: 12px; letter-spacing: 0.03em; }
 .drawer-body h3 .muted { font-weight: 400; }
+.task-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.task-filters select { flex: 1; min-width: 0; width: 110px; }
+.task-history-pages { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); }
 .task-list { display: flex; flex-direction: column; gap: 8px; }
 .task-row {
   display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;

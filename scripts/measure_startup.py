@@ -33,7 +33,7 @@ def main():
             environment.pop('GALLERY_LEGACY', None)
             environment.pop('GALLERY_ROOT', None)
             command = [str(args.backend)] if args.backend else [sys.executable, '-m', 'gallery']
-            command += ['--data', str(directory), '--port', '0', '--ready-file', str(ready), '--no-watch', '--no-open']
+            command += ['--data', str(directory), '--port', '0', '--ready-file', str(ready), '--no-watch', '--no-scan', '--no-open']
             with (directory / 'process.log').open('a', encoding='utf-8') as output:
                 start = time.perf_counter()
                 process = subprocess.Popen(command, env=environment, stdout=output, stderr=output)

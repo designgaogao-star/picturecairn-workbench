@@ -5,6 +5,8 @@ from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from gallery.catalog import content_version
+
 T = TypeVar('T')
 Mark = Literal['none', 'kept', 'marked']
 
@@ -62,6 +64,8 @@ class Group(BaseModel):
     image_count: int
     bytes: int
     resume_image_id: str | None
+    cover_id: str | None
+    cover_version: str | None
 
 
 class Directory(BaseModel):
@@ -85,6 +89,7 @@ class Package(BaseModel):
     loose: bool
     image_count: int
     cover_id: str | None
+    cover_version: str | None
 
 
 class ImageItem(BaseModel):
@@ -100,6 +105,12 @@ class ImageItem(BaseModel):
     height: int | None
     animated: bool | None
     error: str | None
+    version: str
+
+    @model_validator(mode='before')
+    @classmethod
+    def file_version(cls, values):
+        return {**values, 'version': content_version(values['size'], values['mtime_ns'])}
 
 
 class ImageContext(BaseModel):
@@ -168,6 +179,7 @@ class ComparedFile(BaseModel):
     is_image: bool
     size: int
     sha256: str
+    rel: str = ''
 
 
 class CompareResult(Result):
@@ -220,11 +232,14 @@ class DeleteItem(BaseModel):
 class DeleteResult(Result):
     items: list[DeleteItem]
     failed: int
+    skipped: int = 0
 
 
 class AuditImage(BaseModel):
     id: str
     verified: bool
+    name: str = ''
+    package_id: str | None = None
 
 
 class AuditPackage(BaseModel):
@@ -255,6 +270,20 @@ class AuditResult(Result):
     evidence: Literal['heuristic-only']
 
 
+class TaskTarget(BaseModel):
+    id: str
+    kind: str
+    label: str
+    rel: str
+    library_id: str | None
+    group_id: str | None
+
+
+class TaskScope(BaseModel):
+    library_id: str | None
+    group_id: str | None
+
+
 class Task(BaseModel):
     id: str
     kind: str
@@ -267,6 +296,9 @@ class Task(BaseModel):
     error: str | None
     created: float
     updated: float
+    trigger: str = 'legacy'
+    targets: list[TaskTarget]
+    scope: TaskScope
 
 
 class ScanJob(Input):
@@ -277,9 +309,14 @@ class ScanJob(Input):
 
 
 class HashJob(Input):
-    kind: Literal['build', 'analyze', 'audit']
+    kind: Literal['build', 'analyze']
     group_id: str
     threshold: int = Field(default=8, ge=0, le=16)
+
+
+class AuditJob(Input):
+    kind: Literal['audit']
+    group_id: str
 
 
 class PrewarmJob(Input):
@@ -305,7 +342,7 @@ class CollectJob(Input):
     kind: Literal['collect']
 
 
-Job = Annotated[ScanJob | HashJob | PrewarmJob | CompareJob | CollectJob, Field(discriminator='kind')]
+Job = Annotated[ScanJob | HashJob | AuditJob | PrewarmJob | CompareJob | CollectJob, Field(discriminator='kind')]
 
 
 class TaskControl(Input):
@@ -333,6 +370,24 @@ class Pair(BaseModel):
     left_id: str
     right_id: str
     distance: int
+    left_package_id: str
+    right_package_id: str
+
+
+class CacheStats(BaseModel):
+    count: int
+    bytes: int
+    limit: int
+
+
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
+    path: str | None = None
+
+
+class ErrorResponse(BaseModel):
+    error: ErrorDetail
 
 
 class Operation(BaseModel):

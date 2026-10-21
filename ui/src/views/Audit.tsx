@@ -18,8 +18,7 @@ export function Audit({ group }: { group: Group }) {
   const running = task ? isActive(task) : false;
   const start = async () => {
     try {
-      // The audit ignores the threshold, but the job schema shares it with analyze.
-      const created = await submitTask({ kind: 'audit', group_id: group.id, threshold: 8 });
+      const created = await submitTask({ kind: 'audit', group_id: group.id });
       trackTask(scope, created.id);
     } catch (error) { reportError(error, '无法开始清理检查：'); }
   };

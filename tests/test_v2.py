@@ -358,7 +358,7 @@ def test_empty_package_boundary_and_sort_compatibility(world):
     assert len(packages) == 2
     loose = next(p for p in packages if p['loose'])
     response = client.post('/api/v1/operations/delete', json={'targets': [{'kind': 'package', 'id': loose['id']}]})
-    assert wait_task(client, response.json()['id'])['state'] == 'failed'
+    assert response.status_code == 409
     assert (root / '作者' / 'z.jpg').exists()
 
 

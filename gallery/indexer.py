@@ -58,6 +58,12 @@ class Indexer:
                 return self._scan(context, payload)
             except Cancelled:
                 self.catalog.execute("UPDATE libraries SET scan_status='interrupted' WHERE id=?", (library_id,))
+                self.events.publish('catalog', {'library_id': library_id})
+                raise
+            except Exception as exc:
+                self.catalog.execute("UPDATE libraries SET scan_status='interrupted',error=? WHERE id=?",
+                                     (str(exc), library_id))
+                self.events.publish('catalog', {'library_id': library_id})
                 raise
 
     @contextlib.contextmanager
@@ -105,6 +111,7 @@ class Indexer:
         else:
             stack = [('', root_id, root_id, root_pkg)]
         visited = failed = files_seen = 0
+        changed_groups, changed_packages = set(), set()
         while stack:
             context.check()
             rel, directory_id, group_id, package_id = stack.pop()
@@ -144,6 +151,15 @@ class Indexer:
                             # DirEntry.stat on Windows reports st_ino=0; os.stat exposes the NTFS file ID.
                             stat = os.stat(entry.path, follow_symlinks=False)
                             items.append((entry.name, entry.is_dir(follow_symlinks=False), stat))
+            except FileNotFoundError:
+                with self.catalog.write() as db:
+                    self.mark_missing(db, directory_id)
+                    self.catalog.refresh_group(db, group_id)
+                    db.execute('UPDATE libraries SET revision=revision+1 WHERE id=?', (library_id,))
+                visited += 1
+                changed_groups.add(group_id)
+                changed_packages.add(package_id)
+                continue
             except (OSError, ValueError) as exc:
                 failed += 1
                 self.catalog.execute('UPDATE directories SET error=? WHERE id=?', (str(exc), directory_id))
@@ -190,6 +206,7 @@ class Indexer:
                     'SELECT id FROM directories WHERE parent_id=? AND present=1', (directory_id,))
                     if row['id'] not in seen_dirs]
                 for removed in missing:
+                    changed_groups.add(db.execute('SELECT group_id FROM directories WHERE id=?', (removed,)).fetchone()[0])
                     self.mark_missing(db, removed)
                 db.execute('UPDATE directories SET error=NULL,present=1,mtime_ns=? WHERE id=?',
                            (directory_stat.st_mtime_ns, directory_id))
@@ -197,13 +214,19 @@ class Indexer:
                 if not stack or stack[-1][2] != group_id:
                     self.catalog.refresh_group(db, group_id)
             visited += 1
+            changed_groups.add(group_id)
+            changed_packages.add(package_id)
             context.update(progress=files_seen, current=rel)
             if visited % 20 == 0:
-                self.events.publish('catalog', {'library_id': library_id})
+                self.events.publish('catalog', {'library_id': library_id, 'group_ids': sorted(changed_groups),
+                                                'package_ids': sorted(changed_packages)})
+                changed_groups.clear()
+                changed_packages.clear()
         self.catalog.execute('UPDATE libraries SET scan_status=?,last_scan=? WHERE id=?',
                              ('partial' if failed else 'ready', time.time(), library_id))
-        self.events.publish('catalog', {'library_id': library_id})
-        context.update(progress=files_seen, current='', force=True)
+        self.events.publish('catalog', {'library_id': library_id, 'group_ids': sorted(changed_groups),
+                                        'package_ids': sorted(changed_packages)})
+        context.update(progress=files_seen, force=True)
         return {'directories': visited, 'files': files_seen, 'failed_directories': failed, 'online': True}
 
     @staticmethod
@@ -240,5 +263,5 @@ class Indexer:
                    (file_id, library_id, directory_id, group_id, package_id, rel, key, Path(rel).name,
                     image_sort_key(rel[len(group_rel) + 1:] if group_rel else rel), file_identity,
                     stat.st_size, stat.st_mtime_ns, int(Path(rel).suffix.lower() in IMG_EXT
-                                                       and not stat_module.S_ISLNK(stat.st_mode))))
+                                                       and stat_module.S_ISREG(stat.st_mode))))
         return file_id

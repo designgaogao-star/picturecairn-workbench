@@ -86,12 +86,23 @@ try {
     const pid = await application.evaluate(() => process.pid);
     const ready = path.join(data, `desktop-${pid}.json`);
     assert.ok(JSON.parse(await readFile(ready, 'utf8')).pid > 0);
-    await workflows(page, url, library, output);
+    const { restoreHash } = await workflows(page, url, library, output);
+    await page.goto(url + restoreHash);
+    await page.waitForFunction(() => document.querySelector('.viewer img.layer')?.naturalWidth > 0);
     await application.close();
     applications.pop();
     await assert.rejects(access(ready), { code: 'ENOENT' });
     await assert.rejects(fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(1000) }));
     console.log('PASS packaged Electron, preload IPC, owned backend shutdown');
+    assert.equal(JSON.parse(await readFile(path.join(data, 'window-state.json'), 'utf8')).route, restoreHash);
+    const restarted = await _electron.launch({ executablePath: packedDesktop, env: { ...environment, GALLERY_DATA: data } });
+    applications.push(restarted);
+    const restored = await restarted.firstWindow();
+    await restored.waitForFunction(() => document.querySelector('.viewer img.layer')?.naturalWidth > 0);
+    assert.equal(new URL(restored.url()).hash, restoreHash, 'Desktop restart should restore the route across dynamic ports');
+    await restarted.close();
+    applications.pop();
+    console.log('PASS desktop restart: persisted image route and original library data');
   } else {
     const ready = path.join(temporary, 'ready.json');
     const token = 'isolated-ui-qa';

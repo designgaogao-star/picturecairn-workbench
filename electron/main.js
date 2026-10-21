@@ -7,7 +7,10 @@ const crypto = require('node:crypto');
 const http = require('node:http');
 
 app.setName('GalleryTool');
-const data = path.resolve(process.env.GALLERY_DATA || path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'GalleryTool'));
+const configPath = app.isPackaged ? path.join(path.dirname(process.execPath), 'GalleryTool.local.json')
+  : path.join(__dirname, '..', 'runtime.local.json');
+const localConfig = !process.env.GALLERY_DATA && fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {};
+const data = path.resolve(process.env.GALLERY_DATA || localConfig.dataDirectory || path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'GalleryTool'));
 fs.mkdirSync(data, { recursive: true });
 app.setPath('userData', data);
 const token = crypto.randomBytes(32).toString('hex');
@@ -87,7 +90,8 @@ function createWindow() {
     minWidth: 700, minHeight: 500, backgroundColor: '#161718', show: false, title: '图库', autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') } });
   if (saved.maximized) mainWindow.maximize();
-  mainWindow.loadURL(base);
+  const savedRoute = typeof saved.route === 'string' && saved.route.startsWith('#/') ? saved.route : '';
+  mainWindow.loadURL(base + savedRoute);
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
@@ -97,7 +101,8 @@ function createWindow() {
     if (new URL(url).origin !== base) event.preventDefault();
   });
   mainWindow.on('close', (event) => {
-    fs.writeFileSync(path.join(data, 'window-state.json'), JSON.stringify({ ...mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized() }));
+    fs.writeFileSync(path.join(data, 'window-state.json'), JSON.stringify({ ...mainWindow.getNormalBounds(),
+      maximized: mainWindow.isMaximized(), route: new URL(mainWindow.webContents.getURL() || base).hash }));
     if (!quitting && tray) { event.preventDefault(); mainWindow.hide(); }
   });
 }

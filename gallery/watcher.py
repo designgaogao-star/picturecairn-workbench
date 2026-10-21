@@ -77,7 +77,7 @@ class Watcher:
         if directory_id:
             payload['directory_id'] = directory_id
         try:
-            self.tasks.submit('scan', payload)
+            self.tasks.submit('scan', payload, trigger='watcher')
         except Busy:
             pass  # Periodic reconciliation also covers notification overflow.
 

@@ -47,7 +47,7 @@ class Audit:
                     continue
                 verified = file['hash_version'] == HASH_VERSION and file['hash_mtime_ns'] == file['mtime_ns']
                 if not verified or file['phash'] in hashes:
-                    hits.append({'id': file['id'], 'verified': verified})
+                    hits.append({'id': file['id'], 'name': file['name'], 'package_id': package['id'], 'verified': verified})
             size = sum(f['size'] for f in files)
             if hits and len(hits) == len(files) and size <= 20 * 1024**2 and not package['loose']:
                 shells.append({'package_id': package['id'], 'bytes': size, 'images': hits,
