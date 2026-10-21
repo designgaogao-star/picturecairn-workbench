@@ -16,6 +16,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'API contract export failed.' }
     & npm run check
     if ($LASTEXITCODE -ne 0) { throw 'TypeScript contract check failed.' }
+    & npm run ui:build
+    if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
 } finally { Pop-Location }
 $electronDir = Join-Path $projectDir 'node_modules\electron\dist'
 if (-not (Test-Path -LiteralPath (Join-Path $electronDir 'electron.exe'))) {

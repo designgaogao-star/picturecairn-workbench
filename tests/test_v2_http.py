@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+from html.parser import HTMLParser
 from pathlib import Path
 
 import httpx2 as httpx
@@ -89,8 +90,29 @@ def test_process_image_and_static_assets(running):
     assert response.status_code == 200 and response.headers['content-type'] == 'image/jpeg'
     response = client.get(f"/api/v1/images/{image['id']}/original", headers={'Range': 'bytes=0-15'})
     assert response.status_code == 206 and len(response.content) == 16
-    assert client.get('/').status_code == 200
-    assert 'lucide' in client.get('/lucide.js').text.lower()
+    response = client.get('/')
+    assert response.status_code == 200
+    assert '<div id="app">' in response.text
+
+    class Assets(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.scripts = []
+            self.styles = []
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == 'script' and attrs.get('src'):
+                self.scripts.append(attrs['src'])
+            if tag == 'link' and attrs.get('rel') == 'stylesheet':
+                self.styles.append(attrs['href'])
+
+    assets = Assets()
+    assets.feed(response.text)
+    assert assets.scripts and assets.styles
+    for asset in assets.scripts + assets.styles:
+        assert asset.startswith('/assets/')
+        assert client.get(asset).status_code == 200
     assert client.get('/openapi.json').json()['info']['version'] == '2.0.0'
 
 

@@ -271,7 +271,7 @@ def create_app(settings: Settings | None = None):
         service.shutdown_callback()
         return {'stopping': True}
 
-    prototype = settings.resources / 'prototype'
-    if prototype.is_dir():
-        app.mount('/', StaticFiles(directory=prototype, html=True), name='prototype')
+    frontend = settings.resources / 'ui' / 'dist'
+    if frontend.is_dir():
+        app.mount('/', StaticFiles(directory=frontend, html=True), name='frontend')
     return app

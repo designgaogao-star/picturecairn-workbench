@@ -31,13 +31,17 @@ export type ScanResult = S['ScanResult'];
 export type JobBody = S['ScanJob'] | S['HashJob'] | S['PrewarmJob'] | S['CompareJob'] | S['CollectJob'];
 export interface Page<T> { items: T[]; total: number; offset: number; limit: number; revision: number }
 
-export const client = new GalleryClient('');
+/** Dev-only guard for exercising a catalog copy without submitting writes or background work. */
+export const readonly = import.meta.env.DEV && new URLSearchParams(location.search).has('readonly');
+
+export const client = new GalleryClient('', (input, options) => {
+  const method = options?.method || (input instanceof Request ? input.method : 'GET');
+  if (readonly && method.toUpperCase() !== 'GET') return Promise.reject(new Error('只读联调模式'));
+  return fetch(input, options);
+});
 export { GalleryError };
 
 export const EDGES: Edge[] = [400, 800, 1600, 2560, 4200];
-
-/** Dev-only guard for exercising the real library without writing positions or marks. */
-export const readonly = import.meta.env.DEV && new URLSearchParams(location.search).has('readonly');
 
 export function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';

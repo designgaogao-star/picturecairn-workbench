@@ -2,7 +2,7 @@
 
 Windows 本地纯图片图库。支持多个本地目录、目录与图包浏览、GIF/WebP 动图、浏览位置恢复、筛选标记、抽样、去重候选、内容核验和回收站删除。
 
-后端为 Python 3.14、FastAPI、SQLite WAL、Pillow、NumPy、SciPy。Electron 提供窗口和目录选择；`prototype/` 是可运行的接口原型，正式前端可独立替换。
+后端为 Python 3.14、FastAPI、SQLite WAL、Pillow、NumPy、SciPy。正式前端在 `ui/`，使用 Preact、Signals、Vite 和严格 TypeScript；Electron 提供窗口和目录选择。后端和桌面包同源托管 `ui/dist`，`prototype/` 保留作历史参考。
 
 ## 开发
 
@@ -11,6 +11,7 @@ Windows 本地纯图片图库。支持多个本地目录、目录与图包浏览
 ```powershell
 uv sync --frozen --extra dev --extra desktop
 npm ci
+npm run ui:build
 uv run python -m gallery --port 8765
 ```
 
@@ -20,9 +21,11 @@ uv run python -m gallery --port 8765
 
 ```powershell
 # 独立临时数据，避免与已经运行的桌面程序争用同一数据库
-uv run python -m gallery --data C:\Temp\gallery-dev --port 8766
-npm start
+# 动态端口在 GALLERY_READY 输出和 ready.json 中，不占用其他程序的端口
+uv run python -m gallery --data C:\Temp\gallery-dev --port 0 --ready-file C:\Temp\gallery-dev\ready.json
 ```
+
+也可让桌面自行启动后端：在一个未被其他实例使用的临时目录设置 `$env:GALLERY_DATA='C:\Temp\gallery-desktop-dev'`，再运行 `npm start`。
 
 桌面启动使用动态端口和实例握手；已有受匹配的后台服务时复用它。关闭窗口收至托盘，托盘“退出”或 `GalleryTool.exe --quit` 退出应用，并停止应用自己启动的后端。
 
@@ -41,7 +44,9 @@ npm run contract
 npm run check
 ```
 
-开发前端独立运行时，后端进程可设置 `GALLERY_FRONTEND_ORIGIN=http://localhost:5173`；默认仅允许同源请求。
+开发前端推荐通过 Vite 同源代理联调：`GALLERY_BACKEND` 指向上述临时后端，运行 `npm run ui:dev`。PowerShell 用 `$env:GALLERY_BACKEND='http://127.0.0.1:<端口>'` 设置，前端默认端口 5173，可用 `GALLERY_UI_PORT` 修改。也可在后端配置 `GALLERY_FRONTEND_ORIGIN` 明确允许独立来源。
+
+开发服务器地址加 `?readonly` 会在前端请求入口拒绝全部非 GET 请求，包括添加图库、后台任务和任务控制，并显示“只读联调模式”；生产构建不启用这个开关。这不是后端只读模式，GET 图片仍可补齐派生缓存，后台维护也独立运行。只读排查必须使用隔离副本，不能直接打开真实数据目录。
 
 ## 验证与构建
 
@@ -51,12 +56,16 @@ uv run python -m ruff check .
 node --check prototype/app.js
 node --check electron/main.js
 npm run check
+npm run ui:check
+npm run ui:build
 pwsh -NoProfile -File scripts/build.ps1
 ```
 
 测试使用临时图库。`GALLERY_TEST_BACKEND` 指定打包后端路径后，`tests/test_v2_http.py` 对实际 exe 执行相同的 HTTP、图片、SSE、退出与临时图片回收检查。
 
 构建输出为 `build-out/<时间>/GalleryTool/GalleryTool.exe`。运行不需要另外安装 Python，不下载运行资源。
+
+`scripts/build.ps1` 先生成契约并构建正式前端，再将 `ui/dist` 与后端一起打包。前端集成回归入口为 `npm run ui:qa`，实际桌面验证为 `npm run ui:qa -- --desktop <GalleryTool.exe绝对路径>`，详见 `scripts/ui-qa/README.md`。测试自行生成临时图库、动态端口和临时数据目录，不依赖真实图库或操作回收站。
 
 本机迁移核对、性能实测与桌面验收见 [V2 Review 与验收](docs/review-v2-20261020.md)。
 

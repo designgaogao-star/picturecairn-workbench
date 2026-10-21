@@ -10,7 +10,7 @@ type JsonResponse<O> = O extends { responses: infer R } ? {
 }[Extract<keyof R, 200 | 201 | 202 | 204>] : never;
 
 export class GalleryClient {
-  constructor(readonly baseUrl: string = '') {}
+  constructor(readonly baseUrl: string = '', private readonly fetcher: typeof fetch = (...args) => fetch(...args)) {}
 
   async request<M extends Method, P extends Routes<M>>(
     method: M, route: P,
@@ -22,7 +22,7 @@ export class GalleryClient {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params?.query || {})) if (value !== undefined && value !== null) query.set(key, String(value));
     const url = this.baseUrl + path + (query.size ? '?' + query : '');
-    const response = await fetch(url, { method: method.toUpperCase(), signal: options.signal,
+    const response = await this.fetcher(url, { method: method.toUpperCase(), signal: options.signal,
       headers: options.body === undefined ? {} : { 'Content-Type': 'application/json' },
       body: options.body === undefined ? undefined : JSON.stringify(options.body) });
     if (!response.ok) throw new GalleryError(response.status, await response.json().catch(() => ({})));

@@ -11,15 +11,22 @@ export function AddLibraryForm({ onDone }: { onDone?: () => void }) {
   const [path, setPath] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState('');
 
   const choose = async () => {
-    const chosen = await desktop?.chooseDirectory?.();
-    if (chosen) { setPath(chosen); setError(''); }
+    if (busy || choosing) return;
+    setChoosing(true); setError('');
+    try {
+      const chosen = await desktop?.chooseDirectory?.();
+      if (chosen) setPath(chosen);
+    } catch (failure) {
+      setError(`无法选择文件夹：${describeError(failure)}`);
+    } finally { setChoosing(false); }
   };
   const submit = async (event: Event) => {
     event.preventDefault();
-    if (!path.trim() || busy) return;
+    if (!path.trim() || busy || choosing) return;
     setBusy(true); setError('');
     try {
       await addLibrary(path.trim(), name.trim() || null);
@@ -37,7 +44,9 @@ export function AddLibraryForm({ onDone }: { onDone?: () => void }) {
           <input value={path} onInput={(event) => setPath(event.currentTarget.value)} required autoFocus
             placeholder="例如 D:\图片\收藏" spellcheck={false} />
           {desktop?.chooseDirectory && (
-            <button type="button" class="btn" onClick={choose}><Icon name="FolderOpen" />选择…</button>
+            <button type="button" class="btn" onClick={choose} disabled={busy || choosing}>
+              <Icon name={choosing ? 'LoaderCircle' : 'FolderOpen'} spin={choosing} />选择文件夹…
+            </button>
           )}
         </div>
       </label>
@@ -48,7 +57,7 @@ export function AddLibraryForm({ onDone }: { onDone?: () => void }) {
       <p class="hint">只读取该文件夹中的图片；索引在后台建立，期间可以直接浏览已扫描的部分。</p>
       {error && <p class="form-error" role="alert"><Icon name="CircleAlert" size={16} />{error}</p>}
       <div class="form-actions">
-        <button class="btn primary" type="submit" disabled={busy || !path.trim()}>
+        <button class="btn primary" type="submit" disabled={busy || choosing || !path.trim()}>
           {busy ? <Icon name="LoaderCircle" spin /> : <Icon name="FolderPlus" />}添加图库
         </button>
       </div>

@@ -56,4 +56,6 @@ Electron 44 使用隔离渲染进程、沙箱和有限的目录选择 IPC。新�
 
 SSE 使用 FastAPI 的 EventSourceResponse 和标准编码，直接返回流式响应，由响应管理客户端断开。Windows HTTP 服务使用标准库 Selector 事件循环，避免 Python 3.14.6 Proactor 在连接重置后漏掉 transport 清理而卡住退出；后端不在事件循环中运行子进程。
 
-Python 和 npm 依赖分别锁定于 uv.lock 与 package-lock.json。唯一构建入口为 scripts/build.ps1；PyInstaller onedir 产物包含 SQL、原型、图标脚本与原生计算依赖。构建和用户数据不进入 Git。
+Python 和 npm 依赖分别锁定于 uv.lock 与 package-lock.json。唯一构建入口为 scripts/build.ps1；生成契约与构建正式前端后，PyInstaller onedir 产物包含 SQL、ui/dist 与原生计算依赖，Electron 资源包含桌面脚本与图标。后端同源托管 ui/dist，前端使用 hash 路由，不需要服务端页面回退。prototype 保留在源码中，不进入新桌面包。构建和用户数据不进入 Git。
+
+正式前端的所有 JSON 请求使用类型客户端。客户端可注入 HTTP transport；ui/src/api.ts 在开发只读模式中于此拒绝全部非 GET 请求，避免不同视图遗漏检查。生产构建不启用该限制，后端权限、路径校验及文件操作规则不依赖此开发开关。

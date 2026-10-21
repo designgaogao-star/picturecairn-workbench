@@ -8,6 +8,8 @@
 
 `contracts/client.ts` 使用生成的路径、参数、请求体和成功响应类型，支持 AbortSignal。图片 URL 由客户端的 thumbnail/original 方法构造。所有图片请求都走后端，前端不读取文件系统、不拼接原图绝对路径。
 
+正式桌面前端位于 `ui/`，后端托管 `ui/dist`，统一构建脚本会先执行 `npm run ui:build`。客户端构造函数的第二个可选参数是 HTTP transport；正式前端在这里统一拦截开发模式 `?readonly` 的所有非 GET 请求，生产构建不启用此开关。
+
 ## 浏览流程
 
 1. GET libraries 获取分页的图库清单；POST libraries 注册用户选中的目录，随后后台扫描。目录名称可重复，始终使用 ID。

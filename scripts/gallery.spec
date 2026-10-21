@@ -5,7 +5,7 @@ import os
 TOOL = os.path.abspath(os.path.join(SPECPATH, '..'))
 a = Analysis(
     [os.path.join(TOOL, 'gallery', '__main__.py')], pathex=[TOOL], binaries=[],
-    datas=[(os.path.join(TOOL, 'prototype'), 'prototype'),
+    datas=[(os.path.join(TOOL, 'ui', 'dist'), 'ui/dist'),
            (os.path.join(TOOL, 'gallery', 'sql'), 'gallery/sql')],
     hiddenimports=['uvicorn.logging', 'uvicorn.loops.auto', 'uvicorn.protocols.http.h11_impl',
                    'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan.on',
