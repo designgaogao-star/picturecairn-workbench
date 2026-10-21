@@ -35,6 +35,8 @@ uv run python -m gallery --data C:\Temp\gallery-dev --port 0 --ready-file C:\Tem
 
 ## 前端交接
 
+下一轮界面改版按 [图片工作台设计需求包](docs/design/image-workbench/README.md) 实施，包含可交互样机、语义令牌和前端开工提示词。产品背景见 [PRODUCT.md](PRODUCT.md)，设计方向见 [DESIGN.md](DESIGN.md)；当前运行版说明仍以 `docs/frontend-ui.md` 为准。
+
 接口前缀 `/api/v1`，运行时 OpenAPI 为 `/openapi.json`。
 
 - `contracts/openapi.json`：生成的 API 契约。

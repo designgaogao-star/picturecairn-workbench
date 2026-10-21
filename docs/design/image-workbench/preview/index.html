@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <title>GalleryTool · 图片工作台设计样机</title>
+  <link rel="stylesheet" href="../tokens.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/lucide.min.js"></script>
+  <script defer src="data.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">跳到图片区域</a>
+  <div id="app"></div>
+  <dialog id="navigation" class="nav-dialog" aria-label="图库与文件夹"></dialog>
+  <dialog id="panel" class="panel" aria-label="侧面板"></dialog>
+  <dialog id="viewer" class="viewer" aria-label="图片查看器"></dialog>
+  <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+  <div id="menu-root"></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

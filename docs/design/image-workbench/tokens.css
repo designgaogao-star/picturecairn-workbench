@@ -1,0 +1,92 @@
+/* GalleryTool workbench semantic tokens. Production adoption is incremental. */
+:root {
+  color-scheme: light;
+  --canvas: #f4f5f6;
+  --surface: #ffffff;
+  --surface-subtle: #f8f9fa;
+  --surface-hover: #edf0f1;
+  --surface-active: #e4e9e9;
+  --media: #e9eced;
+  --text: #242829;
+  --text-secondary: #586165;
+  --text-muted: #667074;
+  --line: #dfe3e4;
+  --line-strong: #8b969b;
+  --accent: #126b5c;
+  --accent-hover: #0c584c;
+  --accent-soft: #e1efea;
+  --accent-text: #0e5c4d;
+  --on-accent: #ffffff;
+  --success: #28633d;
+  --success-soft: #eaf3ec;
+  --warning: #86500c;
+  --warning-soft: #fff2da;
+  --danger: #b33835;
+  --danger-soft: #fcecea;
+  --viewer: #17191b;
+  --viewer-surface: #242729;
+  --viewer-text: #f0f2f2;
+  --viewer-secondary: #b5bdbf;
+  --scrim: rgb(20 25 27 / 35%);
+  --shadow: 0 6px 24px rgb(20 25 27 / 12%);
+  --font: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  --font-mono: Consolas, "Cascadia Code", monospace;
+  --font-body: 14px;
+  --font-small: 12px;
+  --font-title: 22px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-control: 4px;
+  --radius-item: 6px;
+  --radius-dialog: 8px;
+  --sidebar-width: 232px;
+  --inspector-width: 280px;
+  --task-width: 360px;
+  --topbar-height: 52px;
+  --toolbar-height: 44px;
+  --status-height: 28px;
+  --control-size: 32px;
+  --touch-size: 44px;
+  --duration-fast: 120ms;
+  --duration-panel: 180ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #1c1e20;
+  --surface: #232628;
+  --surface-subtle: #202325;
+  --surface-hover: #2f3436;
+  --surface-active: #3b4244;
+  --media: #151719;
+  --text: #e8eded;
+  --text-secondary: #bbc3c5;
+  --text-muted: #a3afb2;
+  --line: #3b4245;
+  --line-strong: #7e8b90;
+  --accent: #80cbb4;
+  --accent-hover: #a0ddca;
+  --accent-soft: #243e36;
+  --accent-text: #a0ddca;
+  --on-accent: #132a23;
+  --success: #a1cdae;
+  --success-soft: #233c2c;
+  --warning: #efc27c;
+  --warning-soft: #3e301c;
+  --danger: #ffa39e;
+  --danger-soft: #442c2c;
+  --scrim: rgb(0 0 0 / 55%);
+  --shadow: 0 8px 28px rgb(0 0 0 / 28%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-panel: 0ms;
+  }
+}
