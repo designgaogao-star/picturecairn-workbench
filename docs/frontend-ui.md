@@ -269,7 +269,13 @@
 ## 8. 交接给前端负责人
 
 **仍需完成**
-- 桌面构建：后端目前托管的是 `prototype/`，需要改为托管 `ui/dist`，并接入 `scripts/build.ps1`（另见缺口 28）。
+- 桌面构建：Electron 加载的是后端地址，后端目前托管的是 `prototype/`，需要改为托管 `ui/dist`（另见缺口 28）。要改三处：
+  - `scripts/build.ps1`：打包后端之前先运行 `npm run ui:build`；
+  - `scripts/gallery.spec`：打包的资源从 `prototype` 改为 `ui/dist`；
+  - `gallery/app.py`：静态挂载从 `prototype` 改为 `ui/dist`。
+- 添加图库时选择文件夹：桌面版的预载脚本提供 `window.galleryApp.chooseDirectory()`，原型用它打开系统的文件夹对话框。正式前端还没有接入，只能手动输入路径。
+  - 要在切换到 `ui/dist` 之前补上，否则桌面版会少了这个功能。
+  - 浏览器里没有这个接口，保留手动输入。
 - 只读模式：开发用的 `?readonly` 只拦截标记、位置和删除，任务提交也应受限。
 
 **等后端补字段后可简化**
@@ -281,10 +287,11 @@
 **自动化验证脚本**
 - 位置：`%TEMP%\gallery-ui-qa\shoot\`，不在仓库里。
 - 用法：`electron driver.js <场景>.js [宽 高]`。
+- 测试图库：`scripts/demo_ui_library.py <目录>` 生成隔离的测试图库（脚本未提交）。
 - 如需长期使用，建议迁入仓库。
 
 **运行与检查**
 - 开发服务器：`npm run ui:dev`。
-  - 环境变量 `GALLERY_BACKEND` 指定后端，`GALLERY_UI_PORT` 指定端口。
+  - 环境变量 `GALLERY_BACKEND` 指定后端（默认 `http://127.0.0.1:8765`），`GALLERY_UI_PORT` 指定端口（默认 5173）。
 - 类型检查：`npm run ui:check`。
 - 构建：`npm run ui:build`，产物在 `ui/dist`（不进 Git）。
