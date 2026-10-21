@@ -10,12 +10,18 @@
     "build": "pwsh -NoProfile -File scripts/build.ps1",
     "contract": "uv run python scripts/export_contract.py && openapi-typescript contracts/openapi.json -o contracts/schema.d.ts",
     "check": "tsc -p contracts/tsconfig.json --noEmit",
-    "prepare": "node scripts/prepare-icons.mjs && node node_modules/electron/install.js"
+    "prepare": "node scripts/prepare-icons.mjs && node node_modules/electron/install.js",
+    "ui:dev": "vite --config ui/vite.config.ts",
+    "ui:check": "tsc -p ui/tsconfig.json",
+    "ui:build": "tsc -p ui/tsconfig.json && vite build --config ui/vite.config.ts"
   },
   "devDependencies": {
+    "@preact/signals": "2.11.3",
     "electron": "44.9.0",
     "lucide": "1.59.0",
     "openapi-typescript": "7.13.0",
-    "typescript": "5.9.3"
+    "preact": "10.29.8",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
   }
 }

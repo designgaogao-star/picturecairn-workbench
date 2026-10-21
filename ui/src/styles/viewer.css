@@ -1,0 +1,129 @@
+/* Image viewer: stage, layers, chrome, info panel and filmstrip. */
+
+.viewer {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: var(--media); color: var(--text); animation: fade-in 0.12s ease-out;
+}
+.viewer:focus, .viewer:focus-visible { outline: none; }
+
+.viewer-bar {
+  flex: none; display: flex; align-items: center; gap: 4px;
+  height: var(--bar-h); padding: 0 8px; border-bottom: 1px solid var(--line);
+  background: var(--bg); transition: opacity 0.2s ease;
+}
+.viewer-title { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 4px; }
+.viewer-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-sub { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; white-space: nowrap; }
+.viewer-pkg { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.viewer-sub > .num { flex: none; }
+.viewer-sub > .badge { height: 16px; padding: 0 5px; font-size: 10.5px; }
+.viewer-tools { display: flex; align-items: center; gap: 2px; margin-right: 4px; padding-right: 6px; border-right: 1px solid var(--line); }
+.zoom-level { min-width: 88px; }
+.viewer-bar > .segment.marks { margin: 0 4px; }
+
+/* ---------------------------------------------------------------- stage */
+
+.viewer-main { position: relative; flex: 1 1 0; min-height: 0; display: flex; }
+.nav {
+  flex: none; display: grid; place-items: center; width: 56px; padding: 0; border: 0;
+  background: none; color: rgb(255 255 255 / 55%); transition: background-color 0.12s, color 0.12s, opacity 0.2s;
+}
+.nav:hover { background: rgb(255 255 255 / 5%); color: #fff; }
+.nav.at-edge { color: rgb(255 255 255 / 18%); }
+
+.stage {
+  position: relative; flex: 1 1 0; min-width: 0; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.stage.can-pan { cursor: grab; }
+.stage.can-pan:active { cursor: grabbing; }
+
+.frame { position: absolute; left: 50%; top: 50%; pointer-events: none; }
+.frame > .layer { display: block; width: 100%; height: 100%; }
+/* Size unknown yet: shrink-only fit by the browser until the real dimensions arrive. */
+.frame.free { inset: 0; display: grid; place-items: center; }
+.frame.free > .layer { width: auto; height: auto; max-width: 100%; max-height: 100%; }
+.frame.free.placeholder > .layer { width: 100%; height: 100%; object-fit: contain; }
+.frame.stale { opacity: 0.3; filter: saturate(0.5); }
+.frame.pending { visibility: hidden; }
+
+.viewer-loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-2); pointer-events: none; }
+.viewer-loading.corner {
+  inset: auto 12px 12px auto; display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 16px; background: rgb(0 0 0 / 62%); color: #d6dae2; font-size: 12px;
+}
+.viewer-failure {
+  position: absolute; left: 0; right: 0; top: 50%; z-index: 2; transform: translateY(-50%);
+  width: min(400px, calc(100% - 32px)); margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 22px 20px 18px; border: 1px solid var(--line-2); border-radius: var(--radius-l);
+  background: rgb(26 30 37 / 95%); box-shadow: var(--shadow); text-align: center; overflow-wrap: anywhere;
+}
+.viewer-failure > .icon { color: var(--warn); }
+.viewer-failure > .form-actions { justify-content: center; margin-top: 6px; }
+.edge-note {
+  position: absolute; left: 0; right: 0; bottom: 20px; z-index: 2; width: max-content; max-width: calc(100% - 24px); margin: 0 auto;
+  display: flex; align-items: center; gap: 10px; padding: 5px 5px 5px 14px;
+  border: 1px solid var(--line-2); border-radius: 20px; background: rgb(20 23 28 / 94%);
+  box-shadow: var(--shadow); font-size: 13px; animation: rise-in 0.15s ease-out;
+}
+.edge-note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edge-note:not(:has(.btn)) { padding-right: 14px; }
+.edge-note > .btn { border-radius: 15px; }
+
+/* ---------------------------------------------------------------- info panel */
+
+.viewer-info {
+  flex: none; width: 300px; overflow-y: auto; padding: 14px 16px;
+  border-left: 1px solid var(--line); background: var(--bg-1); font-size: 13px;
+}
+.viewer-info dt { color: var(--text-3); font-size: 11.5px; }
+.viewer-info dd { margin-bottom: 10px; overflow-wrap: anywhere; }
+.viewer-info dd:last-child { margin-bottom: 0; }
+.viewer-info dd.path { font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace; font-size: 12px; color: var(--text-2); }
+.viewer-info dd.bad { color: var(--bad); }
+
+/* ---------------------------------------------------------------- filmstrip */
+
+.filmstrip {
+  flex: none; height: 96px; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
+  border-top: 1px solid var(--line); background: var(--bg); transition: opacity 0.2s ease;
+}
+.film-space { position: relative; height: 100%; }
+.film-cell {
+  position: absolute; top: 8px; left: 0; width: 72px; height: 72px; padding: 0; border: 0;
+  border-radius: 4px; overflow: hidden; background: var(--bg-2); opacity: 0.6; transition: opacity 0.12s;
+}
+.film-cell:hover, .film-cell:focus-visible, .film-cell.active { opacity: 1; }
+.film-cell.active::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 3px rgb(0 0 0 / 55%); pointer-events: none;
+}
+.film-cell.skeleton { background: var(--bg-3); }
+.film-wait { position: absolute; inset: 0; background: var(--bg-3); }
+
+/* ---------------------------------------------------------------- fullscreen */
+
+.viewer.full .viewer-bar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3; border-bottom: 0;
+  background: linear-gradient(rgb(0 0 0 / 72%), rgb(0 0 0 / 38%) 70%, transparent);
+}
+.viewer.full .filmstrip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; border-top: 0; background: rgb(9 10 13 / 82%); }
+.viewer.idle, .viewer.idle .stage { cursor: none; }
+.viewer.idle .viewer-bar, .viewer.idle .filmstrip, .viewer.idle .nav { opacity: 0; pointer-events: none; }
+
+/* ---------------------------------------------------------------- narrow */
+
+.viewer.narrow .wide-only { display: none; }
+.viewer.narrow .viewer-bar { gap: 2px; padding: 0 4px; }
+.viewer.narrow .viewer-title { padding: 0 2px; }
+.viewer.narrow .viewer-bar > .segment.marks { margin: 0 2px; }
+.viewer.narrow .viewer-bar > .btn.small { padding: 0 8px; }
+.viewer.narrow > .viewer-info { width: auto; max-height: 34vh; border-left: 0; border-top: 1px solid var(--line); padding: 10px 14px; }
+.viewer.narrow > .viewer-info dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; }
+.viewer.narrow > .viewer-info dd { margin: 0; }
+.viewer-foot {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 56px; padding: 0 10px; border-top: 1px solid var(--line); background: var(--bg-1);
+}
+.viewer-foot > .btn { min-width: 96px; height: 38px; }
+.viewer-foot > .btn.at-edge { opacity: 0.4; }
