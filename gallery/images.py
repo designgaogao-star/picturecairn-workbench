@@ -1,5 +1,6 @@
 """Fixed-size, versioned derivatives with bounded cold reads and decode memory."""
 
+import contextlib
 import hashlib
 import json
 import os
@@ -80,14 +81,22 @@ class Images:
             raise Busy('Image service is stopping')
 
     def generate(self, image, edge, key, context=None):
-        with self.generation_locks[int(key[:2], 16) % 64]:
+        checkpoint = context.check if context else self._check
+        checkpoint()
+        lock = self.generation_locks[int(key[:2], 16) % 64]
+        while not lock.acquire(timeout=.05):
+            checkpoint()
+        try:
             return self._generate(image, edge, key, context)
+        finally:
+            lock.release()
 
     def _generate(self, image, edge, key, context=None):
         cached = self.cached(key)
         if cached:
             return cached
-        checkpoint = context.check if context else self._check
+        # Pause at image boundaries; pausing with a generation lock or memory held would stall browsing.
+        checkpoint = context.check_cancelled if context else self._check
         checkpoint()
         legacy = self._reuse_legacy(image, edge, key)
         if legacy:
@@ -97,11 +106,12 @@ class Images:
         cache_dir.mkdir(parents=True, exist_ok=True)
         target = cache_dir / (key + '.webp')
         try:
-            with self.resources.io(path, foreground=context is None, checkpoint=checkpoint):
-                stat = path.stat()
-                if (stat.st_size, stat.st_mtime_ns) != (image['size'], image['mtime_ns']):
-                    raise ValueError('Image changed; refresh the library')
-                with Image.open(path) as opened:
+            with contextlib.ExitStack() as cleanup:
+                with self.resources.io(path, foreground=context is None, checkpoint=checkpoint):
+                    stat = path.stat()
+                    if (stat.st_size, stat.st_mtime_ns) != (image['size'], image['mtime_ns']):
+                        raise ValueError('Image changed; refresh the library')
+                    opened = cleanup.enter_context(Image.open(path))
                     width, height = opened.size
                     animated = bool(getattr(opened, 'is_animated', False))
                     orientation = opened.getexif().get(274, 1)
@@ -109,29 +119,38 @@ class Images:
                         width, height = height, width
                     opened.draft('RGB', (edge, edge))
                     estimate = opened.width * opened.height * 8 + edge * edge * 8
-                    with self.resources.decode(estimate, checkpoint):
-                        frame = ImageOps.exif_transpose(opened)
-                        frame.thumbnail((edge, edge), Image.Resampling.LANCZOS)
-                        profile = frame.info.get('icc_profile')
-                        if profile:
-                            import io
-                            try:
-                                source = ImageCms.ImageCmsProfile(io.BytesIO(profile))
-                                frame = ImageCms.profileToProfile(frame, source, ImageCms.createProfile('sRGB'),
-                                                                  outputMode='RGBA' if 'A' in frame.getbands() else 'RGB')
-                            except (ImageCms.PyCMSError, OSError):
-                                pass
-                        if frame.mode not in ('RGB', 'RGBA'):
-                            frame = frame.convert('RGBA' if 'transparency' in frame.info else 'RGB')
-                        opaque = frame.mode == 'RGB'
-                        if opaque:
-                            target = target.with_suffix('.jpg')
-                        temporary = target.with_suffix('.tmp')
-                        if opaque:
-                            frame.save(temporary, 'JPEG', quality=82 if edge > 800 else 75, optimize=False)
-                        else:
-                            frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=1)
-                        os.replace(temporary, target)
+                # Never hold a source volume while waiting for memory or encoding to the local cache.
+                cleanup.enter_context(self.resources.decode(estimate, checkpoint, foreground=context is None))
+                with self.resources.io(path, foreground=context is None, checkpoint=checkpoint):
+                    stat = path.stat()
+                    if (stat.st_size, stat.st_mtime_ns) != (image['size'], image['mtime_ns']):
+                        raise ValueError('Image changed; refresh the library')
+                    frame = cleanup.enter_context(ImageOps.exif_transpose(opened))
+                opened.close()
+                checkpoint()
+                frame.thumbnail((edge, edge), Image.Resampling.LANCZOS)
+                profile = frame.info.get('icc_profile')
+                if profile:
+                    import io
+                    try:
+                        source = ImageCms.ImageCmsProfile(io.BytesIO(profile))
+                        frame = cleanup.enter_context(ImageCms.profileToProfile(
+                            frame, source, ImageCms.createProfile('sRGB'),
+                            outputMode='RGBA' if 'A' in frame.getbands() else 'RGB'))
+                    except (ImageCms.PyCMSError, OSError):
+                        pass
+                if frame.mode not in ('RGB', 'RGBA'):
+                    frame = cleanup.enter_context(frame.convert('RGBA' if 'transparency' in frame.info else 'RGB'))
+                opaque = frame.mode == 'RGB'
+                if opaque:
+                    target = target.with_suffix('.jpg')
+                temporary = target.with_suffix('.tmp')
+                checkpoint()
+                if opaque:
+                    frame.save(temporary, 'JPEG', quality=82 if edge > 800 else 75, optimize=False)
+                else:
+                    frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=1)
+                os.replace(temporary, target)
             self.catalog.execute('UPDATE files SET width=?,height=?,animated=?,error=NULL WHERE id=? AND mtime_ns=?',
                                  (width, height, int(animated), image['id'], image['mtime_ns']))
             self.catalog.execute('INSERT OR REPLACE INTO cache_entries VALUES(?,?,?,?)',

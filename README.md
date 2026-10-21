@@ -75,6 +75,8 @@ pwsh -NoProfile -File scripts/build.ps1
 
 正式前端接入、全库 215,243 张图片核对与当前运行入口见 [正式图库落地与验收](docs/review-live-20261022.md)。
 
+同卷加载流水线、前台解码优先级和可重复混合素材性能对照见 [图片加载优化验收](docs/review-loading-20261022.md)。
+
 ## 数据迁移
 
 ```powershell

@@ -37,6 +37,8 @@ Task.targets 附带 kind/id/label/rel/library_id/group_id，scope 提供任务�
 
 queued → running → completed/failed；pause/resume 在 paused 和 running 间切换；cancel 导致 cancelled，可能先显示 cancelling。删除任务不可暂停，可在项目之间取消。任务中已完成的文件操作不因取消而回滚，逐项结果及 operations 日志是判断依据。重启后的未完成任务为 interrupted，可重新提交。
 
+预热的暂停在图片边界生效，当前图片会先完成并释放解码预算和生成锁，避免暂停任务挡住前台浏览。paused 表示已接受暂停，不能据此认定正在进行的原生解码或编码被立即抢断。取消会在资源等待和处理检查点响应；已生成的缓存保留。
+
 SSE events 发送 snapshot、task、catalog、review、reset 和 ping（15 秒无其他事件时，附 Unix 时间戳）。catalog 带 library_id、group_ids、package_ids，按范围使列表失效；范围缺失时全库刷新。事件是失效通知，收到后读取相应快照；重连收到 snapshot 时重新读取当前图库与任务。事件缓冲最多 256 项，落后太远发送 reset，不能把它当可靠消息队列。前端 45 秒没有任何事件时主动重连。
 
 413/422 表示请求或图片无法处理，404 表示资源消失，409 表示状态冲突或文件发生变化，503 表示队列已满或正在停止。图像失败在 UI 上显示错误状态，并允许查看原图；不要把解码失败伪装为成功的灰色图片。

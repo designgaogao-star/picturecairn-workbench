@@ -27,6 +27,7 @@ class Resources:
         self.decode_limit = decode_bytes
         self.decode_used = 0
         self.decode_count = 0
+        self.decode_waiters = 0
 
     @contextlib.contextmanager
     def io(self, path, foreground=False, checkpoint=lambda: None):
@@ -54,17 +55,27 @@ class Resources:
                 self.condition.notify_all()
 
     @contextlib.contextmanager
-    def decode(self, estimate, checkpoint=lambda: None):
+    def decode(self, estimate, checkpoint=lambda: None, *, foreground=False):
         if estimate > self.decode_limit:
             raise ValueError('Image exceeds the 512 MiB decode budget; original remains available')
-        while True:
-            checkpoint()
-            with self.condition:
-                if self.decode_count < 2 and self.decode_used + estimate <= self.decode_limit:
-                    self.decode_used += estimate
-                    self.decode_count += 1
-                    break
-                self.condition.wait(.05)
+        with self.condition:
+            if foreground:
+                self.decode_waiters += 1
+        try:
+            while True:
+                checkpoint()
+                with self.condition:
+                    if (self.decode_count < 2 and self.decode_used + estimate <= self.decode_limit
+                            and (foreground or not self.decode_waiters)):
+                        self.decode_used += estimate
+                        self.decode_count += 1
+                        break
+                    self.condition.wait(.05)
+        finally:
+            if foreground:
+                with self.condition:
+                    self.decode_waiters -= 1
+                    self.condition.notify_all()
         try:
             yield
         finally:
@@ -88,8 +99,11 @@ class Context:
 
     def check(self):
         while self.paused.is_set():
-            if self.cancel.wait(.05):
-                raise Cancelled()
+            self.check_cancelled()
+            self.cancel.wait(.05)
+        self.check_cancelled()
+
+    def check_cancelled(self):
         if self.cancel.is_set() or self.manager.stopping.is_set():
             raise Cancelled()
 

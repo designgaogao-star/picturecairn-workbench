@@ -30,13 +30,14 @@ class Dedup:
             try:
                 path = self.access.path(row)
                 with context.io(path):
-                    stat = path.stat()
-                    if (stat.st_size, stat.st_mtime_ns) != (row['size'], row['mtime_ns']):
-                        raise ValueError('Image changed; refresh the library')
                     with Image.open(path) as image:
                         image.draft('RGB', (64, 64))
                         estimate = image.width * image.height * 8 + 1024**2
-                    with self.resources.decode(estimate, context.check):
+                with self.resources.decode(estimate, context.check):
+                    with self.resources.io(path, checkpoint=context.check_cancelled):
+                        stat = path.stat()
+                        if (stat.st_size, stat.st_mtime_ns) != (row['size'], row['mtime_ns']):
+                            raise ValueError('Image changed; refresh the library')
                         digest = phash(path)
                 if digest is None:
                     raise ValueError('Cannot decode image')

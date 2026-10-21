@@ -2,8 +2,33 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 
 async function snapshot(page, output, name) {
-  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name}: horizontal overflow`);
-  await page.screenshot({ path: path.join(output, `${name}.png`) });
+  const still = await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; }' });
+  try {
+    await page.waitForFunction(() => {
+      const items = [...document.querySelectorAll('.thumb, .card.skeleton')];
+      if (!items.length) return true;
+      // IntersectionObserver accounts for clipping by the virtual grid's scroll container.
+      return new Promise((resolve) => {
+        const visible = new Map();
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => visible.set(entry.target, entry.isIntersecting));
+          if (visible.size !== items.length) return;
+          observer.disconnect();
+          const onScreen = [...visible].filter(([, intersects]) => intersects).map(([element]) => element);
+          resolve(onScreen.length > 0 && onScreen.every((element) => {
+            if (element.classList.contains('is-loading') || element.classList.contains('skeleton')) return false;
+            const image = element.querySelector('img');
+            return !image || (image.complete && image.naturalWidth > 0 && Number(getComputedStyle(image).opacity) >= .99);
+          }));
+        });
+        items.forEach((element) => observer.observe(element));
+      });
+    });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name}: horizontal overflow`);
+    await page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
+  } finally {
+    await still.evaluate((element) => element.remove());
+  }
 }
 
 async function viewReady(page) {
@@ -72,6 +97,9 @@ export async function workflows(page, base, library, output) {
   await page.locator('.group-card').filter({ hasText: '山色' }).click();
   await page.getByRole('button', { name: '打开图片墙', exact: true }).first().click();
   await page.locator('.image-card img').first().waitFor();
+  await page.waitForFunction((expected) => [...document.querySelectorAll('.image-card .thumb.is-ready > img')]
+    .filter((image) => image.complete && image.naturalWidth > 0 && Number(getComputedStyle(image).opacity) >= .99).length === expected,
+  images.length);
   await snapshot(page, output, 'images-desktop');
   await page.locator('.image-card').first().click();
   await viewReady(page);
