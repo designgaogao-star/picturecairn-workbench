@@ -142,4 +142,5 @@ class Service:
         self.images.stop()
         if self.maintenance:
             self.maintenance.join(timeout=2)
+        self.catalog.close()
         self.instance.release()

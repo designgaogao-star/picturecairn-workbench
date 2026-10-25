@@ -75,13 +75,26 @@ class Catalog:
             if version == 7:
                 sql = (Path(__file__).parent / 'sql' / '008_library_management.sql').read_text(encoding='utf-8')
                 db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=8;\nCOMMIT;')
+        # Request connections may all close between reads. Keep WAL open until service shutdown,
+        # without a transaction, so the next request need not race its cleanup/recovery.
+        self._lifetime = self.connect(check_same_thread=False)
 
-    def connect(self):
-        db = sqlite3.connect(self.path, timeout=5)
-        db.row_factory = sqlite3.Row
-        db.execute('PRAGMA foreign_keys=ON')
-        db.execute('PRAGMA synchronous=NORMAL')
+    def connect(self, *, check_same_thread=True):
+        db = sqlite3.connect(self.path, timeout=5, check_same_thread=check_same_thread)
+        try:
+            db.row_factory = sqlite3.Row
+            db.execute('PRAGMA foreign_keys=ON')
+            db.execute('PRAGMA synchronous=NORMAL')
+        except BaseException:
+            db.close()
+            raise
         return db
+
+    def close(self):
+        with self.lock:
+            if self._lifetime is not None:
+                self._lifetime.close()
+                self._lifetime = None
 
     @contextlib.contextmanager
     def write(self):

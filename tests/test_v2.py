@@ -289,6 +289,7 @@ def test_legacy_import_backup_and_stable_position(tmp_path, indexed):
     row = catalog.one('SELECT f.name,r.state FROM review r JOIN files f ON f.id=r.image_id')
     assert row == {'name': 'b.jpg', 'state': 'kept'}
     assert import_legacy(catalog, source, root, indexer, Context()) == report
+    catalog.close()
 
 
 def test_job_pause_resume_cancel_and_persistence(world):

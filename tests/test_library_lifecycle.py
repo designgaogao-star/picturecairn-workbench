@@ -261,3 +261,4 @@ def test_v7_catalog_migration_keeps_existing_library(tmp_path):
     assert catalog.one('PRAGMA user_version')['user_version'] == 8
     assert catalog.libraries()[0]['id'] == 'old-id'
     assert catalog.entity('libraries', 'old-id')['managed'] == 1
+    catalog.close()

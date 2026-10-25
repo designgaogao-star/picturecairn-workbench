@@ -247,6 +247,7 @@ def test_live_snapshot_preserves_ids_positions_and_independent_cache(world, tmp_
     assert verify(destination, tmp_path / 'not-the-library')['ok'] is True
     with pytest.raises(FileExistsError):
         prepare(service.settings.data, destination)
+    copied.close()
 
 
 def test_pending_scans_merge_across_trigger_and_subtree(tmp_path):
@@ -257,3 +258,4 @@ def test_pending_scans_merge_across_trigger_and_subtree(tmp_path):
     assert first['id'] == second['id']
     assert tasks.queue.qsize() == 1
     assert second['payload']['force'] is True and not second['payload'].get('directory_id')
+    catalog.close()
