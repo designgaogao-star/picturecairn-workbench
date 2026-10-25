@@ -105,16 +105,21 @@ async function framework(page, base, lib, group) {
     }
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.waitForFunction(async () => !(await import('/src/state/app.ts')).narrow.value);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await settled(page);
   const packageCount = (await get(`/api/v1/groups/${group.id}/packages`)).total;
-  await page.waitForFunction((count) => {
+  // Read readiness and the baseline atomically: a resize can update the cards between two protocol calls.
+  const baseline = await page.waitForFunction((count) => {
     const cards = [...document.querySelectorAll('.package-card')];
-    return cards.length === count && cards.every((card) => card.querySelector('.thumb.is-ready img')?.naturalWidth > 0);
+    if (cards.length !== count || !cards.every((card) => card.querySelector('.thumb.is-ready img')?.naturalWidth > 0)) return false;
+    return cards.map((card) => ({
+      id: card.closest('[data-resource-id]')?.getAttribute('data-resource-id'), ready: card.querySelector('.thumb')?.className,
+      src: card.querySelector('.thumb img')?.getAttribute('src'), width: card.getBoundingClientRect().width,
+    }));
   }, packageCount);
-  const beforeTheme = await page.locator('.package-card').evaluateAll((cards) => cards.map((card) => ({
-    id: card.closest('[data-resource-id]')?.getAttribute('data-resource-id'), ready: card.querySelector('.thumb')?.className,
-    src: card.querySelector('.thumb img')?.getAttribute('src'), width: card.getBoundingClientRect().width,
-  })));
+  const beforeTheme = await baseline.jsonValue();
+  await baseline.dispose();
   const thumbnails = [];
   const observe = (request) => { if (request.url().includes('/thumbnail')) thumbnails.push(request.url()); };
   page.on('request', observe);
