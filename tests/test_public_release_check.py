@@ -1,8 +1,9 @@
 """The public-release check catches private paths without blocking examples."""
 
-import io
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 from scripts import public_release_check as release
@@ -28,12 +29,12 @@ def make_repo(tmp_path: Path) -> Path:
     return root
 
 
-def fake_git(monkeypatch, names):
+def fake_git(monkeypatch, names, remote=""):
     def run(command, **kwargs):
         if command[:2] == ["git", "ls-files"]:
             return subprocess.CompletedProcess(command, 0, ("\0".join(names) + "\0").encode(), b"")
         if command[:2] == ["git", "remote"]:
-            return subprocess.CompletedProcess(command, 0, "", "")
+            return subprocess.CompletedProcess(command, 0, remote, "")
         raise AssertionError(command)
 
     monkeypatch.setattr(release.subprocess, "run", run)
@@ -67,18 +68,30 @@ def test_public_check_allows_generic_development_examples(tmp_path, monkeypatch)
     assert not report["publish_ready"]
 
 
-def test_configure_output_requests_utf8(monkeypatch):
-    class Stream(io.StringIO):
-        def __init__(self):
-            super().__init__()
-            self.options = None
+def test_public_check_does_not_infer_remote_acceptance(tmp_path, monkeypatch):
+    root = make_repo(tmp_path)
+    fake_git(monkeypatch, [*release.REQUIRED_FILES, "package.json"], remote="origin\n")
 
-        def reconfigure(self, **options):
-            self.options = options
+    report = release.check(root)
 
-    stream = Stream()
-    monkeypatch.setattr(release.sys, "stdout", stream)
+    assert report["passed"]
+    assert report["external"]["git_remote_configured"]
+    assert report["external"]["github_repository_created"] is None
+    assert report["publish_ready"] is None
 
-    release.configure_output()
 
-    assert stream.options == {"encoding": "utf-8", "errors": "replace"}
+def test_public_check_cli_prints_valid_utf8_under_cp1252(tmp_path):
+    root = make_repo(tmp_path)
+    subprocess.run(["git", "init", "--quiet", str(root)], check=True, capture_output=True)
+
+    result = subprocess.run(
+        [sys.executable, str(Path(release.__file__).resolve()), "--root", str(root), "--json"],
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    )
+
+    report = json.loads(result.stdout)
+    assert report["passed"]
+    assert report["development_metadata"]["release_label"] == "开发预览（未发布）"

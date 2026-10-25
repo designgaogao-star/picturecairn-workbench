@@ -6,21 +6,21 @@
 
 ## 1. 复核远程状态与保存失败
 
-- [ ] 读取 `Windows checks` 当前运行的状态、失败步骤和下载的 `result.json`，以具体 run ID 关联证据。
-- [ ] 用实际 Electron、临时空数据目录复现 `desktop-shutdown.mjs` 的四个场景。分别记录窗口 close/show/hide 事件、renderer 请求耗时与 `gt.tileSize` 实际值。
-- [ ] 检查 `ui/src/state/app.ts` 中偏好回写与测试直接设置 localStorage 的关系；同时验证隐藏窗口下主进程的 `executeJavaScript` 是否得到执行。
-- [ ] 只针对证实的原因修改 `electron/main.js` 或 `scripts/ui-qa/desktop-shutdown.mjs`；保持 1.5 秒保存超时、迟到结果不得覆写和 6.5 秒退出断言。
+- [x] 读取 Windows checks 失败步骤与下载的 result.json，按具体 run ID 核对：40188140313、40189004394 均在第三次保存失败。
+- [x] 实际 Electron、临时空数据目录完成四个场景。保存内容精确断言保留，测试等待原生窗口实际显示/隐藏；40189859822、40189860886 均通过退出专项。
+- [x] 核对偏好回写与测试设置路径，窗口同步后远程复测通过，无需改变生产 executeJavaScript 保存逻辑。运行时保持 1.5 秒保存超时、迟到结果不得覆写和 6.5 秒退出断言。
+- [x] 对新出现的 runner 路径别名问题，用真实临时 junction 确定性复现，再用 realpath 修复测试；同场景完整流程与 22 项图库管理检查通过。
 
 ## 2. 消除本地与远程 Git 分叉
 
-- [ ] 获取远程 Git 对象，核对远程 tree 与本地 tree；保留已有历史，不使用 force push。
-- [ ] 若网络 API 生成了不同的提交对象，将两条相同内容的历史合并到当前 `feat/backend-v2`，并检查结果树没有意外差异。
-- [ ] 只推送审阅过的修复；确认 main 与 feature 分支指向同一已验证内容。
+- [x] 获取远程 Git 对象，核对远程 tree 与本地 tree 一致，未使用 force push。
+- [x] 通过 73eae4f 合并双方历史，检查结果树没有额外差异。
+- [x] ffadf60 原子推送至 main 与开发分支，保留共享分支不切换。
 
 ## 3. 远程源码与桌面验收
 
-- [ ] 执行 `node --check scripts/ui-qa/desktop-shutdown.mjs`、实际退出专项和 `pwsh -NoProfile -File scripts/verify.ps1`。
-- [ ] 等待修复后同一提交的 GitHub Windows checks 完成，检查 contract diff 与全部运行步骤。
+- [x] JS 语法、实际退出专项与完整 verify.ps1 通过，源码统一日志 output/quality/github-source-20261025.log。
+- [x] ffadf60 的 main 40191040399、开发分支 40191040416 均通过 Windows checks，包括 contract diff。
 - [ ] 运行 `Build Windows preview`；构建仅使用 `scripts/build.ps1`，检查产物清单、实际 Electron 流程与完整 60 分钟负载。
 - [ ] 下载 CI 产物核对 ZIP 摘要，在本机临时解压目录验证运行；GitHub runner 的打包/运行证据与本机证据分开记录。
 

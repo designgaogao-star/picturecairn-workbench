@@ -4,7 +4,7 @@
 
 ## 名称与兼容
 
-对外统一使用 **Stillmark 影迹图片工作台**，英文描述为 Stillmark Image Workbench。公开仓库建议名为 `stillmark-workbench`；当前没有远程仓库，也未创建或发布 Release。
+对外统一使用 **Stillmark 影迹图片工作台**，英文描述为 Stillmark Image Workbench。源码仓库为 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，尚无二进制 Release，最新验收以发布清单为准。
 
 Windows AppUserModelID 为 `GalleryTool.StillmarkWorkbench`，应用名、窗口标题、托盘提示、PE 产品信息均使用完整名称。`GalleryTool.exe`、`GalleryTool.local.json`、`GALLERY_DATA`、原数据目录和 API 保持兼容，不因品牌更名迁移用户数据。未来公开发布的包管理器 ID 应带实际发布者前缀，本轮不抢占无前缀的 npm、winget 或文件扩展名。
 

@@ -89,6 +89,6 @@ Stillmark 的 D「压角印」资产以 docs/brand/stillmark 为源。界面使�
 
 collect_licenses.py 从锁定分发包提取运行时与构建依赖的许可原文，附 Python 解释器、前端库及机器可读清单；包根保留 Electron 的 LICENSE，项目许可另存为 LICENSE.txt。build.ps1 生成 ZIP 与 SHA-256，并用 write_release_manifest.py --archive 逐项流式核对 ZIP 内容；--verify 同时检查应用目录的文件与当前运行源码，后续文档／维护脚本变化单列。
 
-Vite 配置使用 ui/vite.config.mts，明确采用 ESM。Windows CI 与手工预览包工作流只调用已有验证／构建入口，手工构建默认包含完整一小时桌面负载，不自动发布 Release。当前仓库没有 remote，工作流尚无远程执行记录。
+Vite 配置使用 ui/vite.config.mts，明确采用 ESM。Windows CI 与手工预览包工作流只调用已有验证／构建入口，手工构建默认包含完整一小时桌面负载，不自动发布 Release。源码已公开至 designgaogao-star/stillmark-workbench，远程 Windows 检查和打包验收的当前结果以 Actions 及发布清单为准。verify.ps1 先构建正式前端，再运行会请求静态页面的 Python HTTP 测试，支持没有 ui/dist 的干净 checkout。
 
 正式前端的所有 JSON 请求使用类型客户端。客户端可注入 HTTP transport；ui/src/api.ts 在开发只读模式中于此拒绝全部非 GET 请求，避免不同视图遗漏检查。生产构建不启用该限制，后端权限、路径校验及文件操作规则不依赖此开发开关。

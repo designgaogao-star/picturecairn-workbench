@@ -97,9 +97,10 @@ def check(root: Path) -> dict:
         "workflows": {"files": workflows, "passed": len(workflows) >= 2},
         "external": {
             "git_remote_configured": bool(remote),
-            "github_repository_created": False,
-            "release_published": False,
-            "code_signed": False,
+            "github_repository_created": None,
+            "ci_passed": None,
+            "release_published": None,
+            "code_signed": None,
         },
     }
     report["passed"] = all(
@@ -107,7 +108,8 @@ def check(root: Path) -> dict:
         for section in report.values()
         if isinstance(section, dict) and "passed" in section
     )
-    report["publish_ready"] = report["passed"] and report["external"]["git_remote_configured"]
+    # This offline check cannot establish remote CI, package acceptance or publication.
+    report["publish_ready"] = None if report["passed"] and remote else False
     return report
 
 
@@ -131,8 +133,10 @@ def main() -> int:
     report = check(args.root.resolve())
     encoded = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     headline = "LOCAL_CHECK_PASS" if report["passed"] else "LOCAL_CHECK_BLOCKED"
-    if not report["publish_ready"]:
+    if not report["external"]["git_remote_configured"]:
         headline += "; PUBLISH_BLOCKED_EXTERNAL_SETUP"
+    else:
+        headline += "; EXTERNAL_CHECKS_REQUIRED"
     print(encoded if args.json else headline + "\n" + encoded)
     return 0 if report["passed"] else 1
 

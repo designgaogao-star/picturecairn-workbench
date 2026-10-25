@@ -72,9 +72,9 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 发现问题时使用仓库的缺陷模板，提供构建日期或源码摘要、Windows 环境、复现步骤及已脱敏的日志片段。用合成目录说明问题，不上传真实图库数据库、原图、缓存或删除日志全文。
 
-[版本记录](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/stillmark/README.md)
+[版本记录](CHANGELOG.md) · [文档导航](docs/README.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/stillmark/README.md)
 
-对外名称统一为 Stillmark 影迹图片工作台；公开仓库建议使用 `stillmark-workbench`。当前仓库尚无远程地址，CI 与手工构建工作流已准备好，远程执行结果会在创建仓库后产生。
+源码仓库：[designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)。默认分支为 `main`，共享开发分支为 `feat/backend-v2`。远程结果见 [Windows 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/workflows/ci.yml) 与 [Windows 便携包构建及运行验收](https://github.com/designgaogao-star/stillmark-workbench/actions/workflows/build-windows.yml)；源码公开不代表二进制 Release 已发布。
 
 ## 开发
 
