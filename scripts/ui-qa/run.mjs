@@ -21,7 +21,7 @@ await mkdir(output, { recursive: true });
 const children = [];
 const applications = [];
 const ownedServers = [];
-let server;
+let server, activePage;
 const option = (name) => {
   const index = process.argv.indexOf(name);
   if (index < 0) return null;
@@ -82,7 +82,7 @@ try {
       executablePath: desktopExecutable, args: desktopArguments, env: { ...environment, GALLERY_DATA: data },
     });
     applications.push(application);
-    const page = await application.firstWindow();
+    const page = activePage = await application.firstWindow();
     const imageMemoryWarnings = [];
     page.on('console', (message) => {
       if (message.text().includes('Image memory budget check failed:')) imageMemoryWarnings.push(message.text());
@@ -128,7 +128,7 @@ try {
     assert.equal(JSON.parse(await readFile(path.join(data, 'window-state.json'), 'utf8')).route, restoreHash);
     const restarted = await _electron.launch({ executablePath: desktopExecutable, args: desktopArguments, env: { ...environment, GALLERY_DATA: data } });
     applications.push(restarted);
-    const restored = await restarted.firstWindow();
+    const restored = activePage = await restarted.firstWindow();
     await restored.waitForFunction(() => document.querySelector('.viewer img.layer')?.naturalWidth > 0);
     assert.equal(await restored.evaluate(() => typeof window.galleryImageResources?.release), 'function',
       'The resource policy must be registered again after desktop restart');
@@ -182,7 +182,7 @@ try {
     if (!process.argv.includes('--api-only')) {
       const application = await chromium.launch({ channel: 'msedge', headless: true });
       applications.push(application);
-      const page = await application.newPage({ viewport: { width: 1440, height: 1000 } });
+      const page = activePage = await application.newPage({ viewport: { width: 1440, height: 1000 } });
       await readonlyChecks(page, base, library, output);
       await page.unrouteAll({ behavior: 'wait' });
       // Browser QA supplies the bridge contract; desktop QA exercises the real preload/IPC.
@@ -211,6 +211,22 @@ try {
   }
   console.log(`Screenshots/logs: ${output}`);
   console.log(`Temporary data: ${temporary}`);
+} catch (error) {
+  const diagnostic = { error: error.stack, temporary };
+  if (activePage && !activePage.isClosed()) {
+    const read = activePage.evaluate(() => ({
+      url: location.href, title: document.title, ready: document.readyState, visibility: document.visibilityState,
+      width: innerWidth, height: innerHeight, ratio: devicePixelRatio, text: document.body?.innerText.slice(0, 6000),
+      images: [...document.querySelectorAll('img')].slice(0, 100).map((image) => ({
+        src: image.getAttribute('src'), complete: image.complete, width: image.naturalWidth, className: image.className,
+      })),
+    }));
+    diagnostic.page = await Promise.race([read, delay(2000).then(() => ({ diagnostic_timeout: true }))])
+      .catch((failure) => ({ diagnostic_error: failure.message }));
+    await activePage.screenshot({ path: path.join(output, 'failure.png'), timeout: 5000 }).catch(() => {});
+  }
+  await writeFile(path.join(output, 'failure.json'), JSON.stringify(diagnostic, null, 2));
+  throw error;
 } finally {
   for (const application of applications.reverse()) await application.close().catch(() => {});
   for (const service of ownedServers) await fetch(service.url + '/api/v1/system/shutdown', {

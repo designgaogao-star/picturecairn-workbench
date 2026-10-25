@@ -1,4 +1,4 @@
-# Stillmark 影迹图片工作台 · 开发预览（未发布）
+# Stillmark 影迹图片工作台 · 开发预览 2026-10-25
 
 Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，核实再整理。
 
@@ -20,15 +20,21 @@ Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，�
 Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 ```
 
-构建标识：`20261025-180752`
+构建标识：`20261025-115847`，Windows x64，便携 ZIP 为 234,215,177 bytes。
+
+来源提交：`ffadf601fe5dd2740c55a339b6ea567c47bf0e04`。GitHub [构建与一小时实际包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40191052297) 已通过。后续默认分支改动为验收工具、测试和文档；产品运行代码与本包一致。
 
 SHA-256：
 
 ```text
-7400db56e4ea12b9013040c87961d6f9696fbf71ff787df6758dcf6b40758a66
+b707c5d8373120b7830388de7003b434e374219cb5ce24a62a8201a04076f0bc
 ```
 
 解压到可写目录，双击 `GalleryTool.exe`。首次使用时选择图片目录，索引会在后台建立。原图不会被导入或移动。
+
+本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 111 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核。完整范围见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261025.md)。
+
+本包保留构建时的开发元数据 `0.0.0-dev` 和“开发预览（未发布）”，识别本包请使用构建标识或 `release-manifest.json` 的源码摘要。
 
 ## 数据与回退
 
@@ -41,11 +47,13 @@ SHA-256：
 - 这是未签名的 Windows 开发预览，Windows SmartScreen 可能显示未知发布者。
 - 当前只支持本地图片，不支持视频、云同步、网络图库、标签、评分、收藏、RAW、HEIC 或 AVIF。
 - 首次冷读和大图解码受硬盘、图片尺寸和系统负载影响。
-- 长时间混合浏览中，Windows 渲染器的原生内存保留仍在继续观察；动图短测的活跃图片资源保持有界。
-- 源码已在 [GitHub](https://github.com/designgaogao-star/stillmark-workbench) 公开；Windows 自动检查和便携包长测以 Actions 当前结果为准。代码签名尚未完成，同名风险见品牌提案。
+- 长时间混合浏览中，渲染器原生私有内存后半小时仍约增长 1.12 MiB/分钟，JS 堆与句柄保持平稳；长期表现继续观察。
+- 本机联调曾出现一次截图超时和一次重启后等待图片超时。隔离启动与完整流程复测通过，原因尚未确定；请反馈可复现步骤和脱敏日志。
+- 本轮没有操作 Windows 回收站，回收失败与禁止自动永久删除使用模拟验证；实际删除测试只在临时合成图库显式确认永久删除。
+- 验收来自 Windows 11 本机和 GitHub Windows Server runner，覆盖范围不等于所有 Windows、硬盘和缩放组合。代码签名尚未完成，同名风险见品牌提案。
 
 ## 反馈
 
 请提供构建日期或 `release-manifest.json` 中的源码摘要、Windows 版本、显示缩放、临时图库复现步骤和脱敏日志。不要上传真实图库数据库、原图、缓存、浏览记录或删除日志全文。
 
-这份说明是 Windows 开发预览包发布草稿。完成远程包验收后，再补充实际下载资产链接；目前没有正式版本标签。
+这份说明用于按日期发布的开发预览；正式语义版本号与稳定版承诺不在本次范围内。

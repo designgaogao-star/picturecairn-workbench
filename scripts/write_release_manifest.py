@@ -9,10 +9,29 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+SOURCE_TEXT_SUFFIXES = {'.py', '.ps1', '.spec', '.ts', '.tsx', '.mts', '.js', '.mjs', '.cjs',
+                        '.json', '.lock', '.toml', '.yml', '.yaml', '.css', '.html', '.svg',
+                        '.sql', '.md', '.txt', '.bat', '.vbs'}
+
 
 def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def source_line_endings_match(path, expected):
+    """Recognize LF/CRLF checkout changes in UTF-8 source, preserving the recorded raw hash."""
+    if not path.is_file() or path.suffix.lower() not in SOURCE_TEXT_SUFFIXES:
+        return False
+    data = path.read_bytes()
+    if b'\0' in data:
+        return False
+    try:
+        data.decode('utf-8')
+    except UnicodeDecodeError:
+        return False
+    lf = data.replace(b'\r\n', b'\n')
+    return expected in {hashlib.sha256(lf).hexdigest(), hashlib.sha256(lf.replace(b'\n', b'\r\n')).hexdigest()}
 
 
 def source_paths(project):
@@ -54,12 +73,17 @@ def verify(project, app):
                         if path.is_file() and path.name != 'release-manifest.json'}
     artifacts = sorted(set(changed(app, saved['artifacts'])) | (actual_artifacts - recorded_artifacts))
     recorded_paths = {entry['path'] for entry in saved['source']['files']}
-    source_changes = sorted(set(changed(project, saved['source']['files'])) | (source_paths(project) - recorded_paths))
+    raw_source_changes = set(changed(project, saved['source']['files']))
+    source_hashes = {entry['path']: entry['sha256'] for entry in saved['source']['files']}
+    line_endings = {name for name in raw_source_changes
+                    if source_line_endings_match(project / name, source_hashes[name])}
+    source_changes = sorted((raw_source_changes - line_endings) | (source_paths(project) - recorded_paths))
     runtime_changes = [name for name in source_changes if name.startswith(('gallery/', 'ui/', 'electron/', 'contracts/'))
                        or name.startswith('docs/brand/stillmark/') and name.endswith('.svg')
                        or name in ('pyproject.toml', 'uv.lock', 'package.json', 'package-lock.json', 'gallery_server.py')]
     return {'version': saved['version'], 'source_sha256_at_build': saved['source']['sha256'],
             'artifact_files_checked': len(saved['artifacts']), 'artifact_mismatches': artifacts,
+            'source_line_ending_only_changes': sorted(line_endings),
             'runtime_source_mismatches': runtime_changes, 'all_source_changes_since_build': source_changes,
             'passed': not artifacts and not runtime_changes}
 

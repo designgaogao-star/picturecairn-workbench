@@ -62,3 +62,47 @@ def test_zip_verification_checks_checksum_contents_and_extra_files(tmp_path, cha
     else:
         write(b'changed executable' if changed == 'content' else program, changed == 'extra')
     assert not release.verify_archive(archive)['passed']
+
+
+@pytest.mark.parametrize('recorded,local', [
+    (b'export const value = 1;\n// same source\n', b'export const value = 1;\r\n// same source\r\n'),
+    (b'export const value = 1;\r\n// same source\r\n', b'export const value = 1;\n// same source\n'),
+])
+def test_source_verification_reports_checkout_line_endings_without_ignoring_content(tmp_path, monkeypatch, recorded, local):
+    project, app = tmp_path / 'project', tmp_path / 'app'
+    (project / 'ui').mkdir(parents=True)
+    app.mkdir()
+    source = project / 'ui/main.ts'
+    source.write_bytes(local)
+    saved = {'version': 'preview', 'source': {'sha256': 'raw-build-digest', 'files': [
+        {'path': 'ui/main.ts', 'sha256': hashlib.sha256(recorded).hexdigest()}]}, 'artifacts': []}
+    (app / 'release-manifest.json').write_text(json.dumps(saved), encoding='utf-8')
+    monkeypatch.setattr(release, 'source_paths', lambda _root: {'ui/main.ts'})
+    report = release.verify(project, app)
+    assert report['passed']
+    assert report['source_line_ending_only_changes'] == ['ui/main.ts']
+    assert report['runtime_source_mismatches'] == []
+    source.write_bytes(local.replace(b'value = 1', b'value = 2'))
+    report = release.verify(project, app)
+    assert not report['passed']
+    assert report['runtime_source_mismatches'] == ['ui/main.ts']
+    assert report['source_line_ending_only_changes'] == []
+
+
+@pytest.mark.parametrize('source_name,prefix', [('pixels.bin', b''), ('binary.ts', b'\0'), ('encoded.ts', b'\xff')])
+def test_line_ending_allowance_never_applies_to_binary_sources_or_packaged_files(tmp_path, monkeypatch, source_name, prefix):
+    project, app = tmp_path / 'project', tmp_path / 'app'
+    (project / 'ui').mkdir(parents=True)
+    app.mkdir()
+    recorded, local = prefix + b'first\nsecond\n', prefix + b'first\r\nsecond\r\n'
+    (project / 'ui' / source_name).write_bytes(local)
+    (app / 'package.json').write_bytes(local)
+    saved = {'version': 'preview', 'source': {'sha256': 'raw-build-digest', 'files': [
+        {'path': f'ui/{source_name}', 'sha256': hashlib.sha256(recorded).hexdigest()}]},
+        'artifacts': [{'path': 'package.json', 'sha256': hashlib.sha256(recorded).hexdigest()}]}
+    (app / 'release-manifest.json').write_text(json.dumps(saved), encoding='utf-8')
+    monkeypatch.setattr(release, 'source_paths', lambda _root: {f'ui/{source_name}'})
+    report = release.verify(project, app)
+    assert not report['passed']
+    assert report['runtime_source_mismatches'] == [f'ui/{source_name}']
+    assert report['artifact_mismatches'] == ['package.json']
