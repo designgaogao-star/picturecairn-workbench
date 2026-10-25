@@ -16,6 +16,7 @@ const option = (name, fallback) => {
 const executable = option('--desktop');
 const minutes = Number(option('--minutes', '60'));
 const preflight = process.argv.includes('--preflight');
+const imageStats = process.argv.includes('--image-stats');
 assert.ok(executable && Number.isFinite(minutes) && minutes >= 60, '--desktop and --minutes >= 60 are required');
 const output = path.join(project, 'output/quality', `soak-${Date.now()}`);
 await mkdir(output, { recursive: true });
@@ -118,6 +119,24 @@ try {
   page.on('requestfinished', (request) => inflight.delete(request));
   page.on('requestfailed', (request) => inflight.delete(request));
   await page.getByRole('button', { name: '选择文件夹…', exact: true }).waitFor();
+  if (imageStats) {
+    await application.evaluate(({ app, BrowserWindow }, filePath) => {
+      const original = app.getAppMetrics.bind(app);
+      let policyQueries = 0;
+      app.getAppMetrics = () => { policyQueries++; return original(); };
+      globalThis.__stillmarkSoakMemory = () => {
+        const pid = BrowserWindow.getAllWindows()[0].webContents.getOSProcessId();
+        const memory = original().find((item) => item.pid === pid).memory;
+        return { private_mib: memory.privateBytes / 1024, working_set_mib: memory.workingSetSize / 1024,
+          policy_queries: policyQueries };
+      };
+      BrowserWindow.getAllWindows()[0].webContents.session.registerPreloadScript({
+        id: 'stillmark-soak-resources', type: 'frame', filePath,
+      });
+    }, path.join(project, 'scripts/ui-qa/resource-stats.cjs'));
+    await page.reload();
+    await page.getByRole('button', { name: '选择文件夹…', exact: true }).waitFor();
+  }
   backendUrl = new URL(page.url()).origin;
   const rootPid = await application.evaluate(() => process.pid);
   const ready = JSON.parse(await readFile(path.join(temporary, `desktop-${rootPid}.json`), 'utf8'));
@@ -142,7 +161,7 @@ try {
   await cdp.send('Performance.enable');
   const started = Date.now(), deadline = started + minutes * 60000;
   await writeFile(path.join(output, 'run.json'), JSON.stringify({ executable: path.resolve(executable), temporary, source,
-    rootPid, backendPid: ready.pid, started: new Date(started).toISOString(), minutes, preflight }, null, 2));
+    rootPid, backendPid: ready.pid, started: new Date(started).toISOString(), minutes, preflight, image_stats: imageStats }, null, 2));
   let cycle = 0;
   while (preflight ? cycle < 6 : Date.now() < deadline) {
     const cycleStart = Date.now();
@@ -222,8 +241,19 @@ try {
     assert.ok(requests.length <= 16 && requests.every((item) => Date.now() - item.at < 30000), 'Image requests accumulated');
     const performance = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((item) => [item.name, item.value]));
     const dom = await cdp.send('Memory.getDOMCounters');
+    const imageObservationStarted = Date.now();
+    const imageResources = imageStats ? {
+      native: await application.evaluate(() => globalThis.__stillmarkSoakMemory()),
+      ...await page.evaluate(() => ({ blink: window.__stillmarkResourceUsage.read(),
+        dom_images: document.querySelectorAll('img').length, sourced_images: document.querySelectorAll('img[src]').length })),
+    } : undefined;
+    if (imageResources) {
+      imageResources.capture_ms = Date.now() - imageObservationStarted;
+      assert.ok(imageResources.native.private_mib > 0 && Number.isFinite(imageResources.blink.images.liveSize),
+        'Image observations need real renderer memory and Blink image statistics');
+    }
     const record = { elapsed_seconds: (Date.now() - started) / 1000, cycle, phase, performance, dom, errors: [...errors], controls: [...controls],
-      liveDom: await page.locator('*').count(), requests: requests.length, activeTasks: active.length, cache };
+      liveDom: await page.locator('*').count(), requests: requests.length, activeTasks: active.length, cache, imageResources };
     samples.push(record);
     await appendFile(rendererFile, JSON.stringify(record) + '\n');
     if (cycle % 15 === 0) {
@@ -242,7 +272,7 @@ try {
   const processTrend = preflight ? null : trend(latter, (row) => row.processes.reduce((sum, item) => sum + item.private, 0) / 1024 ** 2);
   const handleTrend = preflight ? null : trend(latter, (row) => row.processes.reduce((sum, item) => sum + item.handles, 0));
   const rendererTrend = preflight ? null : trend(samples.filter((row) => row.elapsed_seconds >= minutes * 60 - 1800), (row) => row.performance.JSHeapUsedSize / 1024 ** 2);
-  const summary = { preflight, elapsed_seconds: (Date.now() - started) / 1000, cycles: cycle, errors, controls,
+  const summary = { preflight, image_stats: imageStats, elapsed_seconds: (Date.now() - started) / 1000, cycles: cycle, errors, controls,
     samples: { renderer: samples.length, processes: processes.length }, process_private_mib: processTrend,
     handles: handleTrend, renderer_heap_mib: rendererTrend, cache: await api('/cache'),
     passed: preflight || processTrend.slope_per_minute < 2 && processTrend.median_change < 96
