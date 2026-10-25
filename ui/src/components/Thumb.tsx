@@ -38,26 +38,27 @@ export function noteThumb(id: string, edge: Edge) {
 export const knownThumb = (id: string): Edge | undefined => loaded.get(id);
 
 interface Props { id: string; edge?: Edge; fit?: 'cover' | 'contain'; alt?: string; retryButton?: boolean }
-interface State { key: string; attempt: number; phase: Phase; reason: string; retryable: boolean; src?: string }
-const fresh = (key: string): State => ({ key, attempt: 0, phase: 'loading', reason: '', retryable: false });
+interface State { attempt: number; phase: Phase; reason: string; retryable: boolean; src?: string }
+const fresh = (): State => ({ attempt: 0, phase: 'loading', reason: '', retryable: false });
 
 /**
  * Static wall preview. A busy image queue or unreachable backend (502–504) is retried with backoff up to three times,
  * then offers a manual retry. The wall never falls back to an animated original.
  */
 export function Thumb({ id, edge = 400, fit = 'cover', alt = '', retryButton = true }: Props) {
-  // Keyed to id/edge so a reset can't land after a memory-cached image already fired onLoad,
-  // and late callbacks for a recycled cell's previous image are dropped.
   const url = thumbnailUrl(id, edge);
-  const key = url;
-  const [state, setState] = useState<State>(() => fresh(key));
-  const current = state.key === key ? state : fresh(key);
-  const update = (patch: Partial<State>) => setState((prev) => ({ ...(prev.key === key ? prev : fresh(key)), ...patch }));
+  return <Preview key={url} id={id} edge={edge} fit={fit} alt={alt} retryButton={retryButton} url={url} />;
+}
+
+/** Each resource owns its observers and callbacks; a previous image cannot reset a new resource. */
+function Preview({ id, edge, fit, alt, retryButton, url }: Required<Props> & { url: string }) {
+  const [state, setState] = useState<State>(fresh);
+  const update = (patch: Partial<State>) => setState((prev) => ({ ...prev, ...patch }));
   const timer = useRef(0);
   const element = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const epoch = mediaEpoch.value;
-  const { attempt, phase, reason } = current;
+  const { attempt, phase, reason } = state;
   const retry = () => update({ attempt: attempt + 1, phase: 'loading', reason: '', retryable: false });
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function Thumb({ id, edge = 400, fit = 'cover', alt = '', retryButton = t
     }, { rootMargin: '200px' });
     if (element.current) observer.observe(element.current);
     return () => observer.disconnect();
-  }, [key]);
+  }, [url]);
 
   useEffect(() => {
     if (!visible) return;
@@ -101,7 +102,7 @@ export function Thumb({ id, edge = 400, fit = 'cover', alt = '', retryButton = t
       </div>
     );
   }
-  const src = current.src;
+  const src = state.src;
   return (
     <div ref={element} class={`thumb fit-${fit} ${phase.endsWith('ready') ? 'is-ready' : 'is-loading'}`}>
       {src && <ImageElement key={src} src={src} alt={alt} draggable={false} decoding="async"

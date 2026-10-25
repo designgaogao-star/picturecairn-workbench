@@ -174,6 +174,30 @@ async function scrollTo(page, index) {
 try {
   await server.listen();
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  for (const eventName of ['load', 'error']) {
+    await test(`thumbnail-stale-${eventName}`, { anchor: 0 }, async (page) => {
+      await page.getByRole('radio', { name: '大', exact: true }).click();
+      await page.setViewportSize({ width: 390, height: 844 });
+      const thumbnail = page.locator(`.images [data-resource-id="${image(0).id}"] .thumb`);
+      await page.waitForFunction(() => document.querySelector('.images [data-resource-id="review-image-0"] .thumb')?.classList.contains('is-ready'));
+      await page.evaluate(() => { window.__qaPreviousThumb = document.querySelector('.images [data-resource-id="review-image-0"] .thumb img'); });
+      const oldSource = await thumbnail.locator('img').getAttribute('src');
+      // This layout changes the same card from a 400px to an 800px resource.
+      await page.setViewportSize({ width: 870, height: 1000 });
+      await page.waitForFunction((previous) => {
+        const thumb = document.querySelector('.images [data-resource-id="review-image-0"] .thumb');
+        const image = thumb?.querySelector('img');
+        return thumb?.classList.contains('is-ready') && image?.getAttribute('src') !== previous && image?.naturalWidth > 0;
+      }, oldSource);
+      const currentSource = await thumbnail.locator('img').getAttribute('src');
+      // A queued event from the previous resource must not overwrite the current card.
+      await page.evaluate((name) => window.__qaPreviousThumb.dispatchEvent(new Event(name)), eventName);
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.ok(await thumbnail.evaluate((element) => element.classList.contains('is-ready')));
+      assert.equal(await thumbnail.locator('img').getAttribute('src'), currentSource);
+      await page.evaluate(() => { window.__qaPreviousThumb = null; });
+    });
+  }
   await test('desktop-preferences', { desktop: true }, async (page) => {
     await page.getByRole('button', { name: '外观', exact: true }).click();
     await page.getByRole('menuitemradio', { name: '浅色', exact: true }).click();
