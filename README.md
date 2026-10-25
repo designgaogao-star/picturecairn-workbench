@@ -42,6 +42,20 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 支持 **JPEG、PNG、GIF、WebP、BMP**。当前范围是 Windows 本地纯图片；暂不支持 RAW、HEIC、AVIF、压缩包、视频、网络图库、云同步或修图。
 
+## 实际界面
+
+下面的截图来自最终候选包的临时合成图库，展示图片墙、深色查看器和窄屏布局。它们不包含真实图库内容：
+
+<p align="center">
+  <img src="docs/screenshots/stillmark-workbench-light.png" alt="Stillmark 浅色图片墙" width="49%">
+  <img src="docs/screenshots/stillmark-viewer-dark.png" alt="Stillmark 深色查看器" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/stillmark-workbench-narrow.png" alt="Stillmark 窄屏图片墙" width="260">
+</p>
+
+截图来源和 SHA-256 见 [公开演示材料](docs/screenshots.md)。
+
 大图库进入持久索引后，图片仍按需读取和生成预览。首次加载大图需要磁盘读取与解码时间；实际表现取决于硬盘、素材和缓存状态。测量和测试范围见 [最新交付](docs/release-readiness-20261024.md) 与 [质量验收](docs/review-quality-20261023.md)，不把单台机器的结果当作跨机器保证。实际桌面演示只用合成图片，生成方式见 [演示材料](docs/screenshots.md)。
 
 ## 数据、升级与恢复

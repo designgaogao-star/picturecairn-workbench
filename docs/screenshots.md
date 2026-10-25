@@ -12,16 +12,14 @@ node scripts/ui-qa/run.mjs --desktop <GalleryTool.exe绝对路径>
 
 每轮生成临时图库、临时数据和动态端口，输出提示 `output/ui-qa/integration-<时间>/`。脚本经过实际 preload／IPC，文件夹对话框的返回值受控，不声称自动点击 Windows 原生对话框。
 
-## 当前预览包选图
+## 已提交的公开截图
 
-本轮来源是 `output/ui-qa/integration-1792872932764/`，对应 `build-out/20261025-040954/GalleryTool/GalleryTool.exe`。桌面图片墙、查看器及 390px 窄屏均已实际查看，以下三张为主要演示图，都是 1440×1000：
+最终候选包 `20261025-180752` 的实际 Electron 验收使用 `output/ui-qa/integration-1792923675523/` 生成的合成几何图片。它们不含真实图库内容、个人路径、真实文件名或数据库数据，已复制到本目录，随源码公开：
 
 | 文件 | 演示内容 |
 | --- | --- |
-| images-desktop.png | 原图包的图片墙、完整显示、常驻名称和尺寸 |
-| viewer-desktop.png | 固定深色查看器、包内位置、有界胶片条、单色品牌标 |
-| compare-all-files-desktop.png | 全部文件 SHA-256 核验，包含非图片文件及明确结论 |
+| [stillmark-workbench-light.png](stillmark-workbench-light.png) | 1440×1000 浅色图片墙、图包边界、文件名与尺寸 |
+| [stillmark-viewer-dark.png](stillmark-viewer-dark.png) | 1440×1000 深色查看器、包内位置、胶片条和单色品牌标 |
+| [stillmark-workbench-narrow.png](stillmark-workbench-narrow.png) | 390px 窄屏图片墙与焦点状态 |
 
-如需展示品牌与主题，可补选同目录的 `brand-workbench-light.png`、`brand-workbench-dark.png` 和 `brand-sidebar-narrow.png`。不要把开发 QA 的模拟错误图误作普通使用状态，不在宣传中突出旧目录分类规则。
-
-本机已将前三张、深浅品牌区和两张窄屏图连同 SHA-256 来源清单整理到 `output/showcase/20261025-040954/`，旧包选图保留。截图和生成输出不暂存、不提交；因此根 README 不放指向忽略目录的图片链接。公开发布时再由发布者选择随 Release 上传或在获准后存入仓库的最终图片，避免克隆后出现失效链接。
+文件摘要和来源记录在 [SHA256SUMS](SHA256SUMS)。不要把开发 QA 的模拟错误图误作普通使用状态，也不要用真实图库截图替换这些文件。
