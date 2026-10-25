@@ -44,11 +44,24 @@ async function waitForSavedSize(size) {
   throw new Error(`Desktop did not save tile size ${size}`);
 }
 
+async function waitForWindowVisibility(visible) {
+  const actual = await application.evaluate(async ({ BrowserWindow }, expected) => {
+    const window = BrowserWindow.getAllWindows()[0];
+    const deadline = Date.now() + 5000;
+    while (window && window.isVisible() !== expected && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    return window?.isVisible() ?? false;
+  }, visible);
+  assert.equal(actual, visible, `Desktop window did not become ${visible ? 'visible' : 'hidden'}`);
+}
 async function show() {
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].show());
+  await waitForWindowVisibility(true);
 }
 async function hide() {
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
+  await waitForWindowVisibility(false);
 }
 async function blockRenderer(page, milliseconds) {
   // Return to the driver first; only the renderer thread will be busy, not Electron's main thread.
