@@ -11,6 +11,8 @@
 - [x] 核对偏好回写与测试设置路径，窗口同步后远程复测通过，无需改变生产 executeJavaScript 保存逻辑。运行时保持 1.5 秒保存超时、迟到结果不得覆写和 6.5 秒退出断言。
 - [x] 对新出现的 runner 路径别名问题，用真实临时 junction 确定性复现，再用 realpath 修复测试；同场景完整流程与 22 项图库管理检查通过。
 - [x] 771a9b0 的 main CI 40194324996 暴露窄屏模态断言竞态，同提交开发分支通过。隔离媒体查询通知延迟 600 毫秒可复现旧即时断言失败；QA 改为等待实际 :modal，原生模态和 Escape 条件均保留，未改生产组件。
+- [x] aff40ac 的 main CI 40195589956 暴露异步拦截撤销竞态，同提交开发分支通过。临时 HTTP 服务阻塞快照响应，可确定复现 unroute 后 fulfill 抛出 Route is already handled；改为 unrouteAll({ behavior: 'wait' }) 后快照完成且无错误。任务抽屉和侧栏也等待实际 :modal 再断言。
+- [x] `node scripts/ui-qa/workbench.mjs --stage D --only` 的 28 项全部通过，旧核验过期、任务控制和临时逐项删除断言保留；`pwsh -NoProfile -File scripts/verify.ps1` 完整通过，106 项 Python、126 项工作台及其余统一门槛均通过，日志 output/quality/github-route-20261025.log。
 
 ## 2. 消除本地与远程 Git 分叉
 
@@ -22,7 +24,7 @@
 
 - [x] JS 语法、实际退出专项与完整 verify.ps1 通过，源码统一日志 output/quality/github-source-20261025.log。
 - [x] ffadf60 的 main 40191040399、开发分支 40191040416 均通过 Windows checks，包括 contract diff。
-- [ ] 运行 `Build Windows preview`；构建仅使用 `scripts/build.ps1`，检查产物清单、实际 Electron 流程与完整 60 分钟负载。
+- [x] `Build Windows preview` 40191052297 通过；构建仅使用 `scripts/build.ps1`，实际 Electron 流程与 3600 秒、180 轮负载完成，页面错误为空且所属进程全部退出。原始时序与产物仍需下载后复核。
 - [ ] 下载 CI 产物核对 ZIP 摘要，在本机临时解压目录验证运行；GitHub runner 的打包/运行证据与本机证据分开记录。
 
 ## 4. 文档与最终审查

@@ -45,7 +45,8 @@ export async function decisions(page, { base, lib, groups, library, temporary, p
   await page.getByText('核验结果已过期', { exact: true }).waitFor();
   check('过期核验撤除快捷删除入口', await page.locator('.side-delete').count() === 0);
   await snapshot(page, 'D-compare-stale');
-  await page.unroute(libraryRoute, staleLibraries);
+  // This is the only installed route. Finish in-flight snapshots before restoring the real API.
+  await page.unrouteAll({ behavior: 'wait' });
   await page.evaluate(async () => { const app = await import('/src/state/app.ts'); await app.loadLibraries(); });
   await choose('A', 'D');
   check('非图片差异阻止重复结论', await page.locator('.verdict').textContent().then((text) => text.includes('各有独有文件')));
@@ -67,6 +68,7 @@ export async function decisions(page, { base, lib, groups, library, temporary, p
 
   await page.getByRole('button', { name: '后台任务', exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.drawer:modal').waitFor();
   check('窄屏任务原生模态', await page.locator('.drawer').evaluate((el) => el.matches(':modal')));
   await snapshot(page, 'D-tasks-narrow');
   for (let index = 0; index < 12; index++) await page.keyboard.press('Tab');
@@ -74,6 +76,7 @@ export async function decisions(page, { base, lib, groups, library, temporary, p
   await page.keyboard.press('Escape');
   await page.locator('.drawer').waitFor({ state: 'detached' });
   await page.getByRole('button', { name: '切换侧栏', exact: true }).click();
+  await page.locator('.sidebar:modal').waitFor();
   check('窄屏侧栏原生模态', await page.locator('.sidebar').evaluate((el) => el.matches(':modal')));
   await page.keyboard.press('Escape');
   await page.locator('.sidebar').waitFor({ state: 'detached' });
