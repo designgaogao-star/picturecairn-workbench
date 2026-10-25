@@ -1,6 +1,6 @@
-# GitHub Windows 候选验收 · 2026-10-26
+# GitHub Windows 开发预览验收 · 2026-10-26
 
-本次候选包含 SQLite WAL 生命周期、缩略图状态归属和在途分页刷新修复。旧 `ffadf60` 包的验收保留在 [历史记录](github-preview-verification-20261025.md)，不作为本次包的通过证据。当前二进制 Release 继续保持草稿。
+本次包包含 SQLite WAL 生命周期、缩略图状态归属和在途分页刷新修复。旧 `ffadf60` 包的验收保留在 [历史记录](github-preview-verification-20261025.md)，不作为本次包的通过证据。[Windows x64 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已于 2026-10-26 公开。
 
 ## 来源与已通过检查
 
@@ -22,9 +22,9 @@ SQLite 曾在短请求之间关闭全部连接，反复清理和恢复 WAL。缩
 ## 实际包与追加验收
 
 - [实际包构建与完整一小时负载 40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 成功。原始采样已重算：3600.007 秒、180 轮、121 个进程快照、页面错误为空、五个采样进程已退出。后半小时总私有内存斜率 +1.058 MiB/分钟、标准中位数变化 +16.35 MiB；句柄斜率 −0.142/分钟，JS 堆斜率 −0.0105 MiB/分钟，均在原门槛内。最大实际 DOM 530，采样时未完成请求最多一项，峰值总私有内存 354.90 MiB、RSS 449.18 MiB。复核范围是已上传的时序和退出记录，未取得长测的 run.json、临时数据库与 server.log，不称为 audit_soak.py 全量独立审计。
-- [十轮隔离业务流程 40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 失败：八轮完成，第九轮在目录重连后等待扫描任务时，一个请求超过原有十秒门槛，第十轮没有执行。保留的九份临时服务日志没有 ERROR，原始失败没有具体路由与请求阶段，暂不能把它归因于后端或客户端。artifact 的 20,978,644 bytes 已完整下载并核对 GitHub SHA-256 `89f68d1db7ffc03facbc3f910022c9c7b23e2760c282d2e7d31e361392dd4eba`，全部 305 项已解压，证据在 `output/github-40213558997/`。发布继续保持草稿。
+- [十轮隔离业务流程 40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 失败：八轮完成，第九轮在目录重连后等待扫描任务时，一个请求超过原有十秒门槛，第十轮没有执行。保留的九份临时服务日志没有 ERROR，原始失败没有具体路由与请求阶段，暂不能把它归因于后端或客户端。artifact 的 20,978,644 bytes 已完整下载并核对 GitHub SHA-256 `89f68d1db7ffc03facbc3f910022c9c7b23e2760c282d2e7d31e361392dd4eba`，全部 305 项已解压，证据在 `output/github-40213558997/`。该轮失败时保留草稿；后续默认启动复验与最终发布见下文。
 - 本次构建 `20261025-164104` 的 ZIP 为 234,215,319 bytes，SHA-256 `6d490005045ce982b0e8ea7aa7fb81940a2bc0607e9863c70772842c4674424c`，440 个产物全部匹配。295 个来源与提交 28faca1 逐项核对，五项仅为 LF/CRLF 差异，没有内容不一致。本机在独立目录解压，用 Node 24.22.1 驱动同一实际 Electron 包通过目录选择、浏览、GIF/WebP 像素变化、整理、22 项图库管理、17 项品牌、动态端口重启和所属后端退出；证据为 `output/ui-qa/integration-1792951374652`。后续 QA／文档改动与包的运行源码没有差异，当前工作区比较另列于 `output/github-40212772400/app-verification.json`。
-- 草稿的旧附件、旧构建来源和旧验收摘要仍需整体替换；当前不能直接公开。
+- 旧草稿的四个附件、构建来源和验收摘要已整体替换；公开前再次逐项核对大小、GitHub digest 与本地 SHA-256，均一致。
 
 请求诊断现已补充最近 256 次请求的方法、路由、响应头／正文阶段、耗时；失败后通过独立 HTTP 客户端做一次一秒健康探测，然后仍抛出原始失败。手动多轮流程可用 `--trace-backend` 为隔离源码后端采集线程栈，不修改生产入口或十秒请求门槛。本机带记录的十轮原完整业务均通过，请求时序与线程记录已逐份核对；这不能证明远程超时已解决。
 
@@ -44,7 +44,13 @@ SQLite 曾在短请求之间关闭全部连接，反复清理和恢复 WAL。缩
 
 原四项检查、1.5 秒生产保存超时、十秒精确值等待与 6.5 秒退出门槛保留。新版首轮通过；随后源码五次和实际包前三次通过，总第九次在退出门槛失败，第三项保存已通过，第十次和后续统一验证未执行。失败后端日志显示已完成应用关闭，但缺少桌面退出时序，具体原因仍未确定。独立生命周期诊断随后对同一实际包九次通过，不能据此撤销原失败。
 
-正式专项已补充窗口 close／closed、渲染器销毁、app before-quit／will-quit／quit 与驱动观察到的进程退出时间，直接写入每轮临时输出；不改生产关闭流程。本轮源码五次、同一实际包五次均通过，四项条件完整，退出 2539–2785ms；十份记录均有 renderer-destroyed、quit 和退出码 0。汇总为 `output/quality/preferences-lifecycle-20261026/summary.json`。随后完整 `scripts/verify.ps1` 通过：113 项 Python、两项原生回收排除、14 项交互、四项退出、126 项工作台和隔离业务及全部工程检查；日志 `output/quality/github-preference-lifecycle-20261026.log`。本轮远程源码检查尚待终态确认。
+正式专项已补充窗口 close／closed、渲染器销毁、app before-quit／will-quit／quit 与驱动观察到的进程退出时间，直接写入每轮临时输出；不改生产关闭流程。本轮源码五次、同一实际包五次均通过，四项条件完整，退出 2539–2785ms；十份记录均有 renderer-destroyed、quit 和退出码 0。汇总为 `output/quality/preferences-lifecycle-20261026/summary.json`。随后完整 `scripts/verify.ps1` 通过：113 项 Python、两项原生回收排除、14 项交互、四项退出、126 项工作台和隔离业务及全部工程检查；日志 `output/quality/github-preference-lifecycle-20261026.log`。
+
+QA 提交 `dd6d644` 的 [main 40227232701](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40227232701) 与 [共享分支 40227231836](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40227231836) 均成功；两份完整日志中的 113 项 Python、四项退出和 126 项工作台均实际执行，阻塞退出分别为 2509／2754ms。main 的 72 项证据经 GitHub SHA-256 `9bbe0d73a46a9e9356a83f0ecfbbf4b79acab0a96fc512391ed66d0080ca10fd` 校验并解压，四项退出记录及服务日志已复核。
+
+## 公开下载复核
+
+Release 为 `preview-20261026-28faca1`，标签实际指向完整产品源码 `28faca184a4b90a9da95f9567ab5558115568ef9`；后续 `dd6d644` 仅含 QA 和文档。发布后通过未登录请求读取公开 API、校验文件和验收摘要；ZIP 匿名范围请求返回 206 与正确 ZIP 文件签名。四个附件为 ZIP、`.sha256`、`release-manifest.json` 和脱敏 `verification-summary.json`，公开摘要与本地验收一致。证据为 `output/quality/public-release-verification-20261026.json`，不随源码上传本机输出。
 
 ## 发布范围
 

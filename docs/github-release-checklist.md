@@ -11,13 +11,13 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 - [x] 公开文件扫描器：`python scripts/public_release_check.py --json`。
 - [x] 当前工作区没有发现个人路径、生成目录或依赖目录进入公开文件集合。
 - [x] 历史候选完成实际 Electron 流程、图库管理、品牌和退出验证；旧包的来源与运行范围保留于 [2026-10-25 记录](github-preview-verification-20261025.md)。
-- [x] 本机历史候选 `20261025-180752` 的 438 个产物和 ZIP、GitHub 旧候选 `20261025-115847` 的 440 个产物已核验。当前候选改为含运行代码修复的 `28faca1`，来源与未完成事项单列于 [本次验收](github-preview-verification-20261026.md)。
+- [x] 本机历史候选 `20261025-180752` 的 438 个产物和 ZIP、GitHub 旧候选 `20261025-115847` 的 440 个产物已核验。本次公开包为含运行代码修复的 `28faca1`，来源与观察项单列于 [本次验收](github-preview-verification-20261026.md)。
 
-## 发布前必须完成
+## 本次发布门槛（已完成）
 
-当前发布保持草稿。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。
+[2026-10-26 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已公开。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。历史观察不因本次公开预览而关闭。
 
-当前实际包验收 [40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 已成功；同一 ZIP 的来源、440 个产物、原始一小时采样与本机实际运行均已复核。默认启动十轮复验 [40220316275](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40220316275) 与本机十轮成功，全部远程服务日志和 358 次请求已复核。历史单次超时与 500 缺少根因证据，继续记录。当前还需确认退出专项修正的重复检查、统一验证与远程检查，并整体替换旧草稿附件。
+当前实际包验收 [40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 已成功；同一 ZIP 的来源、440 个产物、原始一小时采样与本机实际运行均已复核。默认启动十轮复验 [40220316275](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40220316275) 与本机十轮成功，全部远程服务日志和 358 次请求已复核。QA 修正 `dd6d644` 的两路远程检查成功，旧草稿附件已替换；发布后匿名 API、校验文件、验收摘要与 ZIP 范围下载均通过。
 
 - [x] 已创建公开仓库 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，origin 指向该仓库，main 为默认分支。
 - [x] 已推送源码与文档，main 与 feat/backend-v2 内容一致；runtime.local.json、output/、build-out/、ui/dist/、依赖和用户数据不在提交中。API 上传造成的提交分叉已通过保留双方历史的合并消除，没有 force push。
@@ -25,17 +25,18 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 - [x] 提交 d3fb940 的 [main Windows 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197273329) 与 [开发分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197271124) 均已通过。
 - [x] 历史 ffadf60 的 [完整 Windows 包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40191052297) 已成功；3600 秒、180 轮完成，原始进程和 renderer 时序复核通过。该结果不证明后续运行代码修复已通过实际包验收。
 - [x] GitHub 全新 Windows runner 验证实际便携包；本机在新目录解压同一 ZIP，440 个文件与原包完全匹配，首次启动、添加图库、GIF/WebP、删除确认、重启恢复与退出通过。两次未完成尝试及后续隔离验证记录见验收文档，不把复测通过描述为超时原因已解决。
-- [x] 本机完整统一验证再次通过：111 项 Python、两项原生回收测试排除，126 项工作台及其余类型、构建、语法、品牌、退出、只读联调门槛均通过。日志为 output/quality/github-preview-final-20261025.log。
-- [x] 当前开发预览包保持未签名，README 和随包说明已写明未知发布者提示、升级备份与回退方式；这不代表已发布二进制 Release。
+- [x] 历史本机完整统一验证通过：111 项 Python、两项原生回收测试排除，126 项工作台及其余类型、构建、语法、品牌、退出、只读联调门槛均通过。日志为 output/quality/github-preview-final-20261025.log；当前 113 项验证另列于下方。
+- [x] 当前开发预览包保持未签名，README 和随包说明已写明未知发布者提示、升级备份与回退方式；实际发布状态通过下方的匿名下载单独复核。
 - [x] 已将最终候选包的合成图片墙、深色查看器和窄屏截图加入 `docs/screenshots/`，附 SHA-256 来源记录并接入 README；截图不来自真实图库。
 - [x] `28faca1` 的 [main 完整检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760133) 与 [共享分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760158) 通过，保留原失败提示与重试断言；本机统一验证为 113 项 Python、14 项交互和 126 项工作台通过。
 - [x] QA 测量修正提交 773b542 的 [main 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40218184742) 与 [共享分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40218184013) 完整通过，运行代码与候选包保持一致。
 - [x] 复核相同运行代码的默认启动十轮隔离业务及全部临时服务日志；本机与远程均通过，没有把未复现写成已查明历史 500 的根因。
 - [x] 本次实际桌面包、完整一小时负载、原始采样与退出记录已核验；复核范围和未上传资料的边界见当前候选记录。
 - [x] 下载本次包，核对 artifact 摘要、ZIP SHA-256、295 个来源与 440 个产物。本机隔离解压运行、重启和四项退出专项通过；阻塞退出约 2595ms，记录 shutdown-1792951749883。
-- [ ] 偏好保存改为真实界面操作后，确认源码／实际包重复退出、完整统一验证和远程检查。总第九次的单次退出超时保留，失败阶段通过新增生命周期记录继续区分。
-- [ ] 使用本次包整体替换草稿附件、构建来源及验收摘要；发布说明记录验证范围和剩余观察项。
-- [ ] 发布按日期标识的 GitHub 开发预览 Release，附件包含便携 ZIP、SHA-256、来源清单及去除本机路径的验收证据。
+- [x] 偏好保存改为真实界面操作后，源码五次／实际包五次重复退出与完整统一验证通过；`dd6d644` 的 main 40227232701 与共享分支 40227231836 成功。总第九次的历史退出超时保留，未查明根因。
+- [x] 使用构建 20261025-164104 整体替换草稿附件、构建来源及脱敏验收摘要；四个附件的大小和 GitHub digest 与本地逐项一致，发布说明保留范围与观察项。
+- [x] 公开按日期标识的开发预览 `preview-20261026-28faca1`，标签指向完整 `28faca1` 源码；未登录访问 API、校验文件与验收摘要成功，ZIP 范围请求返回 206 和正确文件签名。
+- [x] 同一包复制到本机固定构建目录后，440 个产物校验和实际 Electron 全流程／重启通过，再更新本机桌面与后台启动路径；数据目录保持原值，没有启动真实数据或停止旧进程。
 
 ## 后续发行验证
 

@@ -1,6 +1,6 @@
 # 文档导航
 
-Stillmark 是 Windows 本地图片工作台。当前源码已在 GitHub 公开，二进制包仍按开发预览验收。使用入口见 [项目 README](../README.md)。
+Stillmark 是 Windows 本地图片工作台。源码和首份 [Windows x64 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已在 GitHub 公开。使用入口见 [项目 README](../README.md)。
 
 ## 当前使用与开发
 
@@ -14,9 +14,9 @@ Stillmark 是 Windows 本地图片工作台。当前源码已在 GitHub 公开�
 ## 发布与验收
 
 - [GitHub 发布清单](github-release-checklist.md)：当前通过、未完成事项及远程 Actions 链接。
-- [当前 GitHub Windows 候选验收](github-preview-verification-20261026.md)：本次修复、源码检查、实际包与剩余发布门槛；[旧候选记录](github-preview-verification-20261025.md) 保留历史构建与长测证据。
+- [当前 GitHub Windows 包验收](github-preview-verification-20261026.md)：本次修复、源码检查、实际包和公开下载校验；[旧候选记录](github-preview-verification-20261025.md) 保留历史构建与长测证据。
 - [Windows 开发预览收尾](release-readiness-20261024.md)：每个本机构建的来源与验收范围。旧构建通过不能代替新构建的验收。
-- [便携包说明](portable-readme.md) 与 [发布说明草稿](github-release-draft.md)：数据目录、升级备份、回退及限制。
+- [便携包说明](portable-readme.md) 与 [本次发布说明](github-release-draft.md)：数据目录、升级备份、回退及限制。
 - [测试工具说明](../scripts/ui-qa/README.md)：源码、实际 Electron、性能和长测入口。测试只用临时图库，不操作回收站。
 
 ## 历史记录

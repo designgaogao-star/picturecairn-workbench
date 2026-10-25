@@ -1,6 +1,6 @@
 # Stillmark 影迹图片工作台 · 开发预览 2026-10-26
 
-> 发布准备稿：对应已验收的构建 20261025-164104。退出专项修正的最终源码检查和草稿附件替换尚未完成；本文不表示二进制 Release 已公开。
+> 对应已公开的 [2026-10-26 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1)，构建 20261025-164104。保留此文件作为本次发布说明来源。
 
 Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，核实再整理。
 
@@ -34,7 +34,7 @@ SHA-256：
 
 解压到可写目录，双击 `GalleryTool.exe`。首次使用时选择图片目录，索引会在后台建立。原图不会被导入或移动。
 
-本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 113 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核；相同运行代码的默认启动业务在本机和远程各完成十轮，远程 358 次请求完成、服务日志无 ERROR。完整范围与历史失败见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261026.md)。随包 `verification-summary.json` 提供脱敏的验收摘要。
+本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 113 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核；相同运行代码的默认启动业务在本机和远程各完成十轮，远程 358 次请求完成、服务日志无 ERROR。完整范围与历史失败见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261026.md)。Release 附件 `verification-summary.json` 提供脱敏的验收摘要。
 
 本包保留构建时的开发元数据 `0.0.0-dev` 和“开发预览（未发布）”，识别本包请使用构建标识或 `release-manifest.json` 的源码摘要。
 

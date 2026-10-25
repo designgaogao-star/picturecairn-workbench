@@ -13,11 +13,11 @@
 
 ## Windows 预览版
 
-当前是 **开发预览（未发布）**，主要在 Windows 11 x64 验收。便携包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。目前尚未发布 GitHub Release；本地候选包由下文的统一构建入口生成。
+已提供 [Windows x64 开发预览下载](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1)，主要在 Windows 11 x64 验收。便携包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。当前构建标识为 `20261025-164104`，来源提交 `28faca1`。
 
-GitHub 首次公开发布前不使用正式版本号。开发包以构建日期和 `release-manifest.json` 的源码摘要区分；依赖工具要求的版本字段只使用开发占位值。
+开发预览以构建日期和 `release-manifest.json` 的源码摘要区分，不作稳定版承诺；依赖工具要求的版本字段使用开发占位值。完整验证范围及已知限制见 [本次验收](docs/github-preview-verification-20261026.md)。
 
-1. 取得 `GalleryTool-dev-win-x64.zip` 和同名 `.sha256`，核对 SHA-256。
+1. 下载 [GalleryTool-dev-win-x64.zip](https://github.com/designgaogao-star/stillmark-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip) 和同名 [.sha256](https://github.com/designgaogao-star/stillmark-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip.sha256)，核对 SHA-256。
 2. 将整个 ZIP 解压到可写目录，保留 `resources/` 等文件。
 3. 双击 **GalleryTool.exe**，选择存放图片的本地目录。索引在后台建立，已扫描部分可以直接浏览。
 
@@ -44,7 +44,7 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 ## 实际界面
 
-下面的截图来自最终候选包的临时合成图库，展示图片墙、深色查看器和窄屏布局。它们不包含真实图库内容：
+下面的截图来自已验收便携包的临时合成图库，展示图片墙、深色查看器和窄屏布局。它们不包含真实图库内容：
 
 <p align="center">
   <img src="docs/screenshots/stillmark-workbench-light.png" alt="Stillmark 浅色图片墙" width="49%">
@@ -56,7 +56,7 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 截图来源和 SHA-256 见 [公开演示材料](docs/screenshots.md)。
 
-大图库进入持久索引后，图片仍按需读取和生成预览。首次加载大图需要磁盘读取与解码时间；实际表现取决于硬盘、素材和缓存状态。测量和测试范围见 [最新交付](docs/release-readiness-20261024.md) 与 [质量验收](docs/review-quality-20261023.md)，不把单台机器的结果当作跨机器保证。实际桌面演示只用合成图片，生成方式见 [演示材料](docs/screenshots.md)。
+大图库进入持久索引后，图片仍按需读取和生成预览。首次加载大图需要磁盘读取与解码时间；实际表现取决于硬盘、素材和缓存状态。当前包的验证见 [GitHub 包验收](docs/github-preview-verification-20261026.md)，历史性能对照见 [质量验收](docs/review-quality-20261023.md)，不把单台机器的结果当作跨机器保证。实际桌面演示只用合成图片，生成方式见 [演示材料](docs/screenshots.md)。
 
 ## 数据、升级与恢复
 
