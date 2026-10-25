@@ -196,7 +196,8 @@ async function browsing(page, base, lib, groups) {
   await page.getByRole('button', { name: '完成', exact: true }).click();
   await snapshot(page, 'B-images-inspector-desktop');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator('.inspector').waitFor();
+  // The already visible desktop panel must first receive matchMedia and render as modal.
+  await page.locator('.inspector:modal').waitFor();
   check('窄屏信息抽屉为原生模态', await page.locator('.inspector').evaluate((el) => el.matches(':modal')));
   await snapshot(page, 'B-inspector-narrow');
   await page.keyboard.press('Escape');
