@@ -174,6 +174,58 @@ async function scrollTo(page, index) {
 try {
   await server.listen();
   browser = await chromium.launch({ channel: 'msedge', headless: true });
+  for (const outcome of ['success', 'failure']) {
+    await test(`pagination-inflight-invalidation-${outcome}`, { anchor: 0 }, async (page) => {
+      await page.waitForFunction(async (packageId) => {
+        const app = await import('/src/state/app.ts');
+        return !app.imagesList(packageId).loading.value;
+      }, pkg.id);
+      let started, release;
+      const pending = new Promise((resolve) => { started = resolve; });
+      const gate = new Promise((resolve) => { release = resolve; });
+      let phase = 'hold', failures = 0;
+      const freshName = 'Updated after invalidation.png';
+      await page.route(`**/api/v1/packages/${pkg.id}/images?*`, async (route) => {
+        if (phase === 'hold') {
+          started();
+          await gate;
+          return route.fulfill({ json: paged(Array.from({ length: 100 }, (_, index) => image(index)), total) });
+        }
+        if (phase === 'failure') {
+          failures++;
+          return route.fulfill({ status: 503, json: { detail: '模拟分页读取失败' } });
+        }
+        return route.fulfill({ json: { ...paged(Array.from({ length: 100 }, (_, index) => ({ ...image(index), name: index === 0 ? freshName : image(index).name })), total), revision: 2 } });
+      });
+      const invalidate = () => page.evaluate(async (packageId) => {
+        const app = await import('/src/state/app.ts');
+        app.imagesList(packageId).invalidate();
+      }, pkg.id);
+      try {
+        await invalidate();
+        await pending;
+        phase = outcome;
+        await invalidate();
+        release();
+        if (outcome === 'failure') {
+          await page.locator('.images .vgrid-error').waitFor();
+          assert.ok(await page.locator('.image-card').count() > 0, 'Retain existing content on failure');
+          await page.waitForFunction(() => document.querySelector('.images .vgrid-error')
+            && document.querySelector('.images .vgrid-space')?.getAttribute('aria-busy') === 'false');
+          // The automatic retries complete before testing the explicit retry button.
+          await page.waitForFunction(() => document.querySelector('.images .vgrid-error')?.textContent.includes('模拟分页读取失败'));
+          const deadline = Date.now() + 15000;
+          while (failures < 3 && Date.now() < deadline) await delay(50);
+          assert.equal(failures, 3, 'Two automatic retries after the initial failure');
+          await page.waitForFunction(() => document.querySelector('.images .vgrid-space')?.getAttribute('aria-busy') === 'false');
+          phase = 'success';
+          await page.locator('.images .vgrid-error').getByRole('button', { name: '重试', exact: true }).click();
+        }
+        await page.getByRole('button', { name: freshName, exact: true }).waitFor();
+        assert.equal(await page.locator('.images .vgrid-error').count(), 0);
+      } finally { release(); }
+    });
+  }
   for (const eventName of ['load', 'error']) {
     await test(`thumbnail-stale-${eventName}`, { anchor: 0 }, async (page) => {
       await page.getByRole('radio', { name: '大', exact: true }).click();

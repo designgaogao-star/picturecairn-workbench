@@ -20,6 +20,7 @@ export class PagedList<T> {
   private inflight = new Map<number, AbortController>();
   private windows = new Map<string, [number, number]>();
   private disposed = false;
+  private generation = 0;
   private attempts = 0;
   private retryTimer = 0;
 
@@ -70,6 +71,7 @@ export class PagedList<T> {
    */
   invalidate() {
     if (this.disposed) return;
+    this.generation++;
     for (const slot of this.pages.values()) slot.stale = true;
     this.clearError();
     this.version.value++;
@@ -110,6 +112,7 @@ export class PagedList<T> {
   }
 
   private async load(page: number) {
+    const generation = this.generation;
     const controller = new AbortController();
     this.inflight.set(page, controller);
     this.loading.value = true;
@@ -122,7 +125,9 @@ export class PagedList<T> {
       this.revision = Math.max(this.revision, result.revision);
       this.total.value = result.total;
       this.pages.delete(page);
-      this.pages.set(page, { items: result.items, revision: result.revision, stale: result.revision < this.revision });
+      // A refresh arriving during this request still needs a read after this response.
+      this.pages.set(page, { items: result.items, revision: result.revision,
+        stale: generation !== this.generation || result.revision < this.revision });
       this.error.value = null;
       this.attempts = 0;
       this.evict();

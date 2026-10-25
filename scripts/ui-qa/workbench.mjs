@@ -396,8 +396,11 @@ try {
     const state = await page.evaluate(async () => {
       const app = await import('/src/state/app.ts');
       const router = await import('/src/lib/router.ts');
+      const list = app.lists.peek(`images:${router.route.value.package}`);
       return {
         route: router.route.value, lastViewed: app.lastViewed.value,
+        list: list ? { active: list.active, loading: list.loading.value, error: list.error.value,
+          total: list.total.value, revision: list.revision, version: list.version.value } : null,
         cards: [...document.querySelectorAll('.image-card')].map((card) => ({ name: card.textContent, class: card.className })),
         thumbnails: [...document.querySelectorAll('.thumb')].map((thumb) => {
           const rect = thumb.getBoundingClientRect(), image = thumb.querySelector('img');
