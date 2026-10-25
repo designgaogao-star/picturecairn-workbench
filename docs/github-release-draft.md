@@ -1,6 +1,6 @@
-# Stillmark 影迹图片工作台 · 开发预览 2026-10-25
+# Stillmark 影迹图片工作台 · 开发预览 2026-10-26
 
-> 此说明仍对应旧候选 ffadf60。后端已有 WAL 生命周期修复，旧附件未包含修复；发布继续保持草稿，必须用新构建的实际运行与完整长测结果替换后才能公开。
+> 发布准备稿：对应已验收的构建 20261025-164104。退出专项修正的最终源码检查和草稿附件替换尚未完成；本文不表示二进制 Release 已公开。
 
 Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，核实再整理。
 
@@ -22,19 +22,19 @@ Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，�
 Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 ```
 
-构建标识：`20261025-115847`，Windows x64，便携 ZIP 为 234,215,177 bytes。
+构建标识：`20261025-164104`，Windows x64，便携 ZIP 为 234,215,319 bytes。
 
-来源提交：`ffadf601fe5dd2740c55a339b6ea567c47bf0e04`。GitHub [构建与一小时实际包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40191052297) 已通过。后续默认分支改动为验收工具、测试和文档；产品运行代码与本包一致。
+来源提交：`28faca184a4b90a9da95f9567ab5558115568ef9`。GitHub [构建与一小时实际包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 已通过，295 个构建来源与 440 个产物已逐项核对。此后的改动为验收工具、测试和文档；产品运行代码与本包一致。本包包含 WAL 生命周期、缩略图迟到事件和在途分页刷新修复。
 
 SHA-256：
 
 ```text
-b707c5d8373120b7830388de7003b434e374219cb5ce24a62a8201a04076f0bc
+6d490005045ce982b0e8ea7aa7fb81940a2bc0607e9863c70772842c4674424c
 ```
 
 解压到可写目录，双击 `GalleryTool.exe`。首次使用时选择图片目录，索引会在后台建立。原图不会被导入或移动。
 
-本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 111 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核。完整范围见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261025.md)。
+本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 113 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核；相同运行代码的默认启动业务在本机和远程各完成十轮，远程 358 次请求完成、服务日志无 ERROR。完整范围与历史失败见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261026.md)。随包 `verification-summary.json` 提供脱敏的验收摘要。
 
 本包保留构建时的开发元数据 `0.0.0-dev` 和“开发预览（未发布）”，识别本包请使用构建标识或 `release-manifest.json` 的源码摘要。
 
@@ -49,8 +49,8 @@ b707c5d8373120b7830388de7003b434e374219cb5ce24a62a8201a04076f0bc
 - 这是未签名的 Windows 开发预览，Windows SmartScreen 可能显示未知发布者。
 - 当前只支持本地图片，不支持视频、云同步、网络图库、标签、评分、收藏、RAW、HEIC 或 AVIF。
 - 首次冷读和大图解码受硬盘、图片尺寸和系统负载影响。
-- 长时间混合浏览中，渲染器原生私有内存后半小时仍约增长 1.12 MiB/分钟，JS 堆与句柄保持平稳；长期表现继续观察。
-- 本机联调曾出现一次截图超时和一次重启后等待图片超时。隔离启动与完整流程复测通过，原因尚未确定；请反馈可复现步骤和脱敏日志。
+- 一小时混合浏览中，全部所属进程的私有内存后半小时仍约增长 1.058 MiB/分钟，JS 堆与句柄没有持续增长；长期表现继续观察。
+- 历史自动化出现过任务列表 500、图片或任务读取等待超时，以及阻塞渲染器时单次退出超过 6.5 秒。后续多轮通过，部分原现场缺少完整时序，尚不能宣称所有原因已查明；若遇到问题，请保留构建标识、复现步骤和脱敏日志。
 - 本轮没有操作 Windows 回收站，回收失败与禁止自动永久删除使用模拟验证；实际删除测试只在临时合成图库显式确认永久删除。
 - 验收来自 Windows 11 本机和 GitHub Windows Server runner，覆盖范围不等于所有 Windows、硬盘和缩放组合。代码签名尚未完成，同名风险见品牌提案。
 
