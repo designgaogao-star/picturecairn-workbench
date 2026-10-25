@@ -21,13 +21,15 @@ function Invoke-Check([string]$Command, [string[]]$Arguments) {
 Push-Location $projectDir
 try {
     Invoke-Check -Command $pythonPath -Arguments @('scripts/public_release_check.py', '--json')
-    Invoke-Check -Command $pythonPath -Arguments @('-m', 'pytest')
-    Invoke-Check -Command $pythonPath -Arguments @('-m', 'ruff', 'check', '.')
     Invoke-Check -Command 'npm' -Arguments @('run', 'contract')
     Invoke-Check -Command 'npm' -Arguments @('run', 'check')
     Invoke-Check -Command 'npm' -Arguments @('run', 'ui:check')
     Invoke-Check -Command 'npm' -Arguments @('run', 'brand:build')
     Invoke-Check -Command 'npm' -Arguments @('run', 'ui:build')
+    # The process HTTP tests exercise the same static frontend mounted by the backend.
+    # Build it before pytest so a clean checkout does not depend on an ignored ui/dist.
+    Invoke-Check -Command $pythonPath -Arguments @('-m', 'pytest')
+    Invoke-Check -Command $pythonPath -Arguments @('-m', 'ruff', 'check', '.')
     $scripts = & git ls-files --cached --others --exclude-standard -- '*.js' '*.mjs' '*.cjs'
     if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate maintained JavaScript files.' }
     foreach ($script in ($scripts | Sort-Object -Unique)) {
