@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 /** Real library lifecycle checks. The caller owns an isolated backend and a generated temporary library. */
 export async function libraryChecks(page, base, libraryPath, output, setChoice) {
-  const insideTemp = path.relative(tmpdir(), libraryPath);
+  // Python resolves Windows short names and junctions when registering a library.
+  // Compare physical paths, and apply the temporary-directory guard to that same path.
+  libraryPath = await realpath(libraryPath);
+  const insideTemp = path.relative(await realpath(tmpdir()), libraryPath);
   assert.ok(insideTemp && !insideTemp.startsWith('..') && !path.isAbsolute(insideTemp), 'Only a generated temporary library may be moved');
   const checks = [];
   const failures = [];
@@ -58,7 +61,9 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(base);
     const libraries = await request('/api/v1/libraries');
-    lib = libraries.items.find((item) => path.resolve(item.path) === path.resolve(libraryPath));
+    for (const item of libraries.items) {
+      if (await realpath(item.path) === libraryPath) { lib = item; break; }
+    }
     if (!lib) {
       await page.getByPlaceholder('例如 D:\\图片\\收藏').fill(libraryPath);
       const created = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/libraries'

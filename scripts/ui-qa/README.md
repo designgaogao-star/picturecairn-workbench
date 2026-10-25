@@ -32,6 +32,8 @@ npm run ui:qa -- --source-desktop --libraries-only
 
 `libraries.mjs` 在同一隔离环境中检查图库改名、真实暂停任务阻止重连、取消后恢复输入、无效路径、根目录搬迁后的离线/重连、移出/重新添加及 ID/位置/标记/文件保留。图库管理阶段不请求文件删除端点，只移动本轮系统临时目录内的测试图库；桌面仍经过实际预载/IPC，系统目录对话框返回值受控。结果写入同轮 `library-lifecycle.json`。
 
+Windows runner 的临时目录可能包含 `RUNNER~1` 这类短路径，或通过 junction 访问。图库管理测试在比对后端登记路径和检查临时目录范围前先用 `realpath()` 解析两端，避免将同一图库误判成尚未添加。使用 junction 作为 TEMP/TMP 执行完整 `run.mjs` 已复现并验证该场景。
+
 `branding.mjs` 在同轮检查网页完整标题、应用内主题优先、朱色与转曲字标、真实 favicon、深浅启动页、390px 品牌区。Electron 另检查应用名／AppUserModelID、黑白 100/125/150/200% NativeImage 的真实像素与主题更新刷新托盘，共 17 项，浏览器为 13 项。系统对比度和 DPI 没有被全局修改；这些断言不声称在多台物理显示器上人工验收。结果为 `brand-verification.json`。
 
 品牌截图使用 Playwright 的 animations: disabled，完成有限 CSS 过渡后再截取，避免把深浅主题切换中的灰色中间帧当作最终视觉。产品里的主题过渡保持原样。
