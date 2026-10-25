@@ -33,7 +33,10 @@ async function exitWithin(process, milliseconds) {
 }
 
 async function waitForSavedSize(size) {
-  for (let attempt = 0; attempt < 60; attempt++) {
+  // Windows runners can schedule the close event after a delayed window show.
+  // Keep checking the exact persisted value, but allow the 1.5s save timeout and
+  // the runner's process scheduling to complete before declaring a failure.
+  for (let attempt = 0; attempt < 200; attempt++) {
     try { if (JSON.parse(await readFile(path.join(data, 'ui-preferences.json'), 'utf8'))['gt.tileSize'] === size) return; }
     catch (error) { if (!['ENOENT', 'EACCES', 'EPERM'].includes(error.code)) throw error; }
     await delay(50);
