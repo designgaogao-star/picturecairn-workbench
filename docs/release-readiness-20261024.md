@@ -2,17 +2,17 @@
 
 ## 当前结论
 
-已完成图库管理、用户确认的 D「压角印」品牌接入、便携分发材料、反馈与 CI 配置。Review 补齐了静态占位图的即时资源释放，行为验收包 `20261025-040954` 通过完整源码、实际桌面、加载对照、完整一小时长测和独立审计。按用户要求整理未发布命名后，已从提交 `6ff8834` 重新生成最新开发构建 `20261025-175349`，并完成源码门槛、产物清单和实际 Electron 验证；较早的 `161637` 包与原行为验收按历史记录保留。
+已完成图库管理、用户确认的 D「压角印」品牌接入、便携分发材料、反馈与 CI 配置。Review 补齐了静态占位图的即时资源释放，行为验收包 `20261025-040954` 通过完整源码、实际桌面、加载对照、完整一小时长测和独立审计。按用户要求整理未发布命名后，已从提交 `52b67ef` 重新生成最新开发构建 `20261025-180752`，并完成源码门槛、产物清单和实际 Electron 验证；较早的 `161637`、`175349` 包与原行为验收按历史记录保留。
 
 当前是 **Windows x64 开发预览（未发布）**，不使用正式产品版本号；尚未创建远程仓库、执行远程 CI 或发布公开 Release。不把单台机器验收描述为所有图片、硬盘或 Windows 版本的稳定性保证。
 
 2026-10-25 起按用户要求，GitHub 首次公开发布前不再使用 V2 或正式版本称呼。开发包按构建日期和源码摘要区分，ZIP 名为 `GalleryTool-dev-win-x64.zip`；工具必需的 Node／API 版本为 `0.0.0-dev`、Python 元数据为 `0.0.0.dev0`、PE 数值槽位为零，Windows 属性文字为“开发预览（未发布）”。下文旧 ZIP 文件名按历史证据保留，不能当作公开发布记录。
 
-## 最新可复现构建（175349）
+## 最新可复现构建（180752）
 
-构建入口为 `scripts/build.ps1`，桌面为 `build-out/20261025-175349/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-175349/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,896 bytes，SHA-256 为 `a75e9d39ed4a564483de6aad229c761e730eab8f681f9eb8ca8a941c323fdbd4`；构建源码摘要为 `079bbf567fabf66677d2b88d6a98e94b3aecb3ee32423072f00f1bda909c0490`。
+构建入口为 `scripts/build.ps1`，桌面为 `build-out/20261025-180752/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-180752/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,896 bytes，SHA-256 为 `7400db56e4ea12b9013040c87961d6f9696fbf71ff787df6758dcf6b40758a66`；构建源码摘要为 `a4ad0d94ddf39ee6ae7ce7078e916cd3bee8eaab6d19e9d8d42f49df644b8af8`。
 
-该包的 438 个产物逐项校验通过，`write_release_manifest.py --verify --app` 报告源码摘要、应用文件和 ZIP 内容全部一致。正常资源条件下运行 `scripts/verify.ps1 -Desktop <该包> -SkipUi`，完整 Python 为 **104 passed、2 deselected，44.76 秒**；Ruff、契约、严格 TypeScript、UI 检查、品牌资产、UI 构建、31 个 JS 文件语法和图片内存策略均通过。实际 Electron 通过目录选择、生产工作台、GIF/WebP、整理、图库生命周期、品牌、动态端口重启和所属后端退出，证据为 `output/ui-qa/integration-1792922447065` 与 `output/ui-qa/shutdown-1792922481213`。
+该包的 438 个产物逐项校验通过，`write_release_manifest.py --verify --app` 报告源码摘要、应用文件和 ZIP 内容全部一致。正常资源条件下运行 `scripts/verify.ps1 -Desktop <该包> -SkipUi`，完整 Python 为 **104 passed、2 deselected，44.50 秒**；Ruff、契约、严格 TypeScript、UI 检查、品牌资产、UI 构建、31 个 JS 文件语法和图片内存策略均通过。实际 Electron 通过目录选择、生产工作台、GIF/WebP、整理、图库生命周期、品牌、动态端口重启和所属后端退出，证据为 `output/ui-qa/integration-1792923153430` 与 `output/ui-qa/shutdown-1792923187421`。
 
 这次验证只使用临时图库和临时数据目录，没有启动真实图库任务、执行真实删除或触碰回收站。一小时负载仍沿用 `20261025-040954` 的行为包记录，没有把短验证冒充新的长测。
 

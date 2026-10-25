@@ -11,7 +11,7 @@ Stillmark 当前是 Windows 本地开发预览。首次公开发布前，产品�
 - [x] 公开文件扫描器：`python scripts/public_release_check.py --json`。
 - [x] 当前工作区没有发现个人路径、生成目录或依赖目录进入公开文件集合。
 - [x] 当前开发包已完成实际 Electron 流程、图库管理、品牌和退出验证。
-- [x] 当前开发候选包为 `build-out/20261025-175349/GalleryTool/GalleryTool.exe`；438 个产物和 ZIP 校验通过，公开卫生检查输出 `LOCAL_CHECK_PASS`。
+- [x] 当前开发候选包为 `build-out/20261025-180752/GalleryTool/GalleryTool.exe`；438 个产物和 ZIP 校验通过，公开卫生检查输出 `LOCAL_CHECK_PASS`。
 
 ## 发布前必须完成
 
