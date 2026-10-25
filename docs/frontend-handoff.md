@@ -1,12 +1,12 @@
 # 前端交接
 
-正式前端负责布局、视觉、交互细节和前端状态管理；后端负责索引、文件访问、图片派生、用户记录、任务和整理判据。现有原型仅用于验证这些接口。
+正式前端位于 `ui/`，沿用 Preact 10、Signals、Vite、严格 TypeScript 和现有 Lucide；负责布局、视觉、交互细节和前端状态管理。后端负责索引、文件访问、图片派生、用户记录、任务和整理判据。界面行为见 [当前 UI 说明](frontend-ui.md)，设计修订以 [图片工作台交接](design/image-workbench/handoff.md) 为准；`prototype/` 保留为历史参考。
 
 ## 联调
 
-当前为开发预览（未发布）。API 的产品版本字段使用开发占位值；`api_version: "1"` 与 `/api/v1` 表示接口契约编号，不是产品发布版本。
+首份 [Windows 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已公开，以日期和源码摘要识别。API 的产品版本字段仍使用构建时的开发占位值；`api_version: "1"` 与 `/api/v1` 表示接口契约编号。
 
-后端 `http://127.0.0.1:8765`，OpenAPI 在 `/openapi.json`，所有业务接口在 `/api/v1`。重新生成契约用 `npm run contract`；不要手动编辑生成的 schema.d.ts。
+联调使用独立临时数据目录，以 `--port 0 --ready-file <临时就绪文件>` 启动后端，从该文件读取实际回环地址，并通过 `GALLERY_BACKEND` 传给 Vite。Vite 未设置该变量时默认代理到 `http://127.0.0.1:8765`；联调时用本轮临时后端的实际地址覆盖。OpenAPI 在 `/openapi.json`，所有业务接口在 `/api/v1`。重新生成契约用 `npm run contract`；不要手动编辑生成的 schema.d.ts。
 
 `contracts/client.ts` 使用生成的路径、参数、请求体和成功响应类型，支持 AbortSignal。图片 URL 由客户端的 thumbnail/original 方法构造。所有图片请求都走后端，前端不读取文件系统、不拼接原图绝对路径。
 
@@ -70,4 +70,4 @@ audit 检查空壳、残缺与广告图，使用独立 AuditJob 输入，不接�
 
 默认回收站删除。永久删除必须明确设置 permanent 与 confirm_permanent 为 JSON true。删除后检查任务 result.failed、逐项 state 和 error；无法回收不会永久删除，也不能把任务受理或 completed 状态单独当成所有项目成功。取消或中断后可通过 operations?task_id={id} 查询已执行项目。
 
-原型没有完整呈现去重证据与所有整理操作；正式前端可直接使用这些已实现的类型化接口。前端选用框架可独立决定，无需更改后端文件系统和数据库逻辑。
+正式前端已使用这些类型化接口呈现相似候选、完整核验、清理证据、逐项删除和任务控制；后续修改继续遵守当前图片工作台布局、现有技术栈和有界资源规则。新增接口需求先核对 `contracts/client.ts`，再按 [接口缺口](frontend-gaps.md) 的现有格式记录。
