@@ -20,12 +20,12 @@ Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，�
 Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 ```
 
-构建标识：`20261025-161637`
+构建标识：`20261025-175349`
 
 SHA-256：
 
 ```text
-540aad23c736cfd0545dacbc65a84fe8727b71ac966b31cad7dad83fcf739711
+a75e9d39ed4a564483de6aad229c761e730eab8f681f9eb8ca8a941c323fdbd4
 ```
 
 解压到可写目录，双击 `GalleryTool.exe`。首次使用时选择图片目录，索引会在后台建立。原图不会被导入或移动。

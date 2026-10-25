@@ -2,15 +2,23 @@
 
 ## 当前结论
 
-已完成图库管理、用户确认的 D「压角印」品牌接入、便携分发材料、反馈与 CI 配置。Review 补齐了静态占位图的即时资源释放，行为验收包 `20261025-040954` 通过完整源码、实际桌面、加载对照、完整一小时长测和独立审计。按用户要求整理未发布命名后，当前本机入口已切到开发构建 `20261025-161637`；该包包含公开仓库卫生检查并重新通过实际桌面验证，原行为验收按原包记录保留。
+已完成图库管理、用户确认的 D「压角印」品牌接入、便携分发材料、反馈与 CI 配置。Review 补齐了静态占位图的即时资源释放，行为验收包 `20261025-040954` 通过完整源码、实际桌面、加载对照、完整一小时长测和独立审计。按用户要求整理未发布命名后，已从提交 `6ff8834` 重新生成最新开发构建 `20261025-175349`，并完成源码门槛、产物清单和实际 Electron 验证；较早的 `161637` 包与原行为验收按历史记录保留。
 
 当前是 **Windows x64 开发预览（未发布）**，不使用正式产品版本号；尚未创建远程仓库、执行远程 CI 或发布公开 Release。不把单台机器验收描述为所有图片、硬盘或 Windows 版本的稳定性保证。
 
 2026-10-25 起按用户要求，GitHub 首次公开发布前不再使用 V2 或正式版本称呼。开发包按构建日期和源码摘要区分，ZIP 名为 `GalleryTool-dev-win-x64.zip`；工具必需的 Node／API 版本为 `0.0.0-dev`、Python 元数据为 `0.0.0.dev0`、PE 数值槽位为零，Windows 属性文字为“开发预览（未发布）”。下文旧 ZIP 文件名按历史证据保留，不能当作公开发布记录。
 
-## 未发布命名整理（161637）
+## 最新可复现构建（175349）
 
-当前开发包由 `scripts/build.ps1` 生成，桌面为 `build-out/20261025-161637/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-161637/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,198 bytes，SHA-256 为 `540aad23c736cfd0545dacbc65a84fe8727b71ac966b31cad7dad83fcf739711`；构建源码摘要为 `80d50606d223ed98386e361f6ae0379d46beee2421098f2c6088f07d46830ffe`。
+构建入口为 `scripts/build.ps1`，桌面为 `build-out/20261025-175349/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-175349/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,896 bytes，SHA-256 为 `a75e9d39ed4a564483de6aad229c761e730eab8f681f9eb8ca8a941c323fdbd4`；构建源码摘要为 `079bbf567fabf66677d2b88d6a98e94b3aecb3ee32423072f00f1bda909c0490`。
+
+该包的 438 个产物逐项校验通过，`write_release_manifest.py --verify --app` 报告源码摘要、应用文件和 ZIP 内容全部一致。正常资源条件下运行 `scripts/verify.ps1 -Desktop <该包> -SkipUi`，完整 Python 为 **104 passed、2 deselected，44.76 秒**；Ruff、契约、严格 TypeScript、UI 检查、品牌资产、UI 构建、31 个 JS 文件语法和图片内存策略均通过。实际 Electron 通过目录选择、生产工作台、GIF/WebP、整理、图库生命周期、品牌、动态端口重启和所属后端退出，证据为 `output/ui-qa/integration-1792922447065` 与 `output/ui-qa/shutdown-1792922481213`。
+
+这次验证只使用临时图库和临时数据目录，没有启动真实图库任务、执行真实删除或触碰回收站。一小时负载仍沿用 `20261025-040954` 的行为包记录，没有把短验证冒充新的长测。
+
+## 之前的未发布命名整理（161637）
+
+该包此前由 `scripts/build.ps1` 生成，桌面为 `build-out/20261025-161637/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-161637/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,198 bytes，SHA-256 为 `540aad23c736cfd0545dacbc65a84fe8727b71ac966b31cad7dad83fcf739711`；构建源码摘要为 `80d50606d223ed98386e361f6ae0379d46beee2421098f2c6088f07d46830ffe`。它不是当前最新候选包。
 
 本次只修改产品命名、版本元数据和文档：README、开发更新记录、反馈模板、API/OpenAPI、桌面包和 Windows 文件属性均不再标注正式产品版本。接口 `/api/v1`、图片缓存与算法版本、既有分支和测试文件名继续承担各自技术用途。窗口／托盘仍显示 Stillmark 完整品牌，界面主包仍为 `main-B8poEv-P.js`，没有改动看图、调度或内存处理行为。
 

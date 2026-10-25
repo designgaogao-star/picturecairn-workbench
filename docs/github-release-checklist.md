@@ -11,7 +11,7 @@ Stillmark 当前是 Windows 本地开发预览。首次公开发布前，产品�
 - [x] 公开文件扫描器：`python scripts/public_release_check.py --json`。
 - [x] 当前工作区没有发现个人路径、生成目录或依赖目录进入公开文件集合。
 - [x] 当前开发包已完成实际 Electron 流程、图库管理、品牌和退出验证。
-- [x] 当前入口为 `build-out/20261025-161637/GalleryTool/GalleryTool.exe`；公开卫生检查输出 `LOCAL_CHECK_PASS`。
+- [x] 当前开发候选包为 `build-out/20261025-175349/GalleryTool/GalleryTool.exe`；438 个产物和 ZIP 校验通过，公开卫生检查输出 `LOCAL_CHECK_PASS`。
 
 ## 发布前必须完成
 
@@ -20,7 +20,8 @@ Stillmark 当前是 Windows 本地开发预览。首次公开发布前，产品�
 - [ ] 最终审阅历史接手记录、旧性能报告和设计交接文档；决定哪些作为公开历史保留，哪些移入仓库外，不把内部对话或工作区操作记录当作产品文档。
 - [ ] 在 GitHub Actions 实际执行一次 CI 和 Windows 手工构建，保存 workflow 结果和构建产物。
 - [ ] 在干净 Windows 环境解压 ZIP，验证首次启动、添加图库、GIF/WebP、删除确认、重启恢复和退出。
-- [ ] 在 CPU 和内存正常的机器上重跑统一验证；当前机器最近一次 `verify.ps1 -SkipUi` 受到 100% CPU 和 580–908 MB 可用内存影响，后端握手为 10.18–13.21 秒，超过现有 `<10s` 测试门槛。不能通过放宽门槛解决。
+- [x] 在 CPU 和内存正常的当前机器上重跑统一验证；`verify.ps1 -Desktop <最新包> -SkipUi` 通过，Python 为 104 passed、2 deselected，后端握手门槛通过。
+- [ ] 在干净 Windows 环境解压 ZIP，验证首次启动、添加图库、GIF/WebP、删除确认、重启恢复和退出。
 - [ ] 决定是否发布未签名开发预览；若发布，明确写出 SmartScreen 未签名提示和回退方式。
 - [ ] 公开发布前完成 Stillmark 的 CNIPA 第 9/42 类以及 USPTO、EUIPO、WIPO 的正式检索。
 - [ ] 重新生成公开 README 使用的截图并确认所有素材许可可追溯；截图不得来自真实图库。
