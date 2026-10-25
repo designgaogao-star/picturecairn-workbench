@@ -10,24 +10,29 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 - [x] `scripts/build.ps1` 生成便携 ZIP、SHA-256、逐文件来源清单和许可清单。
 - [x] 公开文件扫描器：`python scripts/public_release_check.py --json`。
 - [x] 当前工作区没有发现个人路径、生成目录或依赖目录进入公开文件集合。
-- [x] 当前开发包已完成实际 Electron 流程、图库管理、品牌和退出验证。
-- [x] 本机候选包 `20261025-180752` 的 438 个产物和 ZIP 校验通过；GitHub 候选包改为 `20261025-115847`，来源与范围单列于 [Windows 包验收](github-preview-verification-20261025.md)，不混用两个包的摘要和运行记录。
+- [x] 历史候选完成实际 Electron 流程、图库管理、品牌和退出验证；旧包的来源与运行范围保留于 [2026-10-25 记录](github-preview-verification-20261025.md)。
+- [x] 本机历史候选 `20261025-180752` 的 438 个产物和 ZIP、GitHub 旧候选 `20261025-115847` 的 440 个产物已核验。当前候选改为含运行代码修复的 `28faca1`，来源与未完成事项单列于 [本次验收](github-preview-verification-20261026.md)。
 
 ## 发布前必须完成
 
-当前阻塞：main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500。发布保持草稿；先补充临时服务日志并定位原因，不能仅重跑到绿灯就认定修复。
+当前发布保持草稿。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。
 
-后续另已复现并修复 WAL 连接生命周期竞争，但没有原异常堆栈证明它就是同一问题。新后端使旧 ffadf60 候选包的运行代码不再匹配；必须重新构建、验证实际包和计满一小时负载，草稿旧附件尚不能发布。深页缩略图等待超时也仍作为观察项保留。
+当前实际包验收 [40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 仍在执行。十轮隔离业务流程 [40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 在八轮完成后，第九轮的重连扫描任务读取出现十秒超时，证据已完整下载；后端日志没有 ERROR，正在补充请求时序和临时线程栈诊断。新运行代码使旧 ffadf60 附件不再适用；通过前不能公开草稿，也不能用历史长测或一次绿灯代替本次验收。
 
 - [x] 已创建公开仓库 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，origin 指向该仓库，main 为默认分支。
 - [x] 已推送源码与文档，main 与 feat/backend-v2 内容一致；runtime.local.json、output/、build-out/、ui/dist/、依赖和用户数据不在提交中。API 上传造成的提交分叉已通过保留双方历史的合并消除，没有 force push。
 - [x] 历史接手、Review、性能报告和设计阶段保留为历史证据；[文档导航](README.md) 区分当前使用指南与历史记录。本地输出和归档不随源码分发。
 - [x] 提交 d3fb940 的 [main Windows 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197273329) 与 [开发分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197271124) 均已通过。
-- [x] ffadf60 的 [完整 Windows 包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40191052297) 已成功；3600 秒、180 轮完成，原始进程和 renderer 时序复核通过。后续测试与文档更新未改变产品或构建运行代码。
+- [x] 历史 ffadf60 的 [完整 Windows 包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40191052297) 已成功；3600 秒、180 轮完成，原始进程和 renderer 时序复核通过。该结果不证明后续运行代码修复已通过实际包验收。
 - [x] GitHub 全新 Windows runner 验证实际便携包；本机在新目录解压同一 ZIP，440 个文件与原包完全匹配，首次启动、添加图库、GIF/WebP、删除确认、重启恢复与退出通过。两次未完成尝试及后续隔离验证记录见验收文档，不把复测通过描述为超时原因已解决。
 - [x] 本机完整统一验证再次通过：111 项 Python、两项原生回收测试排除，126 项工作台及其余类型、构建、语法、品牌、退出、只读联调门槛均通过。日志为 output/quality/github-preview-final-20261025.log。
 - [x] 当前开发预览包保持未签名，README 和随包说明已写明未知发布者提示、升级备份与回退方式；这不代表已发布二进制 Release。
 - [x] 已将最终候选包的合成图片墙、深色查看器和窄屏截图加入 `docs/screenshots/`，附 SHA-256 来源记录并接入 README；截图不来自真实图库。
+- [x] `28faca1` 的 [main 完整检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760133) 与 [共享分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760158) 通过，保留原失败提示与重试断言；本机统一验证为 113 项 Python、14 项交互和 126 项工作台通过。
+- [ ] 复核 `28faca1` 十轮隔离业务及全部临时服务日志，不把未复现写成已查明历史 500 的根因。
+- [ ] 本次实际桌面包、完整一小时负载、原始采样和所属进程退出全部核验。
+- [ ] 下载本次包，核对 artifact 摘要、ZIP SHA-256、逐文件来源与产物，再独立解压运行。
+- [ ] 使用本次包整体替换草稿附件、构建来源及验收摘要；发布说明记录验证范围和剩余观察项。
 - [ ] 发布按日期标识的 GitHub 开发预览 Release，附件包含便携 ZIP、SHA-256、来源清单及去除本机路径的验收证据。
 
 ## 后续发行验证

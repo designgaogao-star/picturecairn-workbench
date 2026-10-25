@@ -51,7 +51,7 @@ jobs:
           INTEGRATION_RUNS: ${{ inputs.integration_runs }}
         run: |
           for ($attempt = 1; $attempt -lt [int]$env:INTEGRATION_RUNS; $attempt++) {
-            & node scripts/ui-qa/run.mjs
+            & node scripts/ui-qa/run.mjs --trace-backend
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Check generated contract is current

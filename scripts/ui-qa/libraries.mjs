@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile, realpath, rename, writeFile } from 'node:fs/promises';
+import { get as httpGet } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -15,6 +16,7 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
   const checks = [];
   const failures = [];
   const operations = [];
+  const requests = [];
   const check = (name, condition) => { assert.ok(condition, name); checks.push(name); };
   const onError = (error) => failures.push(error.message);
   const onRequest = (request) => {
@@ -23,10 +25,36 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
   page.on('pageerror', onError);
   page.on('request', onRequest);
   const request = async (route, method = 'GET', body) => {
-    const response = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
-    assert.ok(response.ok, `${method} ${route}: ${response.status} ${await response.clone().text()}`);
-    return response.status === 204 ? null : response.json();
+    const started = Date.now();
+    const record = { method, route, started_utc: new Date(started).toISOString(), phase: 'headers' };
+    requests.push(record);
+    if (requests.length > 256) requests.shift();
+    try {
+      const response = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+      record.status = response.status;
+      record.headers_ms = Date.now() - started;
+      record.phase = 'body';
+      assert.ok(response.ok, `${method} ${route}: ${response.status} ${await response.clone().text()}`);
+      const result = response.status === 204 ? null : await response.json();
+      record.phase = 'complete';
+      return result;
+    } catch (error) {
+      record.elapsed_ms = Date.now() - started;
+      record.error = String(error);
+      // Use a separate HTTP client to distinguish a fetch connection stall from a busy backend.
+      // This diagnostic never replaces the failed request or changes its 10-second acceptance limit.
+      record.health = await new Promise((resolve) => {
+        const probe = httpGet(base + '/api/v1/health', (response) => {
+          clearTimeout(timer);
+          response.resume();
+          resolve({ status: response.statusCode });
+        });
+        const timer = setTimeout(() => probe.destroy(new Error('Diagnostic health probe timed out')), 1000);
+        probe.on('error', (failure) => { clearTimeout(timer); resolve({ error: failure.message }); });
+      });
+      throw new Error(`${method} ${route} failed after ${record.elapsed_ms}ms (${record.phase}): ${error.message}`, { cause: error });
+    } finally { record.elapsed_ms ??= Date.now() - started; }
   };
   const waitFor = async (read, accept, name) => {
     for (let i = 0; i < 200; i++) {
@@ -190,13 +218,13 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
     await snapshot('library-restored-viewer-narrow');
     check('图库管理未发起文件删除请求', operations.length === 0);
     assert.deepEqual(failures, []);
-    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, libraryId: lib.id,
+    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, requests, libraryId: lib.id,
       imageId: image.id, originalPath: libraryPath, reconnectedPath: relocated }, null, 2));
     console.log(`PASS library lifecycle: ${checks.length} checks; rename, busy/cancel, offline/reconnect, remove/readd, preserved IDs/position/files`);
     return { restoreHash };
   } catch (error) {
     await page.screenshot({ path: path.join(output, 'library-failure.png') }).catch(() => {});
-    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, failures, error: error.stack }, null, 2));
+    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, failures, requests, error: error.stack }, null, 2));
     throw error;
   } finally {
     page.off('pageerror', onError);

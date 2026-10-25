@@ -14,7 +14,7 @@ Stillmark 是 Windows 本地图片工作台。当前源码已在 GitHub 公开�
 ## 发布与验收
 
 - [GitHub 发布清单](github-release-checklist.md)：当前通过、未完成事项及远程 Actions 链接。
-- [GitHub Windows 包验收](github-preview-verification-20261025.md)：远程构建来源、实际包验证、一小时负载与原始时序复核的范围。
+- [当前 GitHub Windows 候选验收](github-preview-verification-20261026.md)：本次修复、源码检查、实际包与剩余发布门槛；[旧候选记录](github-preview-verification-20261025.md) 保留历史构建与长测证据。
 - [Windows 开发预览收尾](release-readiness-20261024.md)：每个本机构建的来源与验收范围。旧构建通过不能代替新构建的验收。
 - [便携包说明](portable-readme.md) 与 [发布说明草稿](github-release-draft.md)：数据目录、升级备份、回退及限制。
 - [测试工具说明](../scripts/ui-qa/README.md)：源码、实际 Electron、性能和长测入口。测试只用临时图库，不操作回收站。

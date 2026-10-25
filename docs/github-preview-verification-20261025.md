@@ -1,5 +1,7 @@
 # GitHub Windows 开发预览验收
 
+> 本文属于旧候选 `ffadf60` 的历史证据。当前含运行代码修复的候选及验收状态见 [2026-10-26 记录](github-preview-verification-20261026.md)。
+
 本文记录 GitHub 构建候选包的验收范围。历史本机构建另见 [本机收尾记录](release-readiness-20261024.md)，不能互相替代。
 
 ## 来源与当前状态

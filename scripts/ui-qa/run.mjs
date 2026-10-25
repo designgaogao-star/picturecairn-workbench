@@ -31,9 +31,11 @@ const option = (name) => {
 const packedDesktop = option('--desktop');
 const packedBackend = option('--backend');
 const sourceDesktop = process.argv.includes('--source-desktop');
+const traceBackend = process.argv.includes('--trace-backend');
 assert.ok(Number(Boolean(packedDesktop)) + Number(Boolean(packedBackend)) + Number(sourceDesktop) <= 1,
   '--desktop, --backend and --source-desktop are mutually exclusive');
 const desktopExecutable = packedDesktop || (sourceDesktop ? path.join(project, 'node_modules/electron/dist/electron.exe') : null);
+assert.ok(!traceBackend || !desktopExecutable && !packedBackend, '--trace-backend only diagnoses the isolated source backend');
 const desktopArguments = sourceDesktop ? ['.'] : [];
 
 const environment = { ...process.env };
@@ -167,8 +169,19 @@ try {
   } else {
     const ready = path.join(temporary, 'ready.json');
     const token = 'isolated-ui-qa';
+    const sourceEntry = traceBackend ? ['-c', [
+      'import faulthandler, runpy, sys',
+      'trace = open(sys.argv.pop(1), "w")',
+      'faulthandler.dump_traceback_later(2, repeat=True, file=trace)',
+      'sys.argv[0] = "gallery"',
+      'try:',
+      '    runpy.run_module("gallery", run_name="__main__")',
+      'finally:',
+      '    faulthandler.cancel_dump_traceback_later()',
+      '    trace.close()',
+    ].join('\n'), path.join(output, 'backend-threads.log')] : ['-m', 'gallery'];
     const backend = launch(packedBackend || path.join(project, '.venv', 'Scripts', 'python.exe'), [
-      ...(packedBackend ? [] : ['-m', 'gallery']), '--data', path.join(temporary, 'data'), '--port', '0',
+      ...(packedBackend ? [] : sourceEntry), '--data', path.join(temporary, 'data'), '--port', '0',
       '--ready-file', ready, '--no-watch', '--no-scan', '--no-open',
     ], 'backend', { ...environment, GALLERY_DESKTOP_TOKEN: token });
     const descriptor = await readyFile(ready, backend);
