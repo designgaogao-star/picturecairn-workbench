@@ -18,8 +18,8 @@ node scripts/ui-qa/run.mjs --desktop <GalleryTool.exe绝对路径>
 
 | 文件 | 演示内容 |
 | --- | --- |
-| [stillmark-workbench-light.png](stillmark-workbench-light.png) | 1440×1000 浅色图片墙、图包边界、文件名与尺寸 |
-| [stillmark-viewer-dark.png](stillmark-viewer-dark.png) | 1440×1000 深色查看器、包内位置、胶片条和单色品牌标 |
-| [stillmark-workbench-narrow.png](stillmark-workbench-narrow.png) | 390px 窄屏图片墙与焦点状态 |
+| [stillmark-workbench-light.png](screenshots/stillmark-workbench-light.png) | 1440×1000 浅色图片墙、图包边界、文件名与尺寸 |
+| [stillmark-viewer-dark.png](screenshots/stillmark-viewer-dark.png) | 1440×1000 深色查看器、包内位置、胶片条和单色品牌标 |
+| [stillmark-workbench-narrow.png](screenshots/stillmark-workbench-narrow.png) | 390px 窄屏图片墙与焦点状态 |
 
-文件摘要和来源记录在 [SHA256SUMS](SHA256SUMS)。不要把开发 QA 的模拟错误图误作普通使用状态，也不要用真实图库截图替换这些文件。
+文件摘要和来源记录在 [SHA256SUMS](screenshots/SHA256SUMS)。不要把开发 QA 的模拟错误图误作普通使用状态，也不要用真实图库截图替换这些文件。
