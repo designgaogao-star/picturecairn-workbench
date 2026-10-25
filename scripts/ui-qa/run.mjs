@@ -234,4 +234,11 @@ try {
   }).catch(() => undefined);
   await server?.close();
   for (const child of children.reverse()) await stop(child);
+  for (const name of ['data', 'desktop']) {
+    try {
+      await writeFile(path.join(output, `${name}-server.log`), await readFile(path.join(temporary, name, 'server.log')));
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.warn(`Unable to retain ${name} service log: ${error.message}`);
+    }
+  }
 }

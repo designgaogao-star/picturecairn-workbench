@@ -15,6 +15,8 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 
 ## 发布前必须完成
 
+当前阻塞：main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500。发布保持草稿；先补充临时服务日志并定位原因，不能仅重跑到绿灯就认定修复。
+
 - [x] 已创建公开仓库 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，origin 指向该仓库，main 为默认分支。
 - [x] 已推送源码与文档，main 与 feat/backend-v2 内容一致；runtime.local.json、output/、build-out/、ui/dist/、依赖和用户数据不在提交中。API 上传造成的提交分叉已通过保留双方历史的合并消除，没有 force push。
 - [x] 历史接手、Review、性能报告和设计阶段保留为历史证据；[文档导航](README.md) 区分当前使用指南与历史记录。本地输出和归档不随源码分发。

@@ -10,6 +10,7 @@
 - 提交 `d3fb940` 的 [main 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197273329) 与 [开发分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40197271124) 均成功；后续验收工具与记录更新的最新结果见 [Windows 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/workflows/ci.yml)。
 - 从候选包提交到 `d3fb940`，图库服务、前端、Electron、契约、品牌 SVG、依赖锁定和构建实现均无变化；后续提交只更新测试与文档。候选包的来源仍按 `ffadf60` 记录。
 - ZIP 已下载并在新的隔离目录解压，完整摘要与 440 个文件均匹配。实际 Electron 全流程与退出专项通过；二进制 Release 尚在准备。
+- 发布暂缓：`ea9e510` 的开发分支 CI 通过，但 [main 40202393252](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40202393252) 在移出后重新添加图库时，任务列表返回 HTTP 500。该轮缺少临时数据目录的服务日志，暂未定位异常；不能用此前绿灯或本机复测代替这项失败。发布附件保留在草稿，尚未公开。
 
 所有验证均使用临时合成图库和独立数据目录，没有读写真实图库数据库、执行真实图片删除或操作回收站。
 
