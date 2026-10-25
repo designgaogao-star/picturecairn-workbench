@@ -17,7 +17,7 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 
 当前发布保持草稿。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。
 
-当前实际包验收 [40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 仍在执行。十轮隔离业务流程 [40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 在八轮完成后，第九轮的重连扫描任务读取出现十秒超时，证据已完整下载；后端日志没有 ERROR，正在补充请求时序和临时线程栈诊断。新运行代码使旧 ffadf60 附件不再适用；通过前不能公开草稿，也不能用历史长测或一次绿灯代替本次验收。
+当前实际包验收 [40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 已成功；同一 ZIP 的来源、440 个产物、原始一小时采样与本机实际运行均已复核。十轮隔离业务流程 [40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 在八轮完成后，第九轮的重连扫描任务读取出现十秒超时；后端日志没有 ERROR，仍需按默认启动方式检查。周期栈采集本身可能影响执行，已退出 CI 默认验收，失败触发的请求时序、独立健康探测与进程状态继续保留。原超时未关闭，旧草稿附件仍不能公开。
 
 - [x] 已创建公开仓库 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，origin 指向该仓库，main 为默认分支。
 - [x] 已推送源码与文档，main 与 feat/backend-v2 内容一致；runtime.local.json、output/、build-out/、ui/dist/、依赖和用户数据不在提交中。API 上传造成的提交分叉已通过保留双方历史的合并消除，没有 force push。
@@ -29,9 +29,10 @@ Stillmark 当前是 Windows 本地开发预览。产品名称为 **Stillmark 影
 - [x] 当前开发预览包保持未签名，README 和随包说明已写明未知发布者提示、升级备份与回退方式；这不代表已发布二进制 Release。
 - [x] 已将最终候选包的合成图片墙、深色查看器和窄屏截图加入 `docs/screenshots/`，附 SHA-256 来源记录并接入 README；截图不来自真实图库。
 - [x] `28faca1` 的 [main 完整检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760133) 与 [共享分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760158) 通过，保留原失败提示与重试断言；本机统一验证为 113 项 Python、14 项交互和 126 项工作台通过。
+- [x] QA 测量修正提交 773b542 的 [main 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40218184742) 与 [共享分支检查](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40218184013) 完整通过，运行代码与候选包保持一致。
 - [ ] 复核 `28faca1` 十轮隔离业务及全部临时服务日志，不把未复现写成已查明历史 500 的根因。
-- [ ] 本次实际桌面包、完整一小时负载、原始采样和所属进程退出全部核验。
-- [ ] 下载本次包，核对 artifact 摘要、ZIP SHA-256、逐文件来源与产物，再独立解压运行。
+- [x] 本次实际桌面包、完整一小时负载、原始采样与退出记录已核验；复核范围和未上传资料的边界见当前候选记录。
+- [x] 下载本次包，核对 artifact 摘要、ZIP SHA-256、295 个来源与 440 个产物。本机隔离解压运行、重启和四项退出专项通过；阻塞退出约 2595ms，记录 shutdown-1792951749883。
 - [ ] 使用本次包整体替换草稿附件、构建来源及验收摘要；发布说明记录验证范围和剩余观察项。
 - [ ] 发布按日期标识的 GitHub 开发预览 Release，附件包含便携 ZIP、SHA-256、来源清单及去除本机路径的验收证据。
 

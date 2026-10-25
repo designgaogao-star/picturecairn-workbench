@@ -24,6 +24,15 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
   };
   page.on('pageerror', onError);
   page.on('request', onRequest);
+  const healthProbe = () => new Promise((resolve) => {
+    const probe = httpGet(base + '/api/v1/health', (response) => {
+      clearTimeout(timer);
+      response.resume();
+      resolve({ status: response.statusCode });
+    });
+    const timer = setTimeout(() => probe.destroy(new Error('Diagnostic health probe timed out')), 1000);
+    probe.on('error', (failure) => { clearTimeout(timer); resolve({ error: failure.message }); });
+  });
   const request = async (route, method = 'GET', body) => {
     const started = Date.now();
     const record = { method, route, started_utc: new Date(started).toISOString(), phase: 'headers' };
@@ -44,15 +53,7 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
       record.error = String(error);
       // Use a separate HTTP client to distinguish a fetch connection stall from a busy backend.
       // This diagnostic never replaces the failed request or changes its 10-second acceptance limit.
-      record.health = await new Promise((resolve) => {
-        const probe = httpGet(base + '/api/v1/health', (response) => {
-          clearTimeout(timer);
-          response.resume();
-          resolve({ status: response.statusCode });
-        });
-        const timer = setTimeout(() => probe.destroy(new Error('Diagnostic health probe timed out')), 1000);
-        probe.on('error', (failure) => { clearTimeout(timer); resolve({ error: failure.message }); });
-      });
+      record.health = await healthProbe();
       throw new Error(`${method} ${route} failed after ${record.elapsed_ms}ms (${record.phase}): ${error.message}`, { cause: error });
     } finally { record.elapsed_ms ??= Date.now() - started; }
   };
@@ -223,8 +224,9 @@ export async function libraryChecks(page, base, libraryPath, output, setChoice) 
     console.log(`PASS library lifecycle: ${checks.length} checks; rename, busy/cancel, offline/reconnect, remove/readd, preserved IDs/position/files`);
     return { restoreHash };
   } catch (error) {
+    const backend_health = requests.at(-1)?.health ?? await healthProbe();
     await page.screenshot({ path: path.join(output, 'library-failure.png') }).catch(() => {});
-    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, failures, requests, error: error.stack }, null, 2));
+    await writeFile(path.join(output, 'library-lifecycle.json'), JSON.stringify({ checks, failures, requests, backend_health, error: error.stack }, null, 2));
     throw error;
   } finally {
     page.off('pageerror', onError);

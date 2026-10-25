@@ -225,7 +225,8 @@ try {
   console.log(`Screenshots/logs: ${output}`);
   console.log(`Temporary data: ${temporary}`);
 } catch (error) {
-  const diagnostic = { error: error.stack, temporary };
+  const diagnostic = { error: error.stack, temporary,
+    processes: children.map((child) => ({ pid: child.pid, exit_code: child.exitCode, signal: child.signalCode })) };
   if (activePage && !activePage.isClosed()) {
     const read = activePage.evaluate(() => ({
       url: location.href, title: document.title, ready: document.readyState, visibility: document.visibilityState,
