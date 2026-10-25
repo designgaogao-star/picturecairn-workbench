@@ -1,10 +1,10 @@
 # GalleryTool 图片工作台设计需求包
 
-2026-10-22。**方案已选定，供正式前端实施。** 当前运行版没有被替换，后端接口和数据没有改动。
+2026-10-22。**图片工作台已实现并通过实际桌面产物验收。** A1–E 的实施记录见 [frontend-ui.md](../../frontend-ui.md)，结果与性能范围见 [生产验收记录](implementation-verification.md)。设计修订仍以 [handoff.md](handoff.md) 为准；后端图片 API 未改变，旧 prototype 保留。
 
 ## 设计结论
 
-采用 **Fluent 2 操作语义 + 专业图片工作台布局**：浅色中性工作区、可切换深色、青绿选择色、完整图片墙、深色全屏查看器。目录、当前位置和图片优先，整理与任务退到明确的工作区域。
+采用 **Fluent 2 操作语义 + 专业图片工作台布局**：浅色中性工作区、可切换深色、蓝色选择色（原为青绿，见 handoff.md 设计修订）、完整图片墙、深色全屏查看器。目录、当前位置和图片优先，整理与任务退到明确的工作区域。
 
 这不是控件换肤。主要改变是：图包先进入图片墙，文件名常驻，浏览/整理分模式，文件夹标记不再和视图切换争位置，删除结论与任务受理分开表达。
 
@@ -17,16 +17,18 @@
 
 ## 阅读顺序
 
+实施方先读 **[handoff.md](handoff.md)**：其中的设计修订优先于下列文档，另有当前进度和按文件拆好的任务。
+
 1. 根目录 [PRODUCT.md](../../../PRODUCT.md)、[DESIGN.md](../../../DESIGN.md)：使用场景与已定方向。
 2. [audit.md](audit.md)：当前问题、代码依据和改动优先级。
 3. **[requirements.md](requirements.md)**：布局、行为、组件、状态、无障碍和性能要求。
 4. **[preview/index.html](preview/index.html)**：可操作的高保真样机，直接打开，无需服务器或网络。
 5. [tokens.css](tokens.css)：可移植的浅/深主题语义令牌。
 6. [delivery.md](delivery.md)：现有 API 映射、文件改动范围、实施顺序与验收。
-7. [frontend-prompt.md](frontend-prompt.md)：可直接交给前端负责人的开工提示词。
-8. [verification.md](verification.md)：本轮实际验证结果与模拟限制。
+7. [frontend-prompt.md](frontend-prompt.md)：最初的开工提示词；进度与修订以 handoff.md 为准。
+8. [verification.md](verification.md)：设计样机验证与模拟限制；[implementation-verification.md](implementation-verification.md) 记录生产前端验收。
 
-行为以需求文档为准，视觉以令牌和样机为参考。样机不能代替生成的契约，也不能作为生产数据层实现。
+行为以需求文档为准，视觉以令牌和样机为参考；与 handoff.md 的设计修订冲突时，以修订为准。样机不能代替生成的契约，也不能作为生产数据层实现。
 
 ## 样机范围
 

@@ -9,6 +9,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 import httpx2 as httpx
+import psutil
 import pytest
 from PIL import Image
 
@@ -29,6 +30,7 @@ def running(tmp_path_factory):
     project = Path(__file__).resolve().parents[1]
     environment = {**os.environ, 'GALLERY_DESKTOP_TOKEN': 'temporary-test-token'}
     environment.pop('GALLERY_LEGACY', None)
+    environment.pop('OPENBLAS_NUM_THREADS', None)
     with (temporary / 'process.log').open('w', encoding='utf-8') as log:
         start = time.perf_counter()
         process = subprocess.Popen(command, cwd=project, env=environment, stdout=log, stderr=log)
@@ -74,7 +76,12 @@ def test_process_handshake_and_index(running):
     assert health['instance_id'] == descriptor['instance_id']
     assert health['api_version'] == '1'
     assert (data / 'catalog.sqlite').is_file()
-    assert startup < 10
+    host = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=0.1)
+    assert startup < 10, (
+        f'Backend handshake took {startup:.2f}s; host CPU={cpu:.1f}%, '
+        f'available memory={host.available / 1024**2:.0f} MiB'
+    )
     lib = client.get('/api/v1/libraries').json()['items'][0]
     group = client.get(f"/api/v1/libraries/{lib['id']}/groups").json()['items'][0]
     assert group['image_count'] == 2
@@ -113,7 +120,7 @@ def test_process_image_and_static_assets(running):
     for asset in assets.scripts + assets.styles:
         assert asset.startswith('/assets/')
         assert client.get(asset).status_code == 200
-    assert client.get('/openapi.json').json()['info']['version'] == '2.0.0'
+    assert client.get('/openapi.json').json()['info']['version'] == '0.0.0-dev'
 
 
 def test_process_sse_and_shutdown_protection(running):
@@ -149,7 +156,30 @@ def test_process_sse_repeated_disconnects(running):
         assert client.get('/api/v1/health').status_code == 200
 
 
+@pytest.mark.skipif(os.name != 'nt', reason='Windows native committed memory')
+def test_process_analysis_defaults_to_bounded_native_threads(running):
+    client, descriptor, _data, _startup = running
+    process = psutil.Process(descriptor['pid'])
+    before, threads = process.memory_info().private, process.num_threads()
+    library = client.get('/api/v1/libraries').json()['items'][0]
+    group = client.get(f"/api/v1/libraries/{library['id']}/groups").json()['items'][0]
+    submitted = client.post('/api/v1/tasks', json={'kind': 'analyze', 'group_id': group['id'], 'threshold': 8})
+    assert submitted.status_code == 202
+    deadline = time.monotonic() + 20
+    while True:
+        job = client.get('/api/v1/tasks/' + submitted.json()['id']).json()
+        if job['state'] in ('completed', 'failed'):
+            break
+        assert time.monotonic() < deadline, 'Temporary analysis did not finish'
+        time.sleep(.02)
+    assert job['state'] == 'completed', job
+    assert job['result']['coverage'] == 1
+    assert process.num_threads() - threads <= 8, 'Native imports created a worker pool per library/core'
+    assert process.memory_info().private - before < 192 * 1024**2, 'Native imports retained excessive committed memory'
+
+
 @pytest.mark.skipif(os.name != 'nt', reason='Windows Recycle Bin')
+@pytest.mark.native_recycle
 def test_process_recycles_temporary_image(running):
     client, _descriptor, _data, _startup = running
     library = client.get('/api/v1/libraries').json()['items'][0]

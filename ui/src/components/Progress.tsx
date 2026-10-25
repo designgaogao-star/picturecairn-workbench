@@ -20,7 +20,7 @@ export function taskTone(task: Task): 'ok' | 'bad' | 'warn' | undefined {
 
 /** Compact live progress of one task: state, counts, current file and a bar. */
 export function TaskProgress({ task, label }: { task: Task; label?: string }) {
-  const fraction = task.state === 'queued' ? 0 : taskFraction(task);
+  const fraction = task.state === 'queued' ? null : taskFraction(task);
   const text = taskProgressText(task);
   return (
     <div class="task-progress">

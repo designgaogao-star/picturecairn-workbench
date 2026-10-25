@@ -17,46 +17,39 @@
 /* ---------------------------------------------------------------- walls */
 
 .wall { position: relative; flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
-.wall-bar {
-  flex: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px;
-  border-bottom: 1px solid var(--line); font-size: 13px;
-}
-.wall-bar.selecting { background: var(--accent-soft); border-bottom-color: rgb(106 165 255 / 30%); }
-.wall-bar.selecting strong { color: var(--accent); font-variant-numeric: tabular-nums; }
-.wall-title { flex: 0 1 auto; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wall-sub { flex: 0 1000 auto; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wall-bar > .num { flex: none; }
 
 .scan-progress {
   flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px 10px;
-  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--bg-1); font-size: 13px;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--surface-subtle); font-size: 13px;
 }
-.scan-progress > .icon { color: var(--accent); }
+.scan-progress > .icon { color: var(--accent-text); }
 .scan-progress > span:not(.num) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scan-progress > .progress { grid-column: 1 / -1; }
 
 /* ---------------------------------------------------------------- cards */
 
+/* Cards carry no border; hover and selection change the plate instead, so the images stay the loudest thing. */
 .card {
   position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0;
-  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2);
+  border: 0; border-radius: var(--radius-item); background: var(--surface);
   color: var(--text); text-align: left; overflow: hidden;
-  transition: border-color 0.12s, background-color 0.12s;
+  transition: background-color var(--duration-fast);
 }
-button.card:hover, .package-card:hover { border-color: var(--line-2); background: var(--bg-3); }
-.card:focus-visible { outline-color: var(--text); }
-.card.skeleton { background: var(--bg-2); }
-.card.recent { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.card:hover, .group-card:hover, .package-card:hover, .image-card:hover { background: var(--surface-hover); }
+.card-hit { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; border: 0; padding: 0; border-radius: inherit; background: none; }
+.card-hit:focus-visible { outline-offset: -2px; }
+.card.skeleton { background: var(--surface); }
+.card.recent { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 .card.selected::after {
   content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none;
-  background: rgb(106 165 255 / 14%); box-shadow: inset 0 0 0 3px var(--accent);
+  background: color-mix(in srgb, var(--accent-text) 14%, transparent); box-shadow: inset 0 0 0 2px var(--accent-text);
 }
 .card-media {
   position: relative; display: block; flex: 1 1 0; min-height: 0; width: 100%; padding: 0;
   border: 0; border-radius: 0; background: var(--media); color: inherit; overflow: hidden;
 }
 button.card-media { cursor: pointer; }
-.card-placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg-2); color: var(--text-3); }
+.card-placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface-hover); color: var(--text-muted); }
 .card-placeholder.loading { animation: pulse 1.6s ease-in-out infinite; }
 .card-body { flex: none; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 10px; }
 .group-card .card-body { height: 58px; }
@@ -65,15 +58,15 @@ button.card-media { cursor: pointer; }
 .card-sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 12px; }
 
-.cards.images .image-card { border-color: transparent; border-radius: var(--radius-s); background: var(--media); }
-.cards.images .image-card:hover { border-color: transparent; }
-.image-card:hover .thumb.is-ready > img { filter: brightness(1.08); }
+.image-card .card-body { height: 56px; }
+.image-card .card-title { font-size: 13px; }
+.image-card .card-media { background: var(--media); }
 
-/* Overlays on the media area. */
-.card-media > .badge { position: absolute; z-index: 2; background: rgb(12 13 17 / 80%); color: #e9ecf2; box-shadow: 0 1px 3px rgb(0 0 0 / 35%); }
+/* Overlays sit on pictures, so they keep fixed dark plates in both themes. */
+.card-media > .badge { position: absolute; z-index: 2; pointer-events: none; background: rgb(12 13 17 / 80%); color: #e9ecf2; box-shadow: 0 1px 3px rgb(0 0 0 / 35%); }
 .card-media > .badge.mark-kept, .card-media > .badge.mark-marked, .card-media > .badge.loose { top: 8px; left: 8px; }
-.card-media > .badge.mark-kept { color: var(--ok); }
-.card-media > .badge.mark-marked { color: var(--warn); }
+.card-media > .badge.mark-kept { color: #9fe0bd; }
+.card-media > .badge.mark-marked { color: #f3cf86; }
 .card-media > .badge.count { right: 8px; bottom: 8px; }
 .card-media > .badge.anim { top: 8px; right: 8px; color: #d6c0ff; }
 .card-media > .badge.bad { top: 8px; right: 8px; color: #ffa3a3; }
@@ -85,51 +78,53 @@ button.card-media { cursor: pointer; }
   background: rgb(0 0 0 / 35%); color: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 50%);
 }
 .check > .icon { opacity: 0; }
-.check.on { border-color: var(--accent-strong); background: var(--accent-strong); }
+.check.on { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .check.on > .icon { opacity: 1; }
-
-.card-caption {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 20px 8px 6px;
-  background: linear-gradient(transparent, rgb(0 0 0 / 78%)); color: #f2f4f8; font-size: 12px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none;
-  opacity: 0; transition: opacity 0.15s;
-}
-.card:hover .card-caption, .card:focus-visible .card-caption { opacity: 1; }
+.choice-check { padding: 0; cursor: pointer; opacity: 0; }
+.card:hover .choice-check, .card:focus-within .choice-check, .card.selecting .choice-check { opacity: 1; }
 
 .tile-corner {
   position: absolute; top: 8px; right: 8px; z-index: 3; display: grid; place-items: center;
-  width: 30px; height: 30px; border: 0; border-radius: var(--radius-s);
-  background: rgb(12 13 17 / 80%); color: #e9ecf2; opacity: 0; transition: opacity 0.12s, background-color 0.12s;
+  width: 30px; height: 30px; border: 0; border-radius: var(--radius-control);
+  background: rgb(12 13 17 / 80%); color: #e9ecf2; opacity: 0;
+  transition: opacity var(--duration-fast), background-color var(--duration-fast);
 }
 .package-card:hover .tile-corner, .tile-corner:focus-visible { opacity: 1; }
-.tile-corner:hover { background: var(--accent-strong); color: #fff; }
+.tile-corner:hover { background: var(--accent); color: var(--on-accent); }
 .resume-chip {
   position: absolute; left: 8px; bottom: 60px; z-index: 3; display: inline-flex; align-items: center; gap: 4px;
   height: 22px; padding: 0 8px; border: 0; border-radius: 11px;
-  background: var(--accent-strong); color: #fff; font-size: 11.5px; box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+  background: var(--accent); color: var(--on-accent); font-size: 11.5px; box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
 }
 .resume-chip:hover { background: var(--accent-hover); }
 
 @media (hover: none) {
-  .card-caption, .tile-corner { opacity: 1; }
+  .tile-corner { opacity: 1; }
 }
 
 /* ---------------------------------------------------------------- thumbnails */
 
 .thumb { position: absolute; inset: 0; overflow: hidden; background: var(--media); }
-.thumb > img { position: relative; display: block; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.18s ease, filter 0.12s; }
+.thumb > img { position: relative; display: block; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.18s ease, filter var(--duration-fast); }
 .thumb.fit-contain > img { object-fit: contain; }
 .thumb.is-loading > img { opacity: 0; }
-.thumb.is-loading::before { content: ""; position: absolute; inset: 0; background: var(--bg-2); animation: pulse 1.6s ease-in-out infinite; }
+.thumb.is-loading::before { content: ""; position: absolute; inset: 0; background: var(--surface-hover); animation: pulse 1.6s ease-in-out infinite; }
 .thumb-error {
+  z-index: 3;
+  pointer-events: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px; background: var(--bg-2); color: var(--text-2); font-size: 12px; text-align: center;
+  padding: 8px; background: var(--surface); color: var(--text-secondary); font-size: 12px; text-align: center;
 }
-.thumb-error > .icon { color: var(--warn); }
+.thumb-error > button { pointer-events: auto; }
+.thumb-error > .icon { color: var(--warning); }
 .thumb-error-text { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------------------------------------------------------------- samples */
 
+.sample-controls {
+  flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 13px;
+}
 .sample-scroll { position: relative; flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .sample-scroll > .vgrid-error { margin: 16px; }
 .sample-grid {
@@ -137,11 +132,10 @@ button.card-media { cursor: pointer; }
   gap: 12px; padding: 16px;
 }
 .sample-grid > .card { height: auto; }
-.sample-grid .card-media { flex: none; aspect-ratio: 3 / 4; }
+.sample-grid .card-media { flex: none; aspect-ratio: 1; }
 .sample-grid .card-body { height: 52px; }
 
 @media (max-width: 860px) {
-  .wall-bar { gap: 6px; padding: 6px 12px; }
-  .wall-sub { display: none; }
+  .sample-controls { padding: 8px 12px; }
   .sample-grid { gap: 8px; padding: 12px; }
 }

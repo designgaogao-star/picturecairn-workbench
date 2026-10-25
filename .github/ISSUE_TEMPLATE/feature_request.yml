@@ -1,0 +1,25 @@
+name: 使用需求
+description: 描述在本地图片浏览或图包整理中遇到的具体困难
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 现在想完成什么，在哪一步受阻？
+      description: 请给出目录规模、操作频率和当前处理方式；可以使用虚构的目录名。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 希望得到的结果
+      description: 优先描述使用目标和判断完成的方式。
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 产品范围
+      options:
+        - label: 这个需求与 Windows 本地纯图片浏览、位置恢复或有证据的图包整理有关。
+          required: true

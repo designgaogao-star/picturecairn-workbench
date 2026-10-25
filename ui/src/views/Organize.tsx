@@ -1,39 +1,48 @@
 import { useEffect, useState } from 'preact/hooks';
 import { client, describeError, isAbort, isActive, type AnalyzeResult, type Group, type PackageSimilarity, type Pair } from '../api';
 import { Thumb } from '../components/Thumb';
+import { GroupMenu, ModeTabs, NarrowMarks } from '../components/GroupHeader';
+import { MarkSegment } from '../components/Marks';
 import { count, percent } from '../lib/format';
 import { Icon, type IconName } from '../lib/icons';
-import { navigate, route, type OrganizeTab } from '../lib/router';
-import { reportError, submitTask, trackTask } from '../state/app';
+import { lastOrganizeTab, navigate, route, type OrganizeTab } from '../lib/router';
+import { currentLibrary, reportError, submitTask, trackTask } from '../state/app';
 import { Audit } from './Audit';
 import { Compare } from './Compare';
+import { Samples } from './Samples';
 import {
   completed, ListState, openImage, PackageRef, Pager, Stat, startCompare, TaskBlock, useFindings, usePackageNames, useTracked, type Names,
 } from './organizeParts';
 
 const TABS: { id: OrganizeTab; label: string; icon: IconName }[] = [
+  { id: 'samples', label: '抽样', icon: 'Dices' },
   { id: 'similar', label: '相似图包', icon: 'Images' },
   { id: 'compare', label: '整包核验', icon: 'GitCompare' },
   { id: 'audit', label: '清理检查', icon: 'ShieldAlert' },
 ];
 
 export function Organize({ group }: { group: Group }) {
-  const tab = route.value.tab ?? 'similar';
+  const tab = route.value.tab ?? lastOrganizeTab();
+  useEffect(() => { sessionStorage.setItem('gt.organizeTab', tab); }, [tab]);
   return (
     <div class="organize">
-      <nav class="segment org-tabs" aria-label="整理功能">
+      <div class="toolbar"><ModeTabs /><span class="toolbar-sep" />
+      <nav class="segment tool-tabs" aria-label="整理功能">
         {TABS.map((item) => (
-          <button key={item.id} class={item.id === tab ? 'active' : ''} aria-current={item.id === tab ? 'page' : undefined}
+          <button key={item.id} title={item.label} class={item.id === tab ? 'active' : ''} aria-current={item.id === tab ? 'page' : undefined}
             onClick={() => navigate({ library: group.library_id, group: group.id, view: 'organize', tab: item.id }, { replace: true })}>
             <Icon name={item.icon} size={16} /><span>{item.label}</span>
           </button>
         ))}
       </nav>
-      <div class="org-scroll">
+      <span class="spacer" /><MarkSegment class="at-wide" groupId={group.id} value={group.state} />
+      {currentLibrary.value && <GroupMenu group={group} lib={currentLibrary.value}><NarrowMarks group={group} /></GroupMenu>}
+      </div>
+      {tab === 'samples' ? <Samples groupId={group.id} group={group} /> : <div class="org-scroll">
         {tab === 'similar' && <Similar group={group} />}
         {tab === 'compare' && <Compare group={group} />}
         {tab === 'audit' && <Audit group={group} />}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -65,7 +74,7 @@ function Similar({ group }: { group: Group }) {
   return (
     <section class="org-section">
       <p class="org-intro">
-        按画面指纹找出看起来相似的图片，再汇总到图包。相似只说明“看起来像”，不代表文件相同；要删除重复图包，请先用<b>整包核验</b>逐字节比较两侧全部文件（包括非图片文件）。
+        相似度是画面线索，不能证明文件内容相同。删除依据为整包内容核验或用户自己的选择。
       </p>
       <div class="org-controls">
         <label class="threshold">
@@ -122,7 +131,7 @@ function Rate({ rate, coverage }: { rate: number; coverage: number }) {
   return (
     <span class="rate">
       <b class="num">{percent(rate)}</b> 的图片在另一侧有相似图
-      {coverage < 1 && <span class="warn-text">（指纹覆盖 {percent(coverage)}）</span>}
+      <span class={coverage < 1 ? 'warn-text' : 'muted'}>（指纹覆盖 {percent(coverage)}）</span>
     </span>
   );
 }
@@ -155,7 +164,7 @@ function PackagePairs({ group, result, names }: { group: Group; result: AnalyzeR
               </PackageRef>
               <div class="pair-mid">
                 <span class={`chip ${verdict.tone}`}>{verdict.text}</span>
-                <button class="btn small" title="逐字节比较两个图包的全部文件" onClick={() => void startCompare(group, pair.left_id, pair.right_id)}>
+                <button class="btn small" title="内容核验两个图包的全部文件" onClick={() => void startCompare(group, pair.left_id, pair.right_id)}>
                   <Icon name="GitCompare" size={14} />整包核验
                 </button>
               </div>
@@ -205,13 +214,13 @@ function ImagePairs({ group, taskId }: { group: Group; taskId: string }) {
           {current.items.map((pair) => (
             <li key={`${pair.left_id}:${pair.right_id}`} class="image-pair">
               <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.left_id, pair.left_package_id)} aria-label="查看左图">
-                <Thumb id={pair.left_id} edge={400} />
+                <Thumb id={pair.left_id} edge={400} retryButton={false} />
               </button>
               <span class="pair-distance" title="指纹差异（0 表示几乎相同，最大 64）">
                 <Icon name="ArrowLeftRight" size={14} /><span class="num">{pair.distance}</span>
               </span>
               <button class="pair-thumb" onClick={() => void openImage(group, 'similar', pair.right_id, pair.right_package_id)} aria-label="查看右图">
-                <Thumb id={pair.right_id} edge={400} />
+                <Thumb id={pair.right_id} edge={400} retryButton={false} />
               </button>
             </li>
           ))}

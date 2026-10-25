@@ -4,6 +4,8 @@
 
 ## 联调
 
+当前为开发预览（未发布）。API 的产品版本字段使用开发占位值；`api_version: "1"` 与 `/api/v1` 表示接口契约编号，不是产品发布版本。
+
 后端 `http://127.0.0.1:8765`，OpenAPI 在 `/openapi.json`，所有业务接口在 `/api/v1`。重新生成契约用 `npm run contract`；不要手动编辑生成的 schema.d.ts。
 
 `contracts/client.ts` 使用生成的路径、参数、请求体和成功响应类型，支持 AbortSignal。图片 URL 由客户端的 thumbnail/original 方法构造。所有图片请求都走后端，前端不读取文件系统、不拼接原图绝对路径。
@@ -28,6 +30,17 @@ width、height、animated 首次可能为 null；封面生成后补齐。图片�
 ImageItem.version 是后端生成的不透明字符串。thumbnail(id, edge, version) 使用长缓存 immutable，版本不符返回 409；未带 version 的 URL 保留条件请求。封面用 cover_version。缩略图由有界 fetch 直接读取 HTTP 失败原因，Blob URL 在卸载时释放；大原图仍使用 img，避免先把整文件读入 Blob 才显示。
 
 上下文 previous_id/next_id 为 null 即图包边界，不允许自行跳到另一图包。图片被删除时上下文返回 404；回到图包或读取仍存在的相邻 ID。维护有界 DOM、分页缓存、胶片条与预载，快速切换时取消或忽略旧请求。
+
+## 图库管理
+
+- `GET libraries/{library_id}` 获取单个受管理图库。
+- `PATCH libraries/{library_id}` 接受 `{name}`，去除首尾空白，长度 1–120；只修改显示名，不改磁盘目录、不扫描。
+- `POST libraries/{library_id}/reconnect` 接受 `{path}`，验证本地、存在、与其他管理中图库不重叠；返回 `202 Task`，随后对账。迁移前后的相对路径一致时沿用目录、图包和图片 ID，保留位置与标记；revision 递增会使旧核验失效。
+- `DELETE libraries/{library_id}` 返回 204，只移出工作台。原图、索引、缓存、位置、标记和操作日志保留，重新 POST 原路径恢复原 ID。移出后资源、标记和新任务入口返回 404，历史任务与操作日志仍可查询。
+
+重连、移出时如有关联任务处于 queued/running/paused/cancelling，返回 `409`，结构化错误 code 为 `library_busy`。前端提示处理后台任务后重试；不能悄悄取消文件操作。其他 409 仍表示路径重叠或占用，不应一律引导到任务抽屉。队列满或停止中的注册/重连返回 503，根路径不会半更新。路径被另一个历史图库占用时不能合并 ID，应重新添加对应原目录。
+
+入口位于图库首页工具栏和侧栏文件夹标题旁的“管理图库”菜单；离线横幅提供“重新定位目录…”。桌面重连复用目录选择 IPC，普通浏览器允许手工输入。移出最后一库回到添加表单并清除旧路由；只读开发模式仍由统一 transport 拦截三个写入口。
 
 ## 任务与事件
 

@@ -3,8 +3,9 @@
 from enum import IntEnum
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from gallery import __version__
 from gallery.catalog import content_version
 
 T = TypeVar('T')
@@ -34,7 +35,7 @@ class Page(BaseModel, Generic[T]):
 class Health(BaseModel):
     status: Literal['ready'] = 'ready'
     api_version: Literal['1'] = '1'
-    version: str = '2.0.0'
+    version: str = __version__
     instance_id: str
 
 
@@ -52,6 +53,14 @@ class Library(BaseModel):
 class LibraryCreate(Input):
     path: str = Field(min_length=1)
     name: str | None = None
+
+
+class LibraryRename(Input):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+
+
+class LibraryReconnect(Input):
+    path: str = Field(min_length=1)
 
 
 class Group(BaseModel):

@@ -7,16 +7,24 @@ import os
 import shutil
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image, ImageCms, ImageOps
 
 from gallery.catalog import content_version
-from gallery.jobs import Busy
+from gallery.jobs import Busy, Cancelled
 
 EDGES = (400, 800, 1600, 2560, 4200)
 PIPELINE = 'pillow-srgb-exif-jpeg-alpha-webp-v2'
+
+
+@dataclass
+class PendingImage:
+    cancelled: threading.Event = field(default_factory=threading.Event)
+    subscribers: int = 0
+    future: Future | None = None
 
 
 class Images:
@@ -42,15 +50,17 @@ class Images:
             return Path(entry['path'])
         return None
 
-    def get(self, image_id, edge, version=None):
+    def get(self, image_id, edge, version=None, *, cancelled=None):
+        self._check(cancelled)
         image = self.catalog.entity('files', image_id)
         if not image or not image['is_image'] or not image['present']:
             raise FileNotFoundError('Image not found')
+        self.access.library(image['library_id'])
         if edge not in EDGES:
             raise ValueError('Unsupported image size')
         if not image['mtime_ns']:
             path = self.access.path(image)
-            with self.resources.io(path, foreground=True):
+            with self.resources.io(path, foreground=True, checkpoint=lambda: self._check(cancelled)):
                 stat = path.stat()
             self.catalog.execute('UPDATE files SET size=?,mtime_ns=? WHERE id=? AND mtime_ns=0',
                                  (stat.st_size, stat.st_mtime_ns, image_id))
@@ -62,41 +72,65 @@ class Images:
         if cached:
             return cached
         with self.lock:
-            future = self.pending.get(key)
-            if future is None:
+            pending = self.pending.get(key)
+            if pending is None or pending.cancelled.is_set():
                 if self.stopping.is_set() or not self.slots.acquire(blocking=False):
                     raise Busy('Image queue is full')
-                future = self.pool.submit(self.generate, image, edge, key)
-                self.pending[key] = future
-                future.add_done_callback(lambda _f: self._finish(key))
-        return future.result()
+                pending = PendingImage()
+                self.pending[key] = pending
+                try:
+                    pending.future = self.pool.submit(self.generate, image, edge, key, cancelled=pending.cancelled)
+                except RuntimeError:
+                    self._finish(key, pending)
+                    raise Busy('Image service is stopping') from None
+                pending.future.add_done_callback(lambda _f: self._finish(key, pending))
+            pending.subscribers += 1
+        try:
+            if cancelled is None:
+                return pending.future.result()
+            while True:
+                self._check(cancelled)
+                try:
+                    return pending.future.result(timeout=.05)
+                except TimeoutError:
+                    if pending.future.done():
+                        return pending.future.result()
+        finally:
+            with self.lock:
+                pending.subscribers -= 1
+                if not pending.subscribers:
+                    pending.cancelled.set()
 
-    def _finish(self, key):
+    def _finish(self, key, pending):
         with self.lock:
-            self.pending.pop(key, None)
+            if self.pending.get(key) is pending:
+                self.pending.pop(key)
+            # A cancelled executor item still occupies the queue until a worker consumes it.
             self.slots.release()
 
-    def _check(self):
+    def _check(self, cancelled=None):
+        if cancelled is not None and cancelled.is_set():
+            raise Cancelled()
         if self.stopping.is_set():
             raise Busy('Image service is stopping')
 
-    def generate(self, image, edge, key, context=None):
-        checkpoint = context.check if context else self._check
+    def generate(self, image, edge, key, context=None, *, cancelled=None):
+        checkpoint = context.check if context else lambda: self._check(cancelled)
         checkpoint()
         lock = self.generation_locks[int(key[:2], 16) % 64]
         while not lock.acquire(timeout=.05):
             checkpoint()
         try:
-            return self._generate(image, edge, key, context)
+            return self._generate(image, edge, key, context, cancelled=cancelled)
         finally:
             lock.release()
 
-    def _generate(self, image, edge, key, context=None):
+    def _generate(self, image, edge, key, context=None, *, cancelled=None):
         cached = self.cached(key)
         if cached:
             return cached
         # Pause at image boundaries; pausing with a generation lock or memory held would stall browsing.
-        checkpoint = context.check_cancelled if context else self._check
+        checkpoint = context.check_cancelled if context else lambda: self._check(cancelled)
         checkpoint()
         legacy = self._reuse_legacy(image, edge, key)
         if legacy:
@@ -146,11 +180,16 @@ class Images:
                     target = target.with_suffix('.jpg')
                 temporary = target.with_suffix('.tmp')
                 checkpoint()
-                if opaque:
-                    frame.save(temporary, 'JPEG', quality=82 if edge > 800 else 75, optimize=False)
-                else:
-                    frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=1)
-                os.replace(temporary, target)
+                try:
+                    if opaque:
+                        frame.save(temporary, 'JPEG', quality=82 if edge > 800 else 75, optimize=False)
+                    else:
+                        frame.save(temporary, 'WEBP', quality=82 if edge > 800 else 75, method=1)
+                    checkpoint()
+                    os.replace(temporary, target)
+                finally:
+                    with contextlib.suppress(OSError):
+                        temporary.unlink(missing_ok=True)
             self.catalog.execute('UPDATE files SET width=?,height=?,animated=?,error=NULL WHERE id=? AND mtime_ns=?',
                                  (width, height, int(animated), image['id'], image['mtime_ns']))
             self.catalog.execute('INSERT OR REPLACE INTO cache_entries VALUES(?,?,?,?)',

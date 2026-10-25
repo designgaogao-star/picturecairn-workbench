@@ -40,7 +40,7 @@ export function Filmstrip({ packageId, index, current, ready, onPick }: Props) {
     if (!element || index < 0 || !view.width || total === null) return;
     const target = Math.max(0, PAD + index * STEP + CELL / 2 - element.clientWidth / 2);
     const distance = Math.abs(element.scrollLeft - target);
-    if (distance > 1) element.scrollTo({ left: target, behavior: distance < element.clientWidth * 1.5 ? 'smooth' : 'auto' });
+    if (distance > 1) element.scrollTo({ left: target, behavior: distance < element.clientWidth * 1.5 && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
   }, [index, view.width > 0, total === null]);
 
   const known = view.width > 0 && total !== null;
@@ -74,7 +74,7 @@ export function Filmstrip({ packageId, index, current, ready, onPick }: Props) {
       cells.push(
         <button key={item.id} class={`film-cell ${active ? 'active' : ''}`} style={style} title={`${i + 1}. ${item.name}`}
           aria-label={`第 ${i + 1} 张：${item.name}`} aria-current={active ? 'true' : undefined} onClick={() => onPick(item.id)}>
-          {ready || active ? <Thumb id={item.id} edge={400} /> : <span class="film-wait" />}
+          {ready || active ? <Thumb id={item.id} edge={400} retryButton={false} /> : <span class="film-wait" />}
         </button>,
       );
     }

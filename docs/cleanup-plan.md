@@ -22,7 +22,7 @@
 
 ## 验证命令
 
-使用 C:\Users\79974\AppData\Local\Programs\Python\Python312\python.exe，避免 PATH 上其他 Python 环境。
+使用项目锁定的 Python 解释器，避免 PATH 上其他 Python 环境。
 
 ```powershell
 python -m pytest -q

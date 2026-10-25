@@ -1,4 +1,4 @@
-"""Compatibility entrypoint; all runtime behavior lives in the V2 application."""
+"""Compatibility entrypoint; all runtime behavior lives in the current application."""
 
 from gallery.__main__ import main
 

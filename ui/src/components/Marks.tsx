@@ -15,11 +15,13 @@ export function applyMark(groupId: string, mark: Mark) {
   setMark(groupId, mark).catch((error) => reportError(error, '保存标记失败：'));
 }
 
-export function MarkSegment({ groupId, value, compact }: { groupId: string; value: Mark | undefined; compact?: boolean }) {
+export function MarkSegment({ groupId, value, compact, shortcuts = false, class: className = '' }: {
+  groupId: string; value: Mark | undefined; compact?: boolean; shortcuts?: boolean; class?: string;
+}) {
   return (
-    <div class={`segment marks ${compact ? 'compact' : ''}`} role="radiogroup" aria-label="整理状态">
+    <div class={`segment marks ${compact ? 'compact' : ''} ${className}`} role="radiogroup" aria-label="文件夹状态">
       {MARKS.map((mark) => (
-        <button key={mark.value} role="radio" aria-checked={value === mark.value} title={`${mark.label}（${mark.key}）`}
+        <button key={mark.value} role="radio" aria-label={mark.label} aria-checked={value === mark.value} title={shortcuts ? `${mark.label}（${mark.key}）` : mark.label}
           class={`mark-${mark.value} ${value === mark.value ? 'active' : ''}`} onClick={() => applyMark(groupId, mark.value)}>
           <Icon name={mark.icon} size={16} />{!compact && <span>{mark.label}</span>}
         </button>

@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import json
 import os
+import threading
 import time
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
@@ -15,9 +16,11 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.sse import EventSourceResponse, format_sse_event
 from fastapi.staticfiles import StaticFiles
 
+from gallery import RELEASE_LABEL, __version__
 from gallery import schemas as s
 from gallery.catalog import new_id
-from gallery.jobs import Busy
+from gallery.jobs import Busy, Cancelled
+from gallery.libraries import LibraryBusy
 from gallery.paths import Settings
 from gallery.service import Service
 
@@ -39,7 +42,7 @@ def create_app(settings: Settings | None = None):
         finally:
             await asyncio.to_thread(service.stop)
 
-    app = FastAPI(title='GalleryTool API', version='2.0.0', lifespan=lifespan,
+    app = FastAPI(title='Stillmark 影迹图片工作台 API', version=__version__, description=RELEASE_LABEL, lifespan=lifespan,
                   docs_url=None, redoc_url=None,
                   responses={code: {'model': s.ErrorResponse} for code in (403, 404, 409, 422, 503)})
     app.state.service = service
@@ -86,6 +89,10 @@ def create_app(settings: Settings | None = None):
     async def invalid(_request, exc):
         return error_response(409, 'conflict', str(exc))
 
+    @app.exception_handler(LibraryBusy)
+    async def library_busy(_request, exc):
+        return error_response(409, 'library_busy', str(exc))
+
     @app.exception_handler(OSError)
     async def io_error(_request, exc):
         return error_response(422, 'file_unreadable', '无法读取文件或解码图片', getattr(exc, 'filename', None))
@@ -103,6 +110,7 @@ def create_app(settings: Settings | None = None):
         row = catalog.entity(table, entity_id)
         if not row or table in ('files', 'directories') and not row['present']:
             raise HTTPException(404, 'Resource not found')
+        service.libraries.get(row['id'] if table == 'libraries' else row['library_id'])
         return row
 
     @app.get('/api/v1/health', response_model=s.Health, tags=['System'])
@@ -111,16 +119,28 @@ def create_app(settings: Settings | None = None):
 
     @app.get('/api/v1/libraries', response_model=s.Page[s.Library], tags=['Libraries'])
     def libraries(offset: Offset = 0, limit: Limit = 100):
-        return catalog.page('SELECT * FROM libraries', '', [], 'name COLLATE NOCASE,id', offset, limit, '')
+        return catalog.page('SELECT * FROM libraries', 'WHERE managed=1', [], 'name COLLATE NOCASE,id', offset, limit, '')
 
     @app.post('/api/v1/libraries', response_model=s.Library, status_code=201, tags=['Libraries'])
     def add_library(body: s.LibraryCreate):
-        with service.tasks.lock:
-            service.tasks.ensure_capacity()
-            library = catalog.add_library(body.path, body.name)
-            service.tasks.submit('scan', {'library_id': library['id'], 'force': True})
-        service.watcher.add(library)
-        return library
+        return service.libraries.add(body.path, body.name)
+
+    @app.get('/api/v1/libraries/{library_id}', response_model=s.Library, tags=['Libraries'])
+    def library(library_id: str):
+        return service.libraries.get(library_id)
+
+    @app.patch('/api/v1/libraries/{library_id}', response_model=s.Library, tags=['Libraries'])
+    def rename_library(library_id: str, body: s.LibraryRename):
+        return service.libraries.rename(library_id, body.name)
+
+    @app.post('/api/v1/libraries/{library_id}/reconnect', response_model=s.Task, status_code=202, tags=['Libraries'])
+    def reconnect_library(library_id: str, body: s.LibraryReconnect):
+        return service.libraries.reconnect(library_id, body.path)
+
+    @app.delete('/api/v1/libraries/{library_id}', status_code=204, tags=['Libraries'])
+    def remove_library(library_id: str):
+        service.libraries.remove(library_id)
+        return Response(status_code=204)
 
     @app.get('/api/v1/libraries/{library_id}/groups', response_model=s.Page[s.Group], tags=['Browse'])
     def groups(library_id: str, offset: Offset = 0, limit: Limit = 100,
@@ -133,6 +153,7 @@ def create_app(settings: Settings | None = None):
         result = catalog.group(group_id)
         if not result:
             raise HTTPException(404, 'Group not found')
+        service.libraries.get(result['library_id'])
         return result
 
     @app.get('/api/v1/packages/{package_id}', response_model=s.Package, tags=['Browse'])
@@ -140,6 +161,7 @@ def create_app(settings: Settings | None = None):
         result = catalog.package(package_id)
         if not result:
             raise HTTPException(404, 'Package not found')
+        service.libraries.get(result['library_id'])
         return result
 
     @app.get('/api/v1/libraries/{library_id}/directories', response_model=s.Page[s.Directory], tags=['Browse'])
@@ -167,12 +189,30 @@ def create_app(settings: Settings | None = None):
         result = catalog.image_context(image_id)
         if not result:
             raise HTTPException(404, 'Image not found')
+        service.libraries.get(result['image']['library_id'])
         return result
 
     @app.get('/api/v1/images/{image_id}/thumbnail', tags=['Images'], response_class=FileResponse,
              responses={200: {'content': {'image/webp': {}, 'image/jpeg': {}}}, 304: {'description': 'Not modified'}})
-    def thumbnail(request: Request, image_id: str, edge: s.Edge = s.Edge.small, version: str | None = None):
-        path = service.images.get(image_id, edge, version)
+    async def thumbnail(request: Request, image_id: str, edge: s.Edge = s.Edge.small, version: str | None = None):
+        cancelled = threading.Event()
+
+        async def watch_disconnect():
+            while not cancelled.is_set():
+                if (await request.receive())['type'] == 'http.disconnect':
+                    cancelled.set()
+                    return
+
+        monitor = asyncio.create_task(watch_disconnect())
+        try:
+            path = await asyncio.to_thread(service.images.get, image_id, edge, version, cancelled=cancelled)
+        except Cancelled:
+            return Response(status_code=499)
+        finally:
+            cancelled.set()
+            monitor.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await monitor
         tag = '"' + path.stem + '"'
         headers = {'ETag': tag, 'Cache-Control': 'private, max-age=31536000, immutable' if version
                    else 'private, max-age=0, must-revalidate'}
@@ -275,6 +315,8 @@ def create_app(settings: Settings | None = None):
     def delete(body: s.DeleteRequest):
         for target in body.targets:
             row = catalog.entity({'image': 'files', 'package': 'packages', 'group': 'directories'}[target.kind], target.id)
+            if row:
+                service.libraries.get(row['library_id'])
             if row and (target.kind == 'package' and row['loose']
                         or target.kind == 'image' and not row['is_image']
                         or target.kind == 'group' and (row['id'] != row['group_id'] or not row['rel'])):

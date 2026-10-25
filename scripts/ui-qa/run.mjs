@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createWriteStream } from 'node:fs';
-import { access, mkdir, mkdtemp, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -10,6 +10,9 @@ import { _electron, chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { readonlyApiChecks, readonlyChecks } from './readonly.mjs';
 import { directoryChecks, workflows } from './workflows.mjs';
+import { libraryChecks } from './libraries.mjs';
+import { brandingChecks } from './branding.mjs';
+import { imageLifecycleChecks } from './image-lifecycle.mjs';
 
 const project = fileURLToPath(new URL('../../', import.meta.url));
 const temporary = await mkdtemp(path.join(tmpdir(), 'gallery-ui-qa-'));
@@ -17,6 +20,7 @@ const output = path.join(project, 'output', 'ui-qa', `integration-${Date.now()}`
 await mkdir(output, { recursive: true });
 const children = [];
 const applications = [];
+const ownedServers = [];
 let server;
 const option = (name) => {
   const index = process.argv.indexOf(name);
@@ -26,7 +30,11 @@ const option = (name) => {
 };
 const packedDesktop = option('--desktop');
 const packedBackend = option('--backend');
-assert.ok(!(packedDesktop && packedBackend), '--desktop and --backend are mutually exclusive');
+const sourceDesktop = process.argv.includes('--source-desktop');
+assert.ok(Number(Boolean(packedDesktop)) + Number(Boolean(packedBackend)) + Number(sourceDesktop) <= 1,
+  '--desktop, --backend and --source-desktop are mutually exclusive');
+const desktopExecutable = packedDesktop || (sourceDesktop ? path.join(project, 'node_modules/electron/dist/electron.exe') : null);
+const desktopArguments = sourceDesktop ? ['.'] : [];
 
 const environment = { ...process.env };
 for (const name of ['ELECTRON_RUN_AS_NODE', 'GALLERY_ROOT', 'GALLERY_DATA', 'GALLERY_LEGACY',
@@ -53,9 +61,10 @@ async function readyFile(file, process) {
 }
 
 async function stop(child) {
-  if (child.exitCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolve) => child.once('exit', resolve));
   child.kill();
-  if (child.exitCode === null) await new Promise((resolve) => child.once('exit', resolve));
+  await exited;
 }
 
 try {
@@ -67,14 +76,20 @@ try {
     generate.once('error', reject);
     generate.once('exit', (code) => code === 0 ? resolve() : reject(new Error(`Fixture generation exited ${code}`)));
   });
-  if (packedDesktop) {
+  if (desktopExecutable) {
     const data = path.join(temporary, 'desktop');
     const application = await _electron.launch({
-      executablePath: packedDesktop, env: { ...environment, GALLERY_DATA: data },
+      executablePath: desktopExecutable, args: desktopArguments, env: { ...environment, GALLERY_DATA: data },
     });
     applications.push(application);
     const page = await application.firstWindow();
+    const imageMemoryWarnings = [];
+    page.on('console', (message) => {
+      if (message.text().includes('Image memory budget check failed:')) imageMemoryWarnings.push(message.text());
+    });
     await page.getByRole('button', { name: '选择文件夹…', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => typeof window.galleryImageResources?.release), 'function',
+      'The real sandboxed image-memory preload must be available');
     const choose = (choice) => application.evaluate(({ dialog }, result) => {
       dialog.showOpenDialog = async () => {
         if (result.error) throw new Error(result.error);
@@ -86,23 +101,69 @@ try {
     const pid = await application.evaluate(() => process.pid);
     const ready = path.join(data, `desktop-${pid}.json`);
     assert.ok(JSON.parse(await readFile(ready, 'utf8')).pid > 0);
-    const { restoreHash } = await workflows(page, url, library, output);
+    const onlyLibraries = process.argv.includes('--libraries-only');
+    if (!onlyLibraries) await workflows(page, url, library, output);
+    const { restoreHash } = await libraryChecks(page, url, library, output, choose);
+    await imageLifecycleChecks(page, url, output);
+    await brandingChecks(page, url, output, application);
+    await page.evaluate(() => window.galleryImageResources.release());
+    await delay(1500);
+    assert.deepEqual(imageMemoryWarnings, [], 'No renderer-memory IPC errors may appear during the desktop workflows');
+    await writeFile(path.join(output, 'image-memory-verification.json'), JSON.stringify({
+      sandboxed_preload_available: true, release_hint_requested: true, observed_budget_warnings: imageMemoryWarnings,
+    }, null, 2));
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(url + restoreHash);
     await page.waitForFunction(() => document.querySelector('.viewer img.layer')?.naturalWidth > 0);
+    await page.evaluate(() => {
+      localStorage.setItem('gt.theme', 'dark');
+      localStorage.setItem('gt.tileSize', 's');
+      localStorage.setItem('gt.inspector', '1');
+    });
     await application.close();
     applications.pop();
     await assert.rejects(access(ready), { code: 'ENOENT' });
     await assert.rejects(fetch(`${url}/api/v1/health`, { signal: AbortSignal.timeout(1000) }));
-    console.log('PASS packaged Electron, preload IPC, owned backend shutdown');
+    console.log(`PASS ${sourceDesktop ? 'source' : 'packaged'} Electron, preload IPC, owned backend shutdown`);
     assert.equal(JSON.parse(await readFile(path.join(data, 'window-state.json'), 'utf8')).route, restoreHash);
-    const restarted = await _electron.launch({ executablePath: packedDesktop, env: { ...environment, GALLERY_DATA: data } });
+    const restarted = await _electron.launch({ executablePath: desktopExecutable, args: desktopArguments, env: { ...environment, GALLERY_DATA: data } });
     applications.push(restarted);
     const restored = await restarted.firstWindow();
     await restored.waitForFunction(() => document.querySelector('.viewer img.layer')?.naturalWidth > 0);
+    assert.equal(await restored.evaluate(() => typeof window.galleryImageResources?.release), 'function',
+      'The resource policy must be registered again after desktop restart');
     assert.equal(new URL(restored.url()).hash, restoreHash, 'Desktop restart should restore the route across dynamic ports');
+    assert.deepEqual(await restored.evaluate(() => [document.documentElement.dataset.theme,
+      localStorage.getItem('gt.tileSize'), localStorage.getItem('gt.inspector')]), ['dark', 's', '1']);
+    await restored.keyboard.press('Escape');
+    await restored.locator('.viewer').waitFor({ state: 'detached' });
+    await restored.getByRole('button', { name: '外观', exact: true }).click();
+    await restored.getByRole('menuitemradio', { name: '浅色', exact: true }).click();
+    await restored.getByRole('radio', { name: '大', exact: true }).click();
+    const wallHash = new URL(restored.url()).hash;
+    await restored.addInitScript(() => {
+      window.__qaThemeChanges = [];
+      new MutationObserver(() => window.__qaThemeChanges.push(document.documentElement.dataset.theme ?? null))
+        .observe(document, { subtree: true, attributes: true, attributeFilter: ['data-theme'] });
+    });
+    await restored.reload();
+    await restored.locator('.image-card').first().waitFor();
+    assert.equal(new URL(restored.url()).hash, wallHash);
+    assert.deepEqual(await restored.evaluate(() => [document.documentElement.dataset.theme,
+      localStorage.getItem('gt.tileSize'), localStorage.getItem('gt.inspector')]), ['light', 'l', '1']);
+    assert.equal(await restored.evaluate(() => window.__qaThemeChanges[0]), 'light', 'Reload must not flash the previous desktop theme');
+    assert.ok(await restored.evaluate(() => window.galleryApp.sessionId && sessionStorage.getItem('gt.desktopSession') === window.galleryApp.sessionId));
+    await restored.getByRole('button', { name: '外观', exact: true }).click();
+    await restored.getByRole('menuitemradio', { name: '跟随系统', exact: true }).click();
+    await restored.reload();
+    await restored.locator('.image-card').first().waitFor();
+    assert.equal(await restored.evaluate(() => document.documentElement.dataset.theme ?? null), null);
     await restarted.close();
     applications.pop();
-    console.log('PASS desktop restart: persisted image route and original library data');
+    const savedPreferences = JSON.parse(await readFile(path.join(data, 'ui-preferences.json'), 'utf8'));
+    assert.equal(savedPreferences['gt.theme'], undefined);
+    assert.equal(savedPreferences['gt.tileSize'], 'l');
+    console.log('PASS desktop restart and reload: dynamic-port migration, current preferences, first-frame theme, system theme');
   } else {
     const ready = path.join(temporary, 'ready.json');
     const token = 'isolated-ui-qa';
@@ -111,9 +172,10 @@ try {
       '--ready-file', ready, '--no-watch', '--no-scan', '--no-open',
     ], 'backend', { ...environment, GALLERY_DESKTOP_TOKEN: token });
     const descriptor = await readyFile(ready, backend);
+    ownedServers.push({ url: descriptor.url, token });
     process.env.GALLERY_BACKEND = descriptor.url;
     process.env.GALLERY_UI_PORT = '0';
-    server = await createServer({ configFile: path.join(project, 'ui', 'vite.config.ts') });
+    server = await createServer({ configFile: path.join(project, 'ui', 'vite.config.mts') });
     await server.listen();
     const base = server.resolvedUrls.local[0];
     await readonlyApiChecks(server, base);
@@ -133,7 +195,11 @@ try {
       });
       await page.goto(descriptor.url + '?readonly');
       await directoryChecks(page, (choice) => page.evaluate((value) => { window.__qaDirectory = value; }, choice), library, output);
-      await workflows(page, descriptor.url, library, output);
+      if (!process.argv.includes('--libraries-only')) await workflows(page, descriptor.url, library, output);
+      await libraryChecks(page, descriptor.url, library, output,
+        (choice) => page.evaluate((value) => { window.__qaDirectory = value; }, choice));
+      await imageLifecycleChecks(page, descriptor.url, output);
+      await brandingChecks(page, descriptor.url, output);
       await application.close();
       applications.pop();
     }
@@ -147,6 +213,9 @@ try {
   console.log(`Temporary data: ${temporary}`);
 } finally {
   for (const application of applications.reverse()) await application.close().catch(() => {});
+  for (const service of ownedServers) await fetch(service.url + '/api/v1/system/shutdown', {
+    method: 'POST', headers: { 'X-Gallery-Desktop': service.token }, signal: AbortSignal.timeout(1000),
+  }).catch(() => undefined);
   await server?.close();
   for (const child of children.reverse()) await stop(child);
 }

@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
+// Explicit ESM keeps the config compatible with Vite's native loader and CommonJS Electron.
 // The dev server proxies /api to a running backend on the same origin, so the backend's
 // Origin check never sees the dev port. GALLERY_BACKEND selects a temporary QA backend.
 const backend = process.env.GALLERY_BACKEND || 'http://127.0.0.1:8765';

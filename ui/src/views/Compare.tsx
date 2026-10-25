@@ -37,7 +37,7 @@ export function Compare({ group }: { group: Group }) {
   return (
     <section class="org-section">
       <p class="org-intro">
-        选择同一文件夹中的两个图包，用 SHA-256 逐字节比较两侧的<b>全部文件</b>（包括非图片文件）。只有一侧被另一侧完整包含时，删除这一侧才不会丢失内容。
+        核验范围：两个图包的<b>全部文件</b>，包括非图片文件。内容依据 SHA-256 核验。
       </p>
       <div class="compare-pick">
         <PackagePicker label="左侧图包" value={left} onChange={setLeft} names={names} group={group} listId={listId} byLabel={byLabel} />
@@ -84,15 +84,15 @@ interface Verdict { tone: 'ok' | 'warn' | ''; icon: IconName; title: string; tex
 function verdictOf(result: CompareResult): Verdict {
   const l = result.left_files, r = result.right_files;
   if (result.exact_equal) {
-    return { tone: 'ok', icon: 'CopyCheck', title: '两侧完全一致', text: `两个图包的 ${count(l)} 个文件逐字节相同（包括非图片文件），保留其中一个即可。` };
+    return { tone: 'ok', icon: 'CopyCheck', title: '两侧完全一致', text: `两个图包的 ${count(l)} 个文件内容相同（包括非图片文件），可选择保留其中一侧。` };
   }
   if (result.left_contained) {
     return { tone: 'ok', icon: 'CopyCheck', title: '左侧被右侧完整包含',
-      text: `左侧全部 ${count(l)} 个文件在右侧都有逐字节相同的副本；右侧另有 ${count(result.right_unique_total)} 个独有文件。删除左侧不会丢失内容。` };
+      text: `左侧全部 ${count(l)} 个文件在右侧都有内容相同的副本；右侧另有 ${count(result.right_unique_total)} 个独有文件。` };
   }
   if (result.right_contained) {
     return { tone: 'ok', icon: 'CopyCheck', title: '右侧被左侧完整包含',
-      text: `右侧全部 ${count(r)} 个文件在左侧都有逐字节相同的副本；左侧另有 ${count(result.left_unique_total)} 个独有文件。删除右侧不会丢失内容。` };
+      text: `右侧全部 ${count(r)} 个文件在左侧都有内容相同的副本；左侧另有 ${count(result.left_unique_total)} 个独有文件。` };
   }
   if (!l && !r) return { tone: 'warn', icon: 'CircleAlert', title: '两侧都没有文件', text: '两个图包当前都没有文件，无法判断是否重复。' };
   if (!l || !r) {
@@ -111,9 +111,9 @@ function CompareView({ group, task, result, names, onRecheck }: {
   const verdict = verdictOf(result);
   return (
     <>
-      <div class={`verdict ${verdict.tone}`} role="status">
-        <Icon name={verdict.icon} size={22} />
-        <div><strong>{verdict.title}</strong><p>{verdict.text}</p></div>
+      <div class={`verdict ${stale ? 'warn' : verdict.tone}`} role="status" data-task-id={task.id}>
+        <Icon name={stale ? 'TriangleAlert' : verdict.icon} size={22} />
+        <div><strong>{stale ? '核验结果已过期' : verdict.title}</strong><p>{stale ? `原结论：${verdict.title}。当前图库内容需要重新核验。` : verdict.text}</p></div>
       </div>
       {stale && (
         <div class="note warn">
@@ -156,14 +156,14 @@ function Side({ which, group, task, result, names, stale }: {
       <PackageRef id={id} names={names} group={group}>
         <span class="muted">{count(files)} 个文件 · 独有 {count(uniqueTotal)} 个</span>
       </PackageRef>
-      {contained && (
+      {contained && !stale && (
         <div class="side-delete">
-          <p class="hint"><Icon name="CopyCheck" size={14} />此图包的全部文件在{left ? '右' : '左'}侧都有逐字节相同的副本。</p>
+          <p class="hint"><Icon name="CopyCheck" size={14} />此图包的全部文件在{left ? '右' : '左'}侧都有内容相同的副本。</p>
           {pkg?.loose
             ? <p class="muted">散图不是独立的图包，不能整包删除；请进入图片墙逐张处理。</p>
             : (
-              <button class="btn danger" disabled={!pkg || stale} onClick={remove}
-                title={stale ? '结果可能已过期，请先重新核验' : '删除整个图包文件夹（默认移到回收站）'}>
+              <button class="btn danger" disabled={!pkg} onClick={remove}
+                title="删除整个图包文件夹（默认移到回收站）">
                 <Icon name="Trash2" size={16} />删除此图包…
               </button>
             )}
@@ -183,7 +183,7 @@ function Side({ which, group, task, result, names, stale }: {
               {findings.items.map((file) => (
                 <li key={file.id} class="file-row">
                   {file.is_image
-                    ? <button class="file-thumb" aria-label={`查看 ${file.name}`} onClick={() => void openImage(group, 'compare', file.id, id)}><Thumb id={file.id} edge={400} /></button>
+                    ? <button class="file-thumb" aria-label={`查看 ${file.name}`} onClick={() => void openImage(group, 'compare', file.id, id)}><Thumb id={file.id} edge={400} retryButton={false} /></button>
                     : <span class="file-icon" title="非图片文件"><Icon name="FileText" size={18} /></span>}
                   <span class="file-name" title={file.rel || file.name}>{file.rel || file.name}</span>
                   <span class="muted num">{bytes(file.size)}</span>

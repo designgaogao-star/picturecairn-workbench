@@ -8,6 +8,9 @@ import {
 } from '../state/app';
 import { MarkBadge } from './Marks';
 import { VirtualGrid } from './VirtualGrid';
+import { SidePanel } from './SidePanel';
+import { LibraryMenu } from './LibraryDialog';
+import { Brand } from './Brand';
 
 export const CATEGORIES: GroupFilter['category'][] = ['', 'R16', 'R18', '非R18', '其他'];
 export const SCAN_LABEL: Record<string, string> = {
@@ -36,7 +39,7 @@ export function FilterBar({ compact }: { compact?: boolean }) {
   const set = (patch: Partial<GroupFilter>) => { groupFilter.value = { ...filter, ...patch }; };
   return (
     <div class={`filters ${compact ? 'compact' : ''}`}>
-      <select aria-label="整理状态" value={filter.state} onChange={(event) => set({ state: event.currentTarget.value as GroupFilter['state'] })}>
+      <select aria-label="文件夹状态" value={filter.state} onChange={(event) => set({ state: event.currentTarget.value as GroupFilter['state'] })}>
         <option value="">全部状态</option>
         <option value="none">未标记</option>
         <option value="kept">保留</option>
@@ -80,12 +83,12 @@ export function Sidebar() {
   const lib = currentLibrary.value;
   const all = libraries.value;
   const open = sidebarOpen.value;
+  if (!open) return null;
   return (
-    <>
-      {narrow.value && open && <div class="scrim" onClick={() => { sidebarOpen.value = false; }} />}
-      <aside class={`sidebar ${open ? 'open' : 'closed'}`} aria-label="图库与文件夹" aria-hidden={!open}>
+      <SidePanel class="sidebar open" label="图库与文件夹" desktopEscape={false} closeOnNarrow onClose={() => { sidebarOpen.value = false; }}>
         <div class="side-head">
-          <span class="brand"><Icon name="Images" size={20} />图库</span>
+          <Brand />
+          {narrow.value && <button class="icon-btn" title="关闭侧栏" aria-label="关闭侧栏" onClick={() => { sidebarOpen.value = false; }}><Icon name="X" /></button>}
           <button class="icon-btn" title="添加图库" aria-label="添加图库" onClick={() => { dialog.value = { kind: 'add-library' }; }}>
             <Icon name="FolderPlus" />
           </button>
@@ -108,9 +111,12 @@ export function Sidebar() {
           <>
             <div class="side-section">
               <span>文件夹</span>
-              <button class="icon-btn small" title="重新扫描图库" aria-label="重新扫描图库" onClick={() => void rescanLibrary(lib)}>
-                <Icon name="RefreshCw" size={16} spin={scanStatus(lib) === 'scanning'} />
-              </button>
+              <div class="side-actions">
+                <button class="icon-btn small" title="重新扫描图库" aria-label="重新扫描图库" onClick={() => void rescanLibrary(lib)}>
+                  <Icon name="RefreshCw" size={16} spin={scanStatus(lib) === 'scanning'} />
+                </button>
+                <LibraryMenu library={lib} />
+              </div>
             </div>
             <FilterBar compact />
             <GroupList lib={lib} />
@@ -121,7 +127,6 @@ export function Sidebar() {
             </footer>
           </>
         )}
-      </aside>
-    </>
+      </SidePanel>
   );
 }

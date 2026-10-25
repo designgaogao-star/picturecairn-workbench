@@ -6,9 +6,9 @@ import { Thumb } from '../components/Thumb';
 import { count, packageParent, time } from '../lib/format';
 import { Icon } from '../lib/icons';
 import { navigate, type OrganizeTab } from '../lib/router';
-import { canCancel, canPause, canResume } from '../lib/tasks';
+import { TaskControls } from '../components/TaskControls';
 import {
-  cachedPackage, controlTask, currentLibrary, packageIndex, reportError, submitTask, tasks, trackTask, trackedTask,
+  cachedPackage, currentLibrary, packageIndex, reportError, submitTask, tasks, trackTask, trackedTask,
   trackedVersion, watchTask,
 } from '../state/app';
 
@@ -117,7 +117,7 @@ export function PackageRef({ id, names, group, children }: { id: string; names: 
   return (
     <div class="pkg-ref">
       <button class="pkg-cover" onClick={() => openPackage(group, id)} title="打开图片墙" aria-label="打开图片墙">
-        {pkg?.cover_id ? <Thumb id={pkg.cover_id} edge={400} /> : <Icon name={pkg ? 'Folder' : 'CircleAlert'} size={22} />}
+        {pkg?.cover_id ? <Thumb id={pkg.cover_id} edge={400} retryButton={false} /> : <Icon name={pkg ? 'Folder' : 'CircleAlert'} size={22} />}
       </button>
       <div class="pkg-text">
         <button class="link pkg-name" title={pkg?.rel || id} onClick={() => openPackage(group, id)}>
@@ -141,9 +141,7 @@ export function TaskBlock({ task, label, onRestart }: { task: Task; label: strin
         {task.state === 'interrupted' && <span class="muted">服务重启时任务被中断</span>}
         {task.state === 'cancelled' && <span class="muted">任务已取消，没有结果</span>}
         <span class="spacer" />
-        {canPause(task) && <button class="btn small" onClick={() => void controlTask(task.id, 'pause')}><Icon name="Pause" size={14} />暂停</button>}
-        {canResume(task) && <button class="btn small" onClick={() => void controlTask(task.id, 'resume')}><Icon name="Play" size={14} />继续</button>}
-        {canCancel(task) && <button class="btn small" onClick={() => void controlTask(task.id, 'cancel')}><Icon name="X" size={14} />取消</button>}
+        <TaskControls task={task} />
         {!active && <button class="btn small" onClick={onRestart}><Icon name="RotateCcw" size={14} />重新开始</button>}
       </div>
     </div>

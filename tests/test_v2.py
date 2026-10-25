@@ -317,6 +317,7 @@ def test_job_pause_resume_cancel_and_persistence(world):
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Windows Recycle Bin')
+@pytest.mark.native_recycle
 def test_windows_recycles_only_temporary_file(tmp_path):
     from gallery.recycle import recycle
     path = tmp_path / 'recycle-probe.txt'

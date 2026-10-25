@@ -1,6 +1,6 @@
 import { Icon } from '../lib/icons';
 import { reconnectNow } from '../state/events';
-import { connection, currentLibrary, dismissToast, scanStatus, toasts } from '../state/app';
+import { connection, currentLibrary, dismissToast, manageLibrary, scanStatus, toasts } from '../state/app';
 import { rescanLibrary } from './Sidebar';
 
 export function Toasts() {
@@ -42,6 +42,7 @@ export function StatusBanner() {
         <Icon name="TriangleAlert" size={16} />
         <span>图库目录“{lib.path}”当前无法访问（磁盘未连接或已移动）。已索引的列表仍可浏览，图片可能无法加载。</span>
         <button class="btn small" onClick={() => void rescanLibrary(lib)}>重新检查</button>
+        <button class="btn small" onClick={() => manageLibrary(lib, 'reconnect')}>重新定位目录…</button>
       </div>
     );
   }

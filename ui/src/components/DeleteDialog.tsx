@@ -6,7 +6,7 @@ import {
 import { readableError } from '../lib/format';
 import { Icon } from '../lib/icons';
 import {
-  dialog, libraries, loadLibraries, refreshTask, toast, watchTask, type DeleteRequestState,
+  dialog, libraries, loadLibraries, refreshTask, requestDelete, toast, watchTask, type DeleteRequestState,
 } from '../state/app';
 import { Dialog } from './Dialog';
 import { TaskProgress } from './Progress';
@@ -67,11 +67,10 @@ function shownPath(path: string): string {
 
 // The task only lists target IDs, and a target it never reached gets no path; keep the names it was submitted
 // with, so a report reopened from the task list can still say what was not deleted.
-const submittedNames = new Map<string, Record<string, string>>();
-function rememberNames(taskId: string, names: Record<string, string> | undefined) {
-  if (!names) return;
-  submittedNames.set(taskId, names);
-  if (submittedNames.size > 20) submittedNames.delete(submittedNames.keys().next().value as string);
+const submittedRequests = new Map<string, DeleteRequestState>();
+function rememberRequest(taskId: string, request: DeleteRequestState) {
+  submittedRequests.set(taskId, request);
+  if (submittedRequests.size > 20) submittedRequests.delete(submittedRequests.keys().next().value as string);
 }
 
 function summary(rows: ReportRow[]) {
@@ -121,6 +120,18 @@ function ReportList({ task, names }: { task: Task; names?: Record<string, string
   if (!rows) return <p class="muted"><Icon name="LoaderCircle" spin size={16} /> 正在读取逐项结果…</p>;
   const counts = summary(rows);
   const recycle = rows.some((row) => row.mode === 'recycle');
+  const failed = rows.filter((row) => row.state === 'failed' && ['image', 'package', 'group'].includes(row.kind));
+  const retryFailed = () => {
+    const original = submittedRequests.get(task.id);
+    requestDelete({
+      targets: failed.map((row) => ({ kind: row.kind as DeleteTarget['kind'], id: row.targetId })),
+      title: `${failed.length} 个失败项目`,
+      names: Object.fromEntries(failed.map((row) => [row.targetId, row.path ? shownPath(row.path) : names?.[row.targetId] ?? `ID ${row.targetId}`])),
+      includesFolders: failed.some((row) => row.kind !== 'image'),
+      libraryName: original?.libraryName ?? libraries.value.find((lib) => lib.id === task.scope.library_id)?.name,
+      onDone: original?.onDone,
+    });
+  };
   return (
     <div class="report">
       <div class="report-summary">
@@ -155,6 +166,7 @@ function ReportList({ task, names }: { task: Task; names?: Record<string, string
         })}
       </ul>
       {rows.length > limit && <button class="btn small" onClick={() => setLimit(limit + 200)}>显示更多（还有 {rows.length - limit} 项）</button>}
+      {failed.length > 0 && <button class="btn small" onClick={retryFailed}><Icon name="RotateCcw" size={14} />只重试失败项</button>}
     </div>
   );
 }
@@ -192,7 +204,7 @@ export function DeleteDialog({ request }: { request: DeleteRequestState }) {
         body: { targets: request.targets, permanent, confirm_permanent: permanent && confirmed },
       });
       setTask(accepted);
-      rememberNames(accepted.id, request.names);
+      rememberRequest(accepted.id, request);
       follow(accepted.id, request);
     } catch (failure) {
       setError(statusOf(failure) === 404 ? '部分目标已不在索引中（可能已被删除或移动），请刷新后重新选择。' : describeError(failure));
@@ -221,17 +233,13 @@ export function DeleteDialog({ request }: { request: DeleteRequestState }) {
         </>
       )}>
       <p class="delete-what">将删除：<strong>{request.title}</strong></p>
+      {request.libraryName && <p class="muted delete-library">图库：{request.libraryName}</p>}
+      <ul class="delete-targets" aria-label="删除目标">{request.targets.map((target) => (
+        <li key={target.id}><span class="muted">{KIND_TEXT[target.kind]}</span><span>{request.names?.[target.id] ?? `ID ${target.id}`}</span></li>
+      ))}</ul>
       {request.includesFolders && <p class="hint">图包和文件夹会连同其中的全部文件（包括非图片文件）一起删除。</p>}
-      <div class="choice" role="radiogroup" aria-label="删除方式">
-        <label class={!permanent ? 'active' : ''}>
-          <input type="radio" name="delete-mode" checked={!permanent} onChange={() => { setPermanent(false); setConfirmed(false); }} />
-          <span><strong>移到回收站</strong><small>可以从 Windows 回收站恢复。删除日志会保留。</small></span>
-        </label>
-        <label class={permanent ? 'active danger' : ''}>
-          <input type="radio" name="delete-mode" checked={permanent} onChange={() => setPermanent(true)} />
-          <span><strong>永久删除</strong><small>不经过回收站，无法恢复。</small></span>
-        </label>
-      </div>
+      <p class="hint">默认移到 Windows 回收站，操作日志保留。</p>
+      <label class="permanent-option"><input type="checkbox" checked={permanent} onChange={(event) => { setPermanent(event.currentTarget.checked); setConfirmed(false); }} />永久删除，不经过回收站</label>
       {permanent && (
         <label class="confirm-permanent">
           <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.currentTarget.checked)} />
@@ -258,7 +266,7 @@ export function DeleteReportDialog({ taskId }: { taskId: string }) {
       {error && <p class="form-error"><Icon name="CircleAlert" size={16} />{error}</p>}
       {task === null && <p class="muted">这个任务的记录已不存在。</p>}
       {task === undefined && !error && <p class="muted"><Icon name="LoaderCircle" spin size={16} /> 正在读取…</p>}
-      {task && <RunningOrReport task={task} names={submittedNames.get(taskId)} />}
+      {task && <RunningOrReport task={task} names={submittedRequests.get(taskId)?.names} />}
     </Dialog>
   );
 }

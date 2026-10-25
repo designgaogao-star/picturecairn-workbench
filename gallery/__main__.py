@@ -10,10 +10,13 @@ import socket
 import sys
 from pathlib import Path
 
+from gallery import __version__
 from gallery.paths import Settings
 
 
 def main(argv=None):
+    # Set before NumPy/SciPy load; later BLAS limits cannot reclaim their native thread stacks.
+    os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
     parser = argparse.ArgumentParser(prog='gallery')
     parser.add_argument('--port', type=int, default=0)
     parser.add_argument('--data', type=Path)
@@ -71,7 +74,7 @@ def main(argv=None):
                 await future
                 return
             await asyncio.sleep(.01)
-        descriptor = {'url': f'http://127.0.0.1:{port}', 'api_version': '1', 'version': '2.0.0',
+        descriptor = {'url': f'http://127.0.0.1:{port}', 'api_version': '1', 'version': __version__,
                       'instance_id': app.state.instance_id, 'pid': os.getpid(),
                       'session_id': hashlib.sha256((settings.desktop_token or '').encode()).hexdigest()}
         if args.ready_file:

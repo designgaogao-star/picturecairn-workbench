@@ -31,6 +31,7 @@ def save(path, seed, size=(1200, 1600)):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('output', type=Path)
+    parser.add_argument('--large-count', type=int, default=620)
     args = parser.parse_args()
     root = args.output
     if root.exists():
@@ -54,8 +55,8 @@ def main():
         save(root / '[R18]嵌套作者' / f'散图{index + 1}.jpg', seed)
 
     # Large package to exercise paging (> 500 images).
-    big = root / '[非R18]大图包' / '整包620'
-    for index in range(620):
+    big = root / '[非R18]大图包' / f'整包{args.large_count}'
+    for index in range(args.large_count):
         seed += 1
         save(big / f'{index + 1:04d}.jpg', seed, (300, 400))
 
@@ -101,6 +102,11 @@ def main():
     for index in range(4):
         seed += 1
         save(root / f'根目录散图{index + 1}.jpg', seed)
+
+    long_name = '湖面倒影与远山在清晨的记录' * 5 + '.jpg'
+    for year in ('2025', '2026'):
+        for folder in ('目录甲', '目录乙'):
+            save(root / '[非R18]长名称与同名路径' / year / folder / long_name, 3000)
     print(root)
 
 

@@ -1,0 +1,1 @@
+ALTER TABLE libraries ADD COLUMN managed INTEGER NOT NULL DEFAULT 1 CHECK(managed IN (0,1));

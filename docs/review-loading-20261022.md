@@ -58,7 +58,7 @@
 
 最终截图与日志为 output/ui-qa/integration-1792610639130；桌面图包八张图片均已解码并显示，1440×1000 图片墙和 390×844 查看器人工检查通过。截图期间临时禁用 CSS 动画和过渡，避免把入场状态当成最终画面，原生 GIF/WebP 动画像素验证独立执行。
 
-本机 runtime.local.json 和 exe 相邻的 GalleryTool.local.json 已切换到最终包，继续使用 C:/Users/79974/AppData/Local/GalleryToolLive。原桌面正常退出后重启，后端地址为 http://127.0.0.1:6114。启动对账完成后 scan_status=ready，活动任务为 0，125 个分组合计 215,243 张图片，真实非 R18 封面访问返回 200。旧包与旧数据保留，本地配置不进入 Git 或便携 ZIP。
+本机 runtime.local.json 和 exe 相邻的 GalleryTool.local.json 已切换到当时的开发包，继续使用本机 `GALLERY_DATA` 目录。原桌面正常退出后重启，后端地址为动态回环端口。启动对账完成后 scan_status=ready，活动任务为 0，125 个分组合计 215,243 张图片，真实非 R18 封面访问返回 200。旧包与旧数据保留，本地配置不进入 Git 或便携 ZIP。
 
 ## 自动回归
 

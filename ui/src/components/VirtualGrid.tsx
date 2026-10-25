@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { PagedList } from '../lib/paged';
+import { plainKey } from '../lib/keys';
 import { narrow } from '../state/app';
 
 export interface GridLayout { columns: number; tileWidth: number; tileHeight: number; rowHeight: number; gap: number; pad: number }
@@ -34,9 +35,14 @@ interface Props<T> {
   anchorKey: string;
   /** Index to bring into view when it changes. */
   reveal?: number | null;
+  /** Called once the requested item has been positioned, so a one-time request can be cleared. */
+  onReveal?: () => void;
+  /** Resource to return keyboard focus to after the viewer closes. */
+  focusKey?: string | null;
   empty?: ComponentChildren;
   class?: string;
   label?: string;
+  onVisibleChange?: (start: number, end: number) => void;
 }
 
 /**
@@ -51,6 +57,11 @@ export function VirtualGrid<T>(props: Props<T>) {
   const [rows, setRows] = useState<[number, number]>([0, 0]);
   const anchor = useRef(anchors.get(anchorKey) ?? 0);
   const restored = useRef(false);
+  const focused = useRef<string | null>(null);
+  const cursor = useRef<{ index: number; key: string } | null>(null);
+  const cursorVisible = useRef(false);
+  const intent = useRef<number | null>(null);
+  const [navigation, setNavigation] = useState<number | null>(null);
   const [consumer] = useState(() => `grid${++consumers}`);
   const total = list.total.value;
   list.version.value; // re-render when pages arrive or go stale
@@ -73,7 +84,14 @@ export function VirtualGrid<T>(props: Props<T>) {
   }, []);
 
   // New list: restore its anchor once its length is known.
-  useLayoutEffect(() => { anchor.current = anchors.get(anchorKey) ?? 0; restored.current = false; }, [anchorKey]);
+  useLayoutEffect(() => {
+    anchor.current = anchors.get(anchorKey) ?? 0;
+    restored.current = false;
+    cursor.current = null;
+    cursorVisible.current = false;
+    intent.current = null;
+    setNavigation(null);
+  }, [anchorKey]);
 
   const measure = () => {
     const element = scroller.current;
@@ -92,6 +110,12 @@ export function VirtualGrid<T>(props: Props<T>) {
     cancelAnimationFrame(frame.current);
     if (total === null) { measure(); return; }
     if (!restored.current) restored.current = true;
+    if (cursor.current && cursorVisible.current && element.contains(document.activeElement)) {
+      anchor.current = cursor.current.index;
+      intent.current = Math.min(cursor.current.index, Math.max(0, total - 1));
+      setNavigation(intent.current);
+      element.focus({ preventScroll: true });
+    }
     anchor.current = Math.min(anchor.current, Math.max(0, total - 1));
     element.scrollTop = Math.floor(anchor.current / columns) * rowHeight;
     measure();
@@ -99,15 +123,19 @@ export function VirtualGrid<T>(props: Props<T>) {
 
   useLayoutEffect(() => {
     const element = scroller.current;
-    if (reveal == null || !element || !rowHeight || total === null) return;
+    if (reveal == null || !element || !size.width || !rowHeight || total === null || !total) return;
     const top = pad + Math.floor(reveal / columns) * rowHeight;
     if (top < element.scrollTop || top + rowHeight > element.scrollTop + element.clientHeight) {
       element.scrollTop = Math.max(0, top - (element.clientHeight - rowHeight) / 2);
       measure();
     }
-  }, [reveal, columns, rowHeight, total === null]);
+    props.onReveal?.();
+  }, [reveal, columns, rowHeight, total === null, size.width]);
 
   const overscan = 2;
+  useLayoutEffect(() => {
+    props.onVisibleChange?.(rows[0] * columns, Math.min(total ?? 0, (rows[1] + 1) * columns));
+  }, [rows[0], rows[1], columns, total, props.onVisibleChange]);
   const firstRow = Math.min(Math.max(0, rowCount - 1), Math.max(0, rows[0] - overscan));
   const lastRow = Math.min(Math.max(0, rowCount - 1), rows[1] + overscan);
 
@@ -116,6 +144,11 @@ export function VirtualGrid<T>(props: Props<T>) {
     list.ensure(firstRow * columns, (lastRow + 1) * columns, consumer);
   }, [list, firstRow, lastRow, columns, size.width, list.version.value]);
   useEffect(() => () => list.release(consumer), [list]);
+  useEffect(() => {
+    if (navigation === null) list.release(`${consumer}:focus`);
+    else list.ensure(navigation, navigation + 1, `${consumer}:focus`);
+    return () => list.release(`${consumer}:focus`);
+  }, [list, navigation, list.version.value]);
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   const onScroll = () => {
@@ -126,20 +159,78 @@ export function VirtualGrid<T>(props: Props<T>) {
       if (!element || element.clientWidth !== size.width || element.clientHeight !== size.height) return;
       const first = measure();
       if (first !== undefined && restored.current && total !== null) {
+        if (intent.current === null && cursor.current) {
+          const last = Math.floor((Math.max(0, element.scrollTop - pad) + element.clientHeight) / rowHeight);
+          cursorVisible.current = cursor.current.index >= first * columns && cursor.current.index < (last + 1) * columns;
+        }
         anchor.current = first * columns;
         rememberAnchor(anchorKey, anchor.current);
       }
     });
   };
 
+  const mainButton = (cell: Element) => cell.querySelector<HTMLButtonElement>('.card-hit, .group-row');
+  const onFocus = (event: FocusEvent) => {
+    const button = (event.target as HTMLElement).closest('.card-hit, .group-row');
+    const cell = button?.closest<HTMLElement>('[data-grid-index]');
+    if (!cell?.dataset.resourceId) return;
+    cursor.current = { index: Number(cell.dataset.gridIndex), key: cell.dataset.resourceId };
+    cursorVisible.current = true;
+    for (const item of scroller.current!.querySelectorAll('.vgrid-cell')) {
+      const main = mainButton(item);
+      if (main) main.tabIndex = main === button ? 0 : -1;
+    }
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.isComposing || !plainKey(event, true) || !total) return;
+    const element = scroller.current!;
+    const target = event.target as HTMLElement;
+    if (target !== element && !target.matches('.card-hit, .group-row')) return;
+    // A revision can move the focused resource while its keyed button keeps focus. Read the
+    // current cell index from the DOM before calculating the next destination; the stored index
+    // is only a fallback while the destination page is being fetched.
+    const focusedCell = target.closest<HTMLElement>('.vgrid-cell[data-resource-id]');
+    const liveIndex = focusedCell ? Number(focusedCell.dataset.gridIndex) : undefined;
+    if (focusedCell?.dataset.resourceId && cursor.current?.key === focusedCell.dataset.resourceId && liveIndex !== undefined) {
+      cursor.current.index = liveIndex;
+    }
+    const at = intent.current ?? liveIndex ?? cursor.current?.index;
+    if (at === undefined) return;
+    const page = columns * Math.max(1, Math.floor(size.height / rowHeight));
+    const destinations: Record<string, number> = {
+      ArrowLeft: at - 1, ArrowRight: at + 1, ArrowUp: at - columns, ArrowDown: at + columns,
+      Home: 0, End: total - 1, PageUp: at - page, PageDown: at + page,
+    };
+    if (!(event.key in destinations)) return;
+    event.preventDefault();
+    const next = Math.max(0, Math.min(total - 1, destinations[event.key]));
+    intent.current = next;
+    setNavigation(next);
+    // Keep key repeats attached to this grid while the destination page is loading.
+    element.focus({ preventScroll: true });
+    const top = pad + Math.floor(next / columns) * rowHeight;
+    if (top < element.scrollTop) element.scrollTop = top;
+    else if (top + tileHeight > element.scrollTop + element.clientHeight) element.scrollTop = top + tileHeight - element.clientHeight;
+    measure();
+  };
+
+  const gridHadFocus = Boolean(scroller.current?.contains(document.activeElement));
   const cells = [];
   if (size.width && (total ?? 1) > 0) {
     const end = total === null ? (lastRow + 1) * columns : Math.min(total, (lastRow + 1) * columns);
-    for (let index = firstRow * columns; index < end; index++) {
+    const indices = Array.from({ length: Math.max(0, end - firstRow * columns) }, (_, index) => firstRow * columns + index);
+    // Retain the focused DOM node through track changes until its new row is brought into view.
+    const activeKey = cursor.current?.key;
+    const cachedActive = activeKey ? list.indexOf((item) => keyOf(item) === activeKey) : -1;
+    if (cachedActive >= 0 && cursor.current) cursor.current.index = cachedActive;
+    const active = cachedActive >= 0 ? cachedActive : cursor.current?.index;
+    if (active !== undefined && active < (total ?? 0) && gridHadFocus && !indices.includes(active)) indices.push(active);
+    for (const index of indices) {
       const item = total === null ? undefined : list.item(index);
       const row = Math.floor(index / columns), column = index % columns;
       cells.push(
-        <div key={item ? keyOf(item) : `#${index}`} class="vgrid-cell" role="listitem" style={{
+        <div key={item ? keyOf(item) : `#${index}`} class="vgrid-cell" role="listitem" data-resource-id={item ? keyOf(item) : undefined}
+          data-grid-index={index} aria-posinset={index + 1} aria-setsize={total ?? undefined} style={{
           width: `${tileWidth}px`, height: `${tileHeight}px`,
           transform: `translate(${pad + column * (tileWidth + gap)}px, ${pad + row * rowHeight}px)`,
         }}>{render(item, index, layout)}</div>,
@@ -147,9 +238,45 @@ export function VirtualGrid<T>(props: Props<T>) {
     }
   }
 
+  useLayoutEffect(() => {
+    const element = scroller.current!;
+    const cells = [...element.querySelectorAll<HTMLElement>('.vgrid-cell[data-resource-id]')];
+    const current = cursor.current && cells.find((cell) => cell.dataset.resourceId === cursor.current!.key);
+    if (current && cursor.current) cursor.current.index = Number(current.dataset.gridIndex);
+    // Reordering a keyed node can blur it when the browser moves that node in the DOM.
+    if (current && gridHadFocus && document.activeElement === document.body) mainButton(current)?.focus({ preventScroll: true });
+    const entry = current ?? cells.find((cell) => Number(cell.dataset.gridIndex) >= rows[0] * columns) ?? cells[0];
+    for (const cell of cells) {
+      const button = mainButton(cell);
+      if (button) button.tabIndex = cell === entry ? 0 : -1;
+    }
+    if (navigation === null || document.activeElement !== element) return;
+    const cell = cells.find((item) => Number(item.dataset.gridIndex) === navigation);
+    const button = cell && mainButton(cell);
+    if (button) {
+      button.focus({ preventScroll: true });
+      intent.current = null;
+      setNavigation(null);
+    }
+  });
+
+  useLayoutEffect(() => {
+    const key = props.focusKey;
+    if (!key) { focused.current = null; return; }
+    if (focused.current === key) return;
+    const target = scroller.current?.querySelector<HTMLButtonElement>(`[data-resource-id="${CSS.escape(key)}"] .card-hit`);
+    if (target) { target.focus({ preventScroll: true }); focused.current = key; }
+  }, [props.focusKey, list.version.value, firstRow, lastRow]);
+
   return (
     <div class={`vgrid-wrap ${props.class || ''}`}>
-      <div class="vgrid" ref={scroller} onScroll={onScroll}>
+      <div class="vgrid" ref={scroller} onScroll={onScroll} tabIndex={-1} onKeyDown={onKeyDown}
+        onFocusCapture={onFocus} onBlurCapture={(event) => {
+          if (!scroller.current?.contains(event.relatedTarget as Node | null)) {
+            intent.current = null;
+            setNavigation(null);
+          }
+        }}>
         <div class="vgrid-space" role="list" aria-label={props.label} aria-busy={list.loading.value}
           style={{ height: `${pad * 2 + Math.max(0, rowCount * rowHeight - gap)}px` }}>
           {cells}

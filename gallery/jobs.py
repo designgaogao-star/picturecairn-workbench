@@ -151,6 +151,11 @@ class Tasks:
         with self.lock:
             if self.stopping.is_set():
                 raise Busy('Background queue is full or stopping')
+            targets, _scope = self.catalog.describe_targets(payload)
+            for library_id in {target['library_id'] for target in targets if target['library_id']}:
+                library = self.catalog.entity('libraries', library_id)
+                if library and not library['managed']:
+                    raise Busy('Library is no longer managed')
             encoded = json.dumps(payload, sort_keys=True)
             if deduplicate and kind == 'scan':
                 pending = self.catalog.rows("SELECT id,payload FROM tasks WHERE kind='scan' "

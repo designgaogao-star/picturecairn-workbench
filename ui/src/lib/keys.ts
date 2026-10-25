@@ -6,7 +6,9 @@ export function keyboardOwnedElsewhere(event: KeyboardEvent): boolean {
   if (event.defaultPrevented || event.isComposing) return true;
   const target = event.target as HTMLElement | null;
   if (target && (target.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName))) return true;
-  return document.querySelector('dialog[open]') !== null;
+  if (event.key === 'Escape' && [...document.querySelectorAll('dialog[open][data-escape-panel]')]
+    .some((panel) => !panel.closest('[inert]'))) return true;
+  return Boolean(target?.closest('dialog[open]')) || document.querySelector('dialog:modal') !== null;
 }
 
 /** Modifier-free key press (Shift allowed only when `shift` is set). */

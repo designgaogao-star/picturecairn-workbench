@@ -1,19 +1,23 @@
 {
   "name": "gallery-tool",
-  "version": "2.0.0",
+  "version": "0.0.0-dev",
+  "releaseChannel": "development",
+  "releaseLabel": "开发预览（未发布）",
+  "productName": "Stillmark 影迹图片工作台",
   "private": true,
-  "description": "本地图片浏览与去重工具",
+  "description": "原目录浏览，随时续看，核实再整理的 Windows 图片工作台",
   "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
+    "start": "npm run brand:build && electron .",
+    "dev": "npm run brand:build && electron . --dev",
     "build": "pwsh -NoProfile -File scripts/build.ps1",
     "contract": "uv run python scripts/export_contract.py && openapi-typescript contracts/openapi.json -o contracts/schema.d.ts",
     "check": "tsc -p contracts/tsconfig.json --noEmit",
     "prepare": "node scripts/prepare-icons.mjs && node node_modules/electron/install.js",
-    "ui:dev": "vite --config ui/vite.config.ts",
+    "brand:build": "node scripts/build-brand.mjs",
+    "ui:dev": "vite --config ui/vite.config.mts",
     "ui:check": "tsc -p ui/tsconfig.json",
-    "ui:build": "tsc -p ui/tsconfig.json && vite build --config ui/vite.config.ts",
+    "ui:build": "tsc -p ui/tsconfig.json && vite build --config ui/vite.config.mts",
     "ui:qa": "node scripts/ui-qa/run.mjs"
   },
   "devDependencies": {
@@ -21,8 +25,10 @@
     "electron": "44.9.0",
     "lucide": "1.59.0",
     "openapi-typescript": "7.13.0",
+    "pe-library": "2.0.1",
     "playwright-core": "1.64.1",
     "preact": "10.29.8",
+    "resedit": "3.1.0",
     "typescript": "5.9.3",
     "vite": "8.3.4"
   }

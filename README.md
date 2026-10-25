@@ -1,94 +1,110 @@
-# GalleryTool V2
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/stillmark/extra/stillmark-lockup-dark.svg">
+    <img src="docs/brand/stillmark/extra/stillmark-lockup-light.svg" alt="Stillmark 影迹图片工作台" width="420">
+  </picture>
+</p>
 
-Windows 本地纯图片图库。支持多个本地目录、目录与图包浏览、GIF/WebP 动图、浏览位置恢复、筛选标记、抽样、去重候选、内容核验和回收站删除。
+# Stillmark 影迹图片工作台
 
-后端为 Python 3.14、FastAPI、SQLite WAL、Pillow、NumPy、SciPy。正式前端在 `ui/`，使用 Preact、Signals、Vite 和严格 TypeScript；Electron 提供窗口和目录选择。后端和桌面包同源托管 `ui/dist`，`prototype/` 保留作历史参考。
+**原目录浏览，随时续看，核实再整理。**
+
+面向大量成套图片的 Windows 本地工作台。图片留在原有文件夹中：按目录和图包浏览，关掉再打开时继续上次的位置；两套图包看起来相似时，先检查差异和完整文件内容，再决定怎样整理。
+
+## Windows 预览版
+
+当前是 **开发预览（未发布）**，主要在 Windows 11 x64 验收。便携包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。目前尚未发布 GitHub Release；本地候选包由下文的统一构建入口生成。
+
+GitHub 首次公开发布前不使用正式版本号。开发包以构建日期和 `release-manifest.json` 的源码摘要区分；依赖工具要求的版本字段只使用开发占位值。
+
+1. 取得 `GalleryTool-dev-win-x64.zip` 和同名 `.sha256`，核对 SHA-256。
+2. 将整个 ZIP 解压到可写目录，保留 `resources/` 等文件。
+3. 双击 **GalleryTool.exe**，选择存放图片的本地目录。索引在后台建立，已扫描部分可以直接浏览。
+
+为兼容既有启动脚本，开发预览继续使用 GalleryTool.exe 和 GalleryTool.local.json 文件名；窗口、托盘和界面显示完整的 Stillmark 品牌。当前包未做代码签名，Windows 可能显示“未知发布者”。
+
+```powershell
+# 哈希应与 .sha256 第一列一致
+Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
+```
+
+关闭窗口会收至系统托盘。托盘“退出”会停止桌面自己启动的后端；复用的外部后台服务由它的启动者单独管理。既有本机启动脚本仍可使用，动态端口由脚本读取。
+
+## 能做什么
+
+- 管理多个本地图库；改显示名称、移出管理，或在目录搬迁后重新连接，保留相对路径对应的 ID、位置与标记。
+- 真实目录和图包浏览；分页、虚拟滚动、按 ID 定位与恢复，单张导航止于当前图包。
+- 图片墙使用静态封面；查看器支持 GIF/WebP 动画、缩放、旋转和胶片条。
+- 按文件夹标记状态，筛选和抽样；旧目录名前缀的分类规则继续兼容，不是图片标签系统。
+- 查看相似图包的覆盖与独有内容。完整核验逐文件读取 SHA-256，包括隐藏文件和非图片文件。
+- 默认删除移至 Windows 回收站，失败不会自动改成永久删除；永久删除必须明确确认，结果逐项显示并记录。
+- 暂停、继续和取消后台任务；离线目录保留已建索引，坏图和失败任务显示原因。
+
+支持 **JPEG、PNG、GIF、WebP、BMP**。当前范围是 Windows 本地纯图片；暂不支持 RAW、HEIC、AVIF、压缩包、视频、网络图库、云同步或修图。
+
+大图库进入持久索引后，图片仍按需读取和生成预览。首次加载大图需要磁盘读取与解码时间；实际表现取决于硬盘、素材和缓存状态。测量和测试范围见 [最新交付](docs/release-readiness-20261024.md) 与 [质量验收](docs/review-quality-20261023.md)，不把单台机器的结果当作跨机器保证。实际桌面演示只用合成图片，生成方式见 [演示材料](docs/screenshots.md)。
+
+## 数据、升级与恢复
+
+原图始终留在添加的图库目录中。默认数据库、缩略图、浏览状态与操作日志位于 `%LOCALAPPDATA%\GalleryTool`，建议放在本机 SSD。`GALLERY_DATA` 可指定其他本地数据目录；便携程序也支持相邻 `GalleryTool.local.json` 的 `dataDirectory` 字段。
+
+升级前退出旧版并备份数据目录；将新包解压到另一目录，使用相同数据目录启动。数据库可能执行向前迁移，回退旧版时使用升级前备份。不要用旧程序直接打开已经升级的数据。
+
+“移出管理”保留磁盘文件、索引、缩略图、位置、标记和日志；重新添加原目录可以恢复。目录离线不会清空索引。有未结束的关联任务时，重新连接或移出会提示先处理任务。
+
+删除的依据是用户自己的选择或完整文件核验的结论。相似度、空壳包和其他整理提示都是检查线索；任务受理不等于操作成功，请查看逐项结果。
+
+## 反馈与参与
+
+发现问题时使用仓库的缺陷模板，提供构建日期或源码摘要、Windows 环境、复现步骤及已脱敏的日志片段。用合成目录说明问题，不上传真实图库数据库、原图、缓存或删除日志全文。
+
+[版本记录](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/stillmark/README.md)
+
+对外名称统一为 Stillmark 影迹图片工作台；公开仓库建议使用 `stillmark-workbench`。当前仓库尚无远程地址，CI 与手工构建工作流已准备好，远程执行结果会在创建仓库后产生。
 
 ## 开发
 
-安装 uv、Node.js 22.12+、PowerShell 7 后执行：
+技术栈：Python 3.14、FastAPI、SQLite WAL、Pillow、NumPy、SciPy、watchfiles；Preact 10、Signals、严格 TypeScript、Vite；Electron 桌面壳。
+
+安装 PowerShell 7、Node.js 24 和 uv：
 
 ```powershell
 uv sync --frozen --extra dev --extra desktop
 npm ci
 npm run ui:build
-uv run python -m gallery --port 8765
+
+# 为开发创建独立数据目录，动态端口写入 ready.json
+uv run python -m gallery --data C:\Temp\stillmark-dev --port 0 --ready-file C:\Temp\stillmark-dev\ready.json
 ```
 
-打开 `http://127.0.0.1:8765` 添加本地目录。现有后台服务可通过 `启动图库预览.bat` 打开，通过 `停止图库服务.bat` 正常停止。
+前端联调时将 `GALLERY_BACKEND` 指向这个临时后端，再运行 `npm run ui:dev`；`GALLERY_UI_PORT` 可指定前端端口。源码桌面使用 `npm start`，启动前会生成已确认的品牌位图和 ICO。
 
-默认数据位于 `%LOCALAPPDATA%\GalleryTool`。`GALLERY_DATA` 可指定其他本地数据目录；原图留在注册的图库根目录中。
+开发服务器的 `?readonly` 会在前端请求入口拒绝全部非 GET；生产构建不启用该开关。它不是后端只读模式：图片 GET 仍可能写缓存，后台维护独立运行，真实数据排查应使用隔离副本。`--no-scan --no-watch` 同时禁止启动/维护扫描与监听。
 
-本机正式运行通过被 Git 忽略的 runtime.local.json 指定独立数据目录和已验证的桌面包。`启动图库.bat` 打开桌面，`启动图库预览.bat` 打开同一后台服务的浏览器页面，`停止图库服务.bat` 正常停止后台。动态端口会由脚本读取和展示，不能假定为 8765。桌面保存上次路由，重启后跨端口恢复。
-
-runtime.local.json 支持 dataDirectory、backendPath、desktopPath；启动脚本显式参数优先于配置，GALLERY_DATA 优先于 dataDirectory。便携 exe 可从相邻的 GalleryTool.local.json 读取 dataDirectory；本机配置不进入 ZIP 或 Git。自行启动的桌面后端随桌面退出；复用脚本启动的后台服务时，用停止脚本结束它。
-
-```powershell
-# 独立临时数据，避免与已经运行的桌面程序争用同一数据库
-# 动态端口在 GALLERY_READY 输出和 ready.json 中，不占用其他程序的端口
-uv run python -m gallery --data C:\Temp\gallery-dev --port 0 --ready-file C:\Temp\gallery-dev\ready.json
-```
-
-也可让桌面自行启动后端：在一个未被其他实例使用的临时目录设置 `$env:GALLERY_DATA='C:\Temp\gallery-desktop-dev'`，再运行 `npm start`。
-
-桌面启动使用动态端口和实例握手；已有受匹配的后台服务时复用它。关闭窗口收至托盘，托盘“退出”或 `GalleryTool.exe --quit` 退出应用，并停止应用自己启动的后端。
-
-## 前端交接
-
-下一轮界面改版按 [图片工作台设计需求包](docs/design/image-workbench/README.md) 实施，包含可交互样机、语义令牌和前端开工提示词。产品背景见 [PRODUCT.md](PRODUCT.md)，设计方向见 [DESIGN.md](DESIGN.md)；当前运行版说明仍以 `docs/frontend-ui.md` 为准。
-
-接口前缀 `/api/v1`，运行时 OpenAPI 为 `/openapi.json`。
-
-- `contracts/openapi.json`：生成的 API 契约。
-- `contracts/schema.d.ts`：从 OpenAPI 生成的 TypeScript 类型。
-- `contracts/client.ts`：使用生成类型的 HTTP 客户端与图片 URL 工具。
-- `contracts/mock.json`：不包含真实图库信息的示例响应。
-- `docs/frontend-handoff.md`：分页、位置恢复、任务和事件约定。
-
-```powershell
-npm run contract
-npm run check
-```
-
-开发前端推荐通过 Vite 同源代理联调：`GALLERY_BACKEND` 指向上述临时后端，运行 `npm run ui:dev`。PowerShell 用 `$env:GALLERY_BACKEND='http://127.0.0.1:<端口>'` 设置，前端默认端口 5173，可用 `GALLERY_UI_PORT` 修改。也可在后端配置 `GALLERY_FRONTEND_ORIGIN` 明确允许独立来源。
-
-开发服务器地址加 `?readonly` 会在前端请求入口拒绝全部非 GET 请求，包括添加图库、后台任务和任务控制，并显示“只读联调模式”；生产构建不启用这个开关。这不是后端只读模式，GET 图片仍可补齐派生缓存，后台维护也独立运行。只读排查必须使用隔离副本，不能直接打开真实数据目录。
+接口统一在 `/api/v1`，运行时契约为 `/openapi.json`。修改接口后执行 `npm run contract` 和 `npm run check`，不手改生成的 TypeScript schema。前端交接见 [接口说明](docs/frontend-handoff.md)，模块边界见 [架构](docs/architecture.md)。
 
 ## 验证与构建
 
 ```powershell
-uv run python -m pytest
-uv run python -m ruff check .
-node --check prototype/app.js
-node --check electron/main.js
-npm run check
-npm run ui:check
-npm run ui:build
+pwsh -NoProfile -File scripts/verify.ps1
 pwsh -NoProfile -File scripts/build.ps1
+pwsh -NoProfile -File scripts/verify.ps1 -Desktop <GalleryTool.exe绝对路径> -SoakMinutes 60
 ```
 
-测试使用临时图库。`GALLERY_TEST_BACKEND` 指定打包后端路径后，`tests/test_v2_http.py` 对实际 exe 执行相同的 HTTP、图片、SSE、退出与临时图片回收检查。
+测试只使用临时图库与独立数据目录，默认排除原生回收站探针。统一验证包括 Python、Ruff、契约、严格 TS、UI 构建、品牌转换、JS/CJS 语法、工作台回归与桌面退出；实际产物和一小时负载另外核验。
 
-构建输出为 `build-out/<时间>/GalleryTool/GalleryTool.exe`。运行不需要另外安装 Python，不下载运行资源。
+构建生成便携 ZIP、SHA-256、逐文件构建来源清单及许可证清单。`build-out/`、`ui/dist`、依赖和用户数据不进 Git。GitHub 的 Windows 检查与手工构建工作流复用相同入口；手工构建默认运行完整长测，关闭长测时产物仍标为候选包。`prototype/` 保留作历史参考。
 
-`scripts/build.ps1` 先生成契约并构建正式前端，再将 `ui/dist` 与后端一起打包。前端集成回归入口为 `npm run ui:qa`，实际桌面验证为 `npm run ui:qa -- --desktop <GalleryTool.exe绝对路径>`，详见 `scripts/ui-qa/README.md`。测试自行生成临时图库、动态端口和临时数据目录，不依赖真实图库或操作回收站。
-
-本机迁移核对、性能实测与桌面验收见 [V2 Review 与验收](docs/review-v2-20261020.md)。
-
-正式前端接入、全库 215,243 张图片核对与当前运行入口见 [正式图库落地与验收](docs/review-live-20261022.md)。
-
-同卷加载流水线、前台解码优先级和可重复混合素材性能对照见 [图片加载优化验收](docs/review-loading-20261022.md)。
-
-## 数据迁移
+## 旧版数据迁移
 
 ```powershell
-uv run python -m gallery --root F:\图库 --legacy F:\图库\_gallery_tool --data C:\Temp\gallery-migrated
+uv run python -m gallery --root D:\Pictures --legacy D:\OldGalleryTool --data C:\Temp\stillmark-migrated
 ```
 
-迁移在后台执行，先使用 SQLite backup 获取一致快照，并保留原始浏览记录与删除日志。旧下标转换为图片 ID，旧哈希注明算法来源，不与新规范的哈希混用；兼容的旧 JPEG 缩略图按需复制复用。重复迁移同一来源返回原报告，不覆盖已有用户状态。
+迁移先用 SQLite backup 获取一致快照，保留旧数据库、原图、缩略图、浏览记录与删除日志。旧下标转换为图片 ID；旧哈希注明来源，不与新规范混用。相同来源的重复迁移返回原报告。
 
-目录离线不清空索引；任务中断保留已提交的数据。永久删除必须明确传入 `confirm_permanent: true`。相似度与空壳报告是判断证据，完全重复结论需要 SHA-256 遍历图包内所有文件，包括隐藏文件和非图片文件。
+已有 GalleryTool 数据可用 `python scripts/prepare_live_data.py <旧数据目录> <新目录>` 建立独立副本。`python -m scripts.verify_library --data <新目录> --report output/verification.json` 可独立只读核对原图目录与索引。不要把程序迁移、截图和用户数据清理混在一起。
 
-已运行 V2 的数据可用 `python scripts/prepare_live_data.py <旧数据目录> <新目录>` 建立独立副本：SQLite backup 获取一致索引，复制并改写缓存路径，保留位置和日志，不修改来源。`python -m scripts.verify_library --data <新目录> --report output/verification.json` 独立只读遍历原图目录，检查索引是否完整。全量加载指全部图片进入持久索引，预览按需生成，不会一次解码全部图片。
+## 许可
 
-`--no-scan` 同时禁止启动和定期扫描，`--no-watch` 禁止监听；维护间隔可用 `--maintenance-interval <秒>` 配置。只读排查仍应使用独立数据副本。
+项目代码使用 [MIT License](LICENSE)。第三方声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；便携包保留 Electron 许可，并附带 Python 解释器、运行依赖、前端库和相关构建工具的许可原文及版本索引。

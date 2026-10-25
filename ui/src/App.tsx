@@ -1,27 +1,31 @@
 import { useEffect, useRef } from 'preact/hooks';
 import { AddLibraryDialog } from './components/AddLibraryDialog';
+import { LibraryDialog } from './components/LibraryDialog';
+import { BrandSplash } from './components/Brand';
 import { DeleteDialog, DeleteReportDialog } from './components/DeleteDialog';
-import { GroupHeader, groupOf, useResume } from './components/GroupHeader';
+import { groupOf, useResume } from './components/GroupHeader';
 import { Sidebar } from './components/Sidebar';
 import { TasksDrawer } from './components/TasksDrawer';
 import { StatusBanner, Toasts } from './components/Toasts';
 import { Topbar } from './components/Topbar';
+import { Inspector } from './components/Inspector';
+import { inspectorOpen } from './state/inspection';
 import { Icon } from './lib/icons';
 import { route, type Route } from './lib/router';
 import {
   connection, currentLibrary, dialog, groupError, libraries, librariesError, librariesLoaded, loadLibraries, narrow,
-  refreshCurrentGroup, refreshCurrentPackage, sidebarOpen,
+  refreshCurrentGroup, refreshCurrentPackage, sidebarOpen, taskDrawer,
 } from './state/app';
 import { ImageWall } from './views/ImageWall';
 import { LibraryHome, Welcome } from './views/LibraryHome';
 import { Organize } from './views/Organize';
 import { PackageWall } from './views/PackageWall';
-import { Samples } from './views/Samples';
 import { Viewer } from './views/Viewer';
 
 function Splash() {
   return (
     <div class="splash" role="status">
+      <BrandSplash />
       <Icon name="LoaderCircle" size={28} spin />
       <p class="muted">正在连接图库服务…</p>
     </div>
@@ -38,7 +42,7 @@ function Unreachable({ error }: { error: string }) {
         <Icon name={online ? 'CircleAlert' : 'WifiOff'} size={36} />
         <h1>{title}</h1>
         {error !== title && <p class="muted">{error}</p>}
-        <p class="muted">{online ? '图库服务已连接，但读取图库列表失败，请稍后重试。' : '请确认 GalleryTool 正在运行。服务恢复后会自动重新连接。'}</p>
+        <p class="muted">{online ? '图库服务已连接，但读取图库列表失败，请稍后重试。' : '请确认 Stillmark 正在运行。服务恢复后会自动重新连接。'}</p>
         <button class="btn primary" onClick={() => void loadLibraries()}><Icon name="RefreshCw" size={16} />重试</button>
       </div>
     </div>
@@ -49,6 +53,7 @@ function GroupSkeleton({ groupId }: { groupId: string }) {
   const error = groupError.value?.id === groupId ? groupError.value.text : null;
   return (
     <div class="wall">
+      <div class="toolbar" />
       <div class="wall-hold">
         {error ? (
           <div class="hold-error" role="alert">
@@ -70,7 +75,6 @@ function GroupBody({ base }: { base: Route }) {
   const resume = useResume(groupId);
   if (base.view === 'organize') return group ? <Organize group={group} /> : <GroupSkeleton groupId={groupId} />;
   if (base.package) return <ImageWall groupId={groupId} group={group} packageId={base.package} resume={resume} />;
-  if (base.view === 'samples') return <Samples groupId={groupId} group={group} />;
   return group ? <PackageWall group={group} resume={resume} /> : <GroupSkeleton groupId={groupId} />;
 }
 
@@ -81,12 +85,7 @@ function Content({ base }: { base: Route | null }) {
   if (!base) return <div class="wall-hold" />;
   if (!lib) return <div class="wall-hold"><Icon name="LoaderCircle" size={22} spin /></div>;
   if (!base.group) return <LibraryHome lib={lib} />;
-  return (
-    <>
-      <GroupHeader group={groupOf(base.group)} />
-      <GroupBody base={base} />
-    </>
-  );
+  return <GroupBody base={base} />;
 }
 
 // Each delete request gets a fresh dialog, even if a new one replaces another without closing in between.
@@ -102,6 +101,7 @@ function Dialogs() {
   const current = dialog.value;
   if (!current) return null;
   if (current.kind === 'add-library') return <AddLibraryDialog />;
+  if (current.kind === 'library') return <LibraryDialog key={requestKey(current)} request={current} />;
   if (current.kind === 'delete') return <DeleteDialog key={requestKey(current)} request={current} />;
   return <DeleteReportDialog key={current.taskId} taskId={current.taskId} />;
 }
@@ -134,9 +134,9 @@ export function App() {
         <main class="main">
           <Topbar />
           <StatusBanner />
-          <div class="content">
+          <div class="work-area"><div class="content">
             <Content base={base} />
-          </div>
+          </div>{inspectorOpen.value && r.group && !viewing && !(narrow.value && taskDrawer.value) && <Inspector />}</div>
         </main>
       </div>
       {viewing && <Viewer key="viewer" />}

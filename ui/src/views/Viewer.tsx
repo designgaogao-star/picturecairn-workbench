@@ -5,6 +5,8 @@ import {
   type Edge, type ImageContext, type ImageItem, type Mark,
 } from '../api';
 import { Filmstrip } from '../components/Filmstrip';
+import { ViewerBrand } from '../components/Brand';
+import { ImageElement } from '../components/ImageElement';
 import { applyMark, MarkSegment } from '../components/Marks';
 import { knownThumb, noteThumb, probeImage } from '../components/Thumb';
 import { bytes, count, extension } from '../lib/format';
@@ -14,9 +16,9 @@ import { Lru } from '../lib/paged';
 import { closeViewer, navigate, route, type Route } from '../lib/router';
 import {
   currentGroup, currentLibrary, currentPackage, imageAt, imagesList, lastViewed, mediaEpoch, narrow, neighborPackage,
-  reportError, requestDelete, savePosition, toast,
+  reportError, requestDelete, savePosition, toast, wallReturn,
 } from '../state/app';
-import { samples, useSamples } from './Samples';
+import { samples } from './Samples';
 
 type Source = { kind: 'preview'; edge: Edge; url: string } | { kind: 'original'; url: string };
 /** A decoded layer. `w`/`h` are the element's natural size; `exact` when that is the file's real size. */
@@ -30,7 +32,9 @@ interface Gesture { kind: 'pan' | 'pinch' | 'swipe'; x: number; y: number; panX:
 const MB = 1024 * 1024;
 const contexts = new Lru<ImageContext>(300);
 // Preloaded neighbours stay referenced so the browser keeps them decoded until they are shown.
-const warm = new Lru<HTMLImageElement>(4);
+const warm = new Lru<HTMLImageElement>(4, (image) => {
+  image.onload = null; image.onerror = null; image.removeAttribute('src');
+});
 // Images whose context was reread once their first preview had filled in missing metadata.
 const reread = new Lru<true>(500);
 
@@ -84,8 +88,14 @@ function preload(url: string, signal: AbortSignal): Promise<void> {
     const element = new Image();
     element.decoding = 'async';
     const finish = () => { signal.removeEventListener('abort', abort); resolve(); };
-    const abort = () => { element.removeAttribute('src'); finish(); };
-    element.onload = () => { warm.set(url, element); void element.decode().catch(() => undefined).then(finish); };
+    const abort = () => {
+      if (warm.get(url) === element) warm.delete(url);
+      element.onload = null; element.onerror = null; element.removeAttribute('src'); finish();
+    };
+    element.onload = () => {
+      if (signal.aborted) { abort(); return; }
+      warm.set(url, element); void element.decode().catch(() => undefined).then(finish);
+    };
     element.onerror = finish;
     signal.addEventListener('abort', abort, { once: true });
     element.src = url;
@@ -93,23 +103,18 @@ function preload(url: string, signal: AbortSignal): Promise<void> {
 }
 
 function LayerImage({ src, alt, onReady, onFail }: { src: string; alt: string; onReady?: (element: HTMLImageElement) => void; onFail?: () => void }) {
-  const ref = useRef<HTMLImageElement>(null);
-  // Leaving the DOM mid-load drops the request instead of letting it finish in the background.
-  useEffect(() => {
-    const element = ref.current;
-    return () => { if (element && !element.complete) element.removeAttribute('src'); };
-  }, []);
   return (
-    <img ref={ref} class="layer" src={src} alt={alt} draggable={false} decoding="async"
+    <ImageElement class="layer" src={src} alt={alt} draggable={false} decoding="async"
       onLoad={onReady && ((event) => onReady(event.currentTarget))} onError={onFail} />
   );
 }
 
 export function Viewer() {
+  useEffect(() => () => warm.clear(), []);
   const r = route.value;
   const imageId = r.image!;
   const groupId = r.group;
-  const samplesMode = r.view === 'samples' && !r.package;
+  const sampling = r.view === 'organize' && r.tab === 'samples';
   // Opened from the organize page: moves keep it underneath, so closing returns to the evidence.
   const keep: Partial<Route> = r.view === 'organize' ? { view: 'organize', tab: r.tab } : {};
   const revision = currentLibrary.value?.revision;
@@ -138,14 +143,8 @@ export function Viewer() {
     return () => controller.abort();
   }, [imageId, current, revision, contextTry, epoch]);
 
-  // ------------------------------------------------------------ samples
-  const sampleSet = useSamples(samplesMode ? groupId : undefined);
-  const sampleItems = samplesMode ? sampleSet?.items ?? null : null;
-  const sampleIndex = sampleItems ? sampleItems.findIndex((item) => item.id === imageId) : -1;
-
-  // The context is authoritative; until it arrives, the batch or wall list supplies size and name.
+  // The context is authoritative; until it arrives, the wall list supplies size and name.
   let image = context?.image;
-  if (!image && sampleIndex >= 0) image = sampleItems![sampleIndex];
   if (!image && r.package) {
     const list = imagesList(r.package);
     const index = list.indexOf((item) => item.id === imageId);
@@ -266,19 +265,22 @@ export function Viewer() {
   useEffect(() => {
     if (!context || context.image.id !== imageId) return;
     const item = context.image;
-    if (!samplesMode && (r.library !== item.library_id || r.group !== item.group_id || r.package !== item.package_id)) {
+    if (r.library !== item.library_id || r.group !== item.group_id || r.package !== item.package_id) {
       // The link named another place (moved file or stale link): show the image where it lives.
       navigate({ ...keep, library: item.library_id, group: item.group_id, package: item.package_id, image: item.id }, { replace: true });
       return;
     }
     visited.current = { group: item.group_id, package: item.package_id, image: item.id, index: context.index };
-    if (!samplesMode) savePosition(item.group_id, item.id);
+    if (!sampling) savePosition(item.group_id, item.id);
   }, [context, r.library, r.group, r.package]);
-  useEffect(() => () => { if (visited.current) lastViewed.value = visited.current; }, []);
+  useEffect(() => () => {
+    if (!visited.current) return;
+    lastViewed.value = visited.current;
+    const destination = route.peek();
+    wallReturn.value = destination.view === 'packages' && destination.group === visited.current.group ? visited.current : null;
+  }, []);
 
-  const neighbors: [string | null, string | null] = samplesMode
-    ? [sampleIndex >= 0 ? sampleItems![sampleIndex + 1]?.id ?? null : null, sampleIndex > 0 ? sampleItems![sampleIndex - 1].id : null]
-    : [context?.next_id ?? null, context?.previous_id ?? null];
+  const neighbors: [string | null, string | null] = [context?.next_id ?? null, context?.previous_id ?? null];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -325,20 +327,12 @@ export function Viewer() {
   const go = (id: string, packageId = r.package) => {
     lastMove.current = performance.now();
     setEdge(null);
-    navigate(samplesMode
-      ? { library: r.library, group: r.group, view: 'samples', image: id }
-      : { ...keep, library: r.library, group: r.group, package: packageId, image: id }, { replace: true });
+    navigate({ ...keep, library: r.library, group: r.group, package: packageId, image: id }, { replace: true });
   };
 
   const queued = useRef<0 | 1 | -1>(0);
   const step = (dir: 1 | -1) => {
     direction.current = dir;
-    if (samplesMode) {
-      if (!sampleItems) return;
-      const target = sampleIndex >= 0 ? sampleItems[sampleIndex + dir] : undefined;
-      if (target) go(target.id); else setEdge({ id: imageId, dir });
-      return;
-    }
     if (!context || context.image.id !== imageId) { queued.current = dir; return; }
     const target = dir > 0 ? context.next_id : context.previous_id;
     // Package boundaries are never crossed implicitly; the notice offers an explicit step.
@@ -354,10 +348,6 @@ export function Viewer() {
   const jumpController = useRef<AbortController | null>(null);
   useEffect(() => () => jumpController.current?.abort(), []);
   const jump = (where: 'first' | 'last') => {
-    if (samplesMode) {
-      if (sampleItems?.length) go((where === 'first' ? sampleItems[0] : sampleItems[sampleItems.length - 1]).id);
-      return;
-    }
     if (!r.package || packageTotal == null) return;
     jumpController.current?.abort();
     const controller = jumpController.current = new AbortController();
@@ -385,11 +375,6 @@ export function Viewer() {
     } finally {
       setCrossing(false);
     }
-  };
-
-  const viewInPackage = () => {
-    const item = context?.image;
-    if (item) navigate({ ...keep, library: item.library_id, group: item.group_id, package: item.package_id, image: item.id }, { replace: true });
   };
 
   // ------------------------------------------------------------ zoom, pan, rotate
@@ -524,14 +509,17 @@ export function Viewer() {
     return () => { clearTimeout(timer); window.removeEventListener('pointermove', wake); window.removeEventListener('keydown', wake); };
   }, [full]);
 
-  useEffect(() => { root.current?.focus({ preventScroll: true }); }, []);
+  useLayoutEffect(() => {
+    const origin = document.activeElement as HTMLElement | null;
+    root.current?.focus({ preventScroll: true });
+    return () => { if (origin?.isConnected && !origin.closest('[inert]')) origin.focus({ preventScroll: true }); };
+  }, []);
 
   // ------------------------------------------------------------ delete
   const remove = () => {
     if (!image) return;
     const target = image;
     const at = context;
-    const batch = sampleItems;
     requestDelete({
       targets: [{ kind: 'image', id: target.id }], title: `图片“${target.name}”`, names: { [target.id]: target.rel },
       onDone: (done) => {
@@ -539,11 +527,7 @@ export function Viewer() {
         contexts.clear();
         if (samples.value?.items) samples.value = { ...samples.value, items: samples.value.items.filter((item) => item.id !== target.id) };
         if (route.value.image !== target.id) return;
-        let next: string | null | undefined;
-        if (batch) {
-          const index = batch.findIndex((item) => item.id === target.id);
-          next = (batch[index + 1] ?? batch[index - 1])?.id;
-        } else next = at?.next_id ?? at?.previous_id;
+        const next = at?.next_id ?? at?.previous_id;
         if (next) go(next); else closeViewer();
       },
     });
@@ -597,7 +581,8 @@ export function Viewer() {
     transform: `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rot}deg)`,
   });
   const currentFrame = dims && stage.w ? frame(dims.w, dims.h, scale, pan.x, pan.y, v.rot) : undefined;
-  const frameClass = currentFrame ? 'frame' : 'frame free';
+  const checker = currentFrame && image && ['png', 'gif', 'webp', 'avif', 'tiff', 'tif', 'ico'].includes(extension(image.name));
+  const frameClass = currentFrame ? `frame${checker ? ' checker' : ''}` : 'frame free';
   const placeholderEdge = own ? undefined : knownThumb(imageId);
   // With nothing of the new image to show yet, the previous one stays (dimmed) instead of a blank stage.
   const stale = !own && placeholderEdge === undefined && !failed && shown && shown.id !== imageId ? shown : null;
@@ -605,13 +590,11 @@ export function Viewer() {
   const visible = Boolean(own) || placeholderEdge !== undefined;
 
   const mark = currentGroup.value?.id === groupId ? (currentGroup.value!.state as Mark) : undefined;
-  const hasNext = samplesMode ? sampleIndex >= 0 && sampleIndex < (sampleItems?.length ?? 0) - 1 : context ? context.next_id !== null : true;
-  const hasPrev = samplesMode ? sampleIndex > 0 : context ? context.previous_id !== null : true;
+  const hasNext = context ? context.next_id !== null : true;
+  const hasPrev = context ? context.previous_id !== null : true;
   const index = context && context.image.id === imageId ? context.index : null;
-  const position = samplesMode
-    ? sampleItems && sampleIndex >= 0 ? `抽样 ${sampleIndex + 1} / ${sampleItems.length}` : '抽样'
-    : `${index === null ? '…' : count(index + 1)} / ${packageTotal == null ? '…' : count(packageTotal)}`;
-  const where = samplesMode ? '' : pkg ? (pkg.loose ? '散图' : pkg.name) : '';
+  const position = `${index === null ? '…' : count(index + 1)} / ${packageTotal == null ? '…' : count(packageTotal)}`;
+  const where = pkg ? (pkg.loose ? '散图' : pkg.name) : '';
   const animatedNow = own?.source.kind === 'original' && image?.animated;
 
   const infoPanel = info && image && (
@@ -636,12 +619,13 @@ export function Viewer() {
     <div ref={root} tabIndex={-1} class={`viewer ${full ? 'full' : ''} ${full && idle ? 'idle' : ''} ${isNarrow ? 'narrow' : ''}`}
       role="dialog" aria-label={`查看图片：${image?.name ?? ''}`}>
       <header class="viewer-bar">
+        <ViewerBrand />
         <button class="icon-btn" onClick={closeViewer} title="返回（Esc）" aria-label="返回"><Icon name="ArrowLeft" /></button>
         <div class="viewer-title">
           <span class="viewer-name" title={image?.rel}>{image?.name ?? '…'}</span>
           <span class="viewer-sub muted">
-            {where && <span class="viewer-pkg" title={pkg?.rel}>{where}</span>}
-            <span class="num">{position}</span>
+            {where && <><span class="viewer-pkg" title={pkg?.rel}>{where}</span><span aria-hidden="true">·</span></>}
+            <span class="num">第 {position} 张</span>
             {animatedNow && <span class="badge anim">动图</span>}
           </span>
         </div>
@@ -655,16 +639,11 @@ export function Viewer() {
           <button class="icon-btn" onClick={() => rotate(-90)} title="逆时针旋转（Shift+R）" aria-label="逆时针旋转"><Icon name="RotateCcw" /></button>
           <button class="icon-btn" onClick={() => rotate(90)} title="顺时针旋转（R）" aria-label="顺时针旋转"><Icon name="RotateCw" /></button>
         </div>
-        {samplesMode && context && (
-          <button class="btn small" onClick={viewInPackage} title="切换到这张图片所在的图包，按图包顺序浏览">
-            <Icon name="Images" size={14} /><span class="wide-only">在图包中查看</span>
-          </button>
-        )}
-        {groupId && <MarkSegment groupId={groupId} value={mark} compact />}
+        {groupId && <MarkSegment groupId={groupId} value={mark} compact shortcuts />}
         <button class={`icon-btn ${info ? 'active' : ''}`} onClick={toggleInfo} title="图片信息（I）" aria-label="图片信息" aria-pressed={info}>
-          <Icon name="Info" />
+          <Icon name="PanelRight" />
         </button>
-        {!samplesMode && (
+        {r.package && (
           <button class={`icon-btn ${strip ? 'active' : ''}`} onClick={toggleStrip} title="胶片条" aria-label="胶片条" aria-pressed={strip}>
             <Icon name="PanelBottom" />
           </button>
@@ -698,7 +677,7 @@ export function Viewer() {
           )}
           {placeholderEdge !== undefined && (
             <div key={`p:${imageId}`} class={`${frameClass} placeholder`} style={currentFrame}>
-              <img class="layer" src={thumbnailUrl(imageId, placeholderEdge)} alt="" draggable={false}
+              <ImageElement class="layer" src={thumbnailUrl(imageId, placeholderEdge)} alt="" draggable={false}
                 onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} />
             </div>
           )}
@@ -745,17 +724,13 @@ export function Viewer() {
           {edge?.id === imageId && (
             <div class="edge-note" role="status">
               <span>
-                {samplesMode
-                  ? sampleIndex < 0 ? '这张图片不在当前抽样批次中' : edge.dir > 0 ? '已是本批最后一张' : '已是本批第一张'
-                  : edge.dir > 0 ? '已是本图包最后一张' : '已是本图包第一张'}
+                {edge.dir > 0 ? '已是本图包最后一张' : '已是本图包第一张'}
               </span>
-              {!samplesMode && (
                 <button class="btn small" disabled={crossing} onClick={() => void cross(edge.dir)}>
                   {edge.dir < 0 && <Icon name="ChevronsLeft" size={14} />}
                   {edge.dir > 0 ? '下一个图包' : '上一个图包'}
                   {edge.dir > 0 && <Icon name="ChevronsRight" size={14} />}
                 </button>
-              )}
             </div>
           )}
         </div>
@@ -768,7 +743,7 @@ export function Viewer() {
       </div>
 
       {isNarrow && infoPanel}
-      {strip && !samplesMode && r.package && (
+      {strip && r.package && (
         <Filmstrip packageId={r.package} index={index ?? -1} current={imageId} ready={stripReady}
           onPick={(id) => { if (id !== imageId) go(id); }} />
       )}

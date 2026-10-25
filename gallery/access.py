@@ -7,8 +7,14 @@ class Access:
     def __init__(self, catalog):
         self.catalog = catalog
 
+    def library(self, library_id):
+        library = self.catalog.entity('libraries', library_id)
+        if not library or not library['managed']:
+            raise FileNotFoundError('Library is not managed')
+        return library
+
     def path(self, entity, allow_root=False):
-        library = self.catalog.entity('libraries', entity['library_id'])
+        library = self.library(entity['library_id'])
         root = Path(library['path']).resolve(strict=True)
         relative = Path(entity['rel'])
         if relative.is_absolute() or '..' in relative.parts:

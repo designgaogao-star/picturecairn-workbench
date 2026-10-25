@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gallery-tool"
-version = "2.0.0"
+version = "0.0.0.dev0"
 description = "本地图片浏览与去重工具"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -50,7 +50,8 @@ gallery = ["sql/*.sql"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 norecursedirs = ["cache", "thumbs", "ui"]
-addopts = "-q --tb=short"
+addopts = "-q --tb=short -m 'not native_recycle'"
+markers = ["native_recycle: explicit opt-in tests that send temporary files to the Windows Recycle Bin"]
 
 [tool.ruff]
 line-length = 110

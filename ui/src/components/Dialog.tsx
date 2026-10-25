@@ -17,11 +17,15 @@ export function Dialog({ title, onClose, children, footer, wide, locked }: Props
   const ref = useRef<HTMLDialogElement>(null);
   useLayoutEffect(() => {
     const element = ref.current!;
+    const origin = document.activeElement as HTMLElement | null;
     if (!element.open) element.showModal();
-    return () => { if (element.open) element.close(); };
+    return () => {
+      if (element.open) element.close();
+      if (origin?.isConnected) origin.focus({ preventScroll: true });
+    };
   }, []);
   return (
-    <dialog ref={ref} class={`dialog ${wide ? 'wide' : ''}`} aria-label={title}
+    <dialog ref={ref} class={`dialog ${wide ? 'wide' : ''}`} aria-label={title} aria-modal="true"
       onCancel={(event) => { event.preventDefault(); if (!locked) onClose(); }}>
       <header class="dialog-head">
         <h2>{title}</h2>

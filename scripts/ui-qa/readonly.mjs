@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 
 export const readonlyCalls = [
   ['post', '/api/v1/libraries', { path: 'QA' }],
+  ['patch', '/api/v1/libraries/{library_id}', { name: 'QA' }],
+  ['post', '/api/v1/libraries/{library_id}/reconnect', { path: 'QA' }],
+  ['delete', '/api/v1/libraries/{library_id}', undefined],
   ...['scan', 'prewarm', 'build', 'analyze', 'compare', 'audit', 'collect'].map((kind) => [
     'post', '/api/v1/tasks', { kind },
   ]),
@@ -32,7 +35,7 @@ export async function readonlyApiChecks(server, base) {
     const errors = [];
     for (const [method, route, body] of readonlyCalls) {
       try {
-        await client.request(method, route, { body, params: { path: { task_id: 'qa', group_id: 'qa' } } });
+        await client.request(method, route, { body, params: { path: { task_id: 'qa', group_id: 'qa', library_id: 'qa' } } });
         errors.push('unexpected success');
       } catch (error) { errors.push(error.message); }
     }
@@ -69,7 +72,7 @@ export async function readonlyChecks(page, base, library, output) {
     for (const [method, route, body] of calls) {
       try {
         await client.request(method, route, {
-          body, params: { path: { task_id: 'qa', group_id: 'qa' } },
+          body, params: { path: { task_id: 'qa', group_id: 'qa', library_id: 'qa' } },
         });
         results.push('unexpected success');
       } catch (error) { results.push(error.message); }

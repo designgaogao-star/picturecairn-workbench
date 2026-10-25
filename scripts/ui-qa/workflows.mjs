@@ -95,13 +95,13 @@ export async function workflows(page, base, library, output) {
   const route = `#/l/${registered.id}/g/${group.id}/p/${packages[0].id}`;
 
   await page.locator('.group-card').filter({ hasText: '山色' }).click();
-  await page.getByRole('button', { name: '打开图片墙', exact: true }).first().click();
+  await page.locator('.package-card .card-hit').first().click();
   await page.locator('.image-card img').first().waitFor();
   await page.waitForFunction((expected) => [...document.querySelectorAll('.image-card .thumb.is-ready > img')]
     .filter((image) => image.complete && image.naturalWidth > 0 && Number(getComputedStyle(image).opacity) >= .99).length === expected,
   images.length);
   await snapshot(page, output, 'images-desktop');
-  await page.locator('.image-card').first().click();
+  await page.locator('.image-card .card-hit').first().click();
   await viewReady(page);
   await page.keyboard.press('ArrowRight');
   await page.waitForFunction((id) => location.hash.endsWith(`/i/${id}`), images[1].id);
@@ -130,7 +130,7 @@ export async function workflows(page, base, library, output) {
   await page.goto(`${base}${route}`);
   await page.locator('.image-card img').first().waitFor();
   await snapshot(page, output, 'images-narrow');
-  await page.locator('.image-card').first().click();
+  await page.locator('.image-card .card-hit').first().click();
   await viewReady(page);
   await snapshot(page, output, 'viewer-narrow');
 
@@ -208,6 +208,27 @@ export async function workflows(page, base, library, output) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('.drawer').getByRole('button', { name: '关闭', exact: true }).click();
 
+  const duplicateGroup = groups.find((item) => item.name.includes('重复样本'));
+  await page.goto(`${base}#/l/${registered.id}/g/${duplicateGroup.id}/organize/t/compare`);
+  await page.waitForFunction(() => document.querySelectorAll('datalist option').length >= 4);
+  await page.getByLabel('左侧图包').fill('A 原包');
+  await page.getByLabel('右侧图包').fill('B 完全相同');
+  const compared = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/tasks' && response.request().method() === 'POST');
+  await page.getByRole('button', { name: '开始核验', exact: true }).click();
+  const comparedTask = await (await compared).json();
+  await page.locator(`.verdict[data-task-id="${comparedTask.id}"]`).waitFor();
+  assert.ok(await page.locator('.verdict').textContent().then((text) => text.includes('两侧完全一致') && text.includes('11 个文件')));
+  await snapshot(page, output, 'compare-all-files-desktop');
+  await page.getByRole('button', { name: '相似图包', exact: true }).click();
+  await page.getByRole('button', { name: '开始分析', exact: true }).click();
+  await page.locator('.pair-row').first().waitFor();
+  assert.ok(await page.locator('.pair-row .rate').first().textContent().then((text) => text.includes('指纹覆盖')));
+  assert.equal(await page.locator('.pair-row .danger').count(), 0);
+  await page.getByRole('button', { name: '清理检查', exact: true }).click();
+  await page.getByRole('button', { name: '开始检查', exact: true }).click();
+  await page.getByRole('heading', { name: '空壳包' }).waitFor();
+  console.log('PASS organize: all-file comparison, perceptual hashes, similar coverage, audit task');
+
   const broken = animationImages.find((item) => item.name === '06-broken.jpg');
   let brokenRequests = 0;
   const countBroken = (request) => { if (request.url().includes(`/images/${broken.id}/thumbnail`)) brokenRequests++; };
@@ -225,12 +246,12 @@ export async function workflows(page, base, library, output) {
   await viewReady(page);
   await page.getByRole('button', { name: '删除这张图片', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: '确认删除' });
-  const radios = confirmation.getByRole('radio');
-  assert.ok(await radios.nth(0).isChecked(), 'Recycle must remain the default');
-  await radios.nth(1).check();
+  const permanent = confirmation.getByRole('checkbox', { name: '永久删除，不经过回收站', exact: true });
+  assert.ok(!await permanent.isChecked(), 'Recycle must remain the default');
+  await permanent.check();
   const remove = confirmation.getByRole('button', { name: '永久删除', exact: true });
   assert.ok(await remove.isDisabled());
-  await confirmation.getByRole('checkbox').check();
+  await confirmation.getByRole('checkbox', { name: '我确认永久删除这些文件，且无法恢复', exact: true }).check();
   await remove.click();
   await page.getByRole('dialog', { name: '删除结果' }).waitFor();
   await page.locator('.report-row.completed').waitFor();

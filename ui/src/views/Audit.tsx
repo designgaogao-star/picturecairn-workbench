@@ -83,7 +83,7 @@ function AdThumbs({ images, group, packageId }: { images: AuditImage[]; group: G
       {images.slice(0, SHOWN).map((image) => (
         <button key={image.id} class="ad-thumb" onClick={() => void openImage(group, 'audit', image.id, packageId)}
           title={image.verified ? '画面与常见广告图一致' : '仅凭文件名判断（指纹尚未计算或已过期）'} aria-label="查看广告图">
-          <Thumb id={image.id} edge={400} />
+          <Thumb id={image.id} edge={400} retryButton={false} />
           {!image.verified && <span class="badge warn">仅文件名</span>}
         </button>
       ))}

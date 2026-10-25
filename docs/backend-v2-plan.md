@@ -1,4 +1,4 @@
-# GalleryTool V2 实施清单
+# Stillmark 后端重构实施清单
 
 目标：多本地目录、浏览优先、纯图片，保留整理能力，以类型化接口交给正式前端。
 
@@ -15,4 +15,4 @@ Pillow、NumPy、SciPy 负责图像与既有 pHash；Electron 仅提供桌面集
 验证使用临时图库；真实图库只做只读测量。旧数据以 SQLite backup 快照保存，原图不迁移。
 每个阶段独立 review 和提交。默认由当前会话逐项实施，不额外创建代理任务。
 
-已完成验收，结果与限制见 [V2 Review 与验收](review-v2-20261020.md)。正式前端从 [前端交接](frontend-handoff.md) 接手。
+已完成验收，结果与限制见 [后端重构 Review 与验收](review-v2-20261020.md)。前端从 [前端交接](frontend-handoff.md) 接手。

@@ -6,7 +6,7 @@ type Operation<P extends keyof paths, M extends Method> = M extends keyof paths[
 type JsonBody<O> = O extends { requestBody: { content: { 'application/json': infer B } } } ? B : never;
 type Parameters<O> = O extends { parameters: infer P } ? P : never;
 type JsonResponse<O> = O extends { responses: infer R } ? {
-  [S in Extract<keyof R, 200 | 201 | 202 | 204>]: R[S] extends { content: { 'application/json': infer B } } ? B : never
+  [S in Extract<keyof R, 200 | 201 | 202 | 204>]: R[S] extends { content: { 'application/json': infer B } } ? B : S extends 204 ? void : never
 }[Extract<keyof R, 200 | 201 | 202 | 204>] : never;
 
 export class GalleryClient {

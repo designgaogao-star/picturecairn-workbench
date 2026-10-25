@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>图库</title>
+  <meta name="color-scheme" content="light dark">
+  <script>try{var d=window.galleryApp;var s=d?.sessionId;var t=s&&sessionStorage.getItem('gt.desktopSession')!==s?d.theme:localStorage.getItem('gt.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <title>Stillmark 影迹图片工作台</title>
+  <link rel="icon" type="image/svg+xml" href="../docs/brand/stillmark/stillmark-favicon.svg">
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <script type="module" src="/src/bootstrap.ts"></script>
 </body>
 </html>

@@ -16,6 +16,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'API contract export failed.' }
     & npm run check
     if ($LASTEXITCODE -ne 0) { throw 'TypeScript contract check failed.' }
+    & npm run brand:build
+    if ($LASTEXITCODE -ne 0) { throw 'Brand asset validation and conversion failed.' }
     & npm run ui:build
     if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
 } finally { Pop-Location }
@@ -43,24 +45,43 @@ if (-not (Test-Path -LiteralPath (Join-Path $backendSource 'gallery_server.exe')
 
 Write-Host '[2/4] Assembling Electron app...'
 New-Item -ItemType Directory -Path $appDir | Out-Null
-Copy-Item -Path (Join-Path $electronDir '*') -Destination $appDir -Recurse
-Rename-Item -LiteralPath (Join-Path $appDir 'electron.exe') -NewName 'GalleryTool.exe'
+Copy-Item -Path (Join-Path $electronDir '*') -Exclude 'electron.exe' -Destination $appDir -Recurse
+& node (Join-Path $PSScriptRoot 'stamp-desktop.mjs') (Join-Path $electronDir 'electron.exe') (Join-Path $appDir 'GalleryTool.exe')
+if ($LASTEXITCODE -ne 0) { throw 'Desktop icon and version metadata update failed.' }
 $appResources = Join-Path $appDir 'resources\app'
 New-Item -ItemType Directory -Path $appResources | Out-Null
 Copy-Item -LiteralPath (Join-Path $projectDir 'electron') -Destination $appResources -Recurse
+Copy-Item -LiteralPath (Join-Path $projectDir 'output\brand\runtime') -Destination (Join-Path $appResources 'electron\brand') -Recurse
 @{
     name = $package.name
     version = $package.version
+    releaseChannel = $package.releaseChannel
+    releaseLabel = $package.releaseLabel
+    productName = $package.productName
     description = $package.description
     main = $package.main
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $appResources 'package.json') -Encoding utf8NoBOM
 
 Write-Host '[3/4] Adding backend...'
 Copy-Item -LiteralPath $backendSource -Destination (Join-Path $appDir 'resources\backend') -Recurse
+& $pythonPath (Join-Path $PSScriptRoot 'collect_licenses.py') --app $appDir
+if ($LASTEXITCODE -ne 0) { throw 'Third-party license collection failed.' }
+Copy-Item -LiteralPath (Join-Path $projectDir 'docs\portable-readme.md') -Destination (Join-Path $appDir 'README.md')
+
+$manifestPath = Join-Path $outputDir 'release-manifest.json'
+& $pythonPath (Join-Path $PSScriptRoot 'write_release_manifest.py') --app $appDir --output $manifestPath
+if ($LASTEXITCODE -ne 0) { throw 'Build manifest generation failed.' }
+Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $appDir 'release-manifest.json')
 
 if (-not $NoZip) {
     Write-Host '[4/4] Creating portable archive...'
-    $archivePath = Join-Path $outputDir ("GalleryTool-$($package.version)-win-x64.zip")
+    $archivePath = Join-Path $outputDir 'GalleryTool-dev-win-x64.zip'
     Compress-Archive -Path (Join-Path $appDir '*') -DestinationPath $archivePath
+    $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    "$archiveHash  $(Split-Path -Leaf $archivePath)" | Set-Content -LiteralPath ($archivePath + '.sha256') -Encoding ascii
+    & $pythonPath (Join-Path $PSScriptRoot 'write_release_manifest.py') --archive $archivePath `
+        --output (Join-Path $outputDir 'archive-verification.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Portable archive verification failed.' }
+    Write-Host "Archive: $archivePath"
 }
 Write-Host "Ready: $appDir\GalleryTool.exe"

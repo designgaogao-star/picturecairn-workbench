@@ -63,15 +63,18 @@ function SampleTile({ item, group, recent }: { item: ImageItem; group: Group | n
   const ref = useRef<HTMLButtonElement>(null);
   const viewing = Boolean(route.value.image);
   // Coming back from the viewer: bring the last viewed sample into view.
-  useEffect(() => { if (recent && !viewing) ref.current?.scrollIntoView({ block: 'nearest' }); }, [recent, viewing]);
+  useEffect(() => {
+    if (recent && !viewing) { ref.current?.scrollIntoView({ block: 'nearest' }); ref.current?.focus({ preventScroll: true }); }
+  }, [recent, viewing]);
   const edge = tileTarget() * Math.min(2, window.devicePixelRatio || 1) > 400 ? 800 : 400;
   const folder = folderOf(item, group);
   const r = route.value;
   return (
-    <button ref={ref} class={`card image-card ${recent ? 'recent' : ''}`} title={`${item.name}${folder ? `\n${folder}` : ''}`}
-      onClick={() => navigate({ library: r.library, group: r.group, view: 'samples', image: item.id })}>
+    <div class={`card image-card ${recent ? 'recent' : ''}`}>
+      <button ref={ref} class="card-hit" aria-label={item.name} title={`${item.name}${folder ? `\n${folder}` : ''}`}
+        onClick={() => navigate({ library: r.library, group: r.group, view: 'organize', tab: 'samples', package: item.package_id, image: item.id })} />
       <div class="card-media">
-        <Thumb id={item.id} edge={edge} />
+        <Thumb id={item.id} edge={edge} fit="contain" />
         {item.animated && <span class="badge anim">动图</span>}
         {item.error && <span class="badge bad" title={item.error}>无法解码</span>}
       </div>
@@ -79,7 +82,7 @@ function SampleTile({ item, group, recent }: { item: ImageItem; group: Group | n
         <span class="card-title">{item.name}</span>
         {folder && <span class="card-sub muted">{folder}</span>}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -91,7 +94,7 @@ export function Samples({ groupId, group }: { groupId: string; group: Group | nu
   const items = set?.items;
   return (
     <div class="wall samples">
-      <div class="wall-bar">
+      <div class="sample-controls">
         <span>随机抽取</span>
         <div class="segment" role="radiogroup" aria-label="抽样数量">
           {COUNTS.map((value) => (

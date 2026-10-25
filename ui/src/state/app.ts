@@ -36,17 +36,23 @@ export const libraries = signal<Library[]>([]);
 export const librariesLoaded = signal(false);
 export const librariesError = signal<string | null>(null);
 export const currentLibrary = computed(() => libraries.value.find((lib) => lib.id === route.value.library) || null);
+let librariesController: AbortController | null = null;
 
 export async function loadLibraries(invalidate = true) {
+  librariesController?.abort();
+  const controller = librariesController = new AbortController();
   // Libraries this read can judge: already listed, with a loaded task list showing no live scan for them.
   const settled = tasksLoaded.value ? new Set(libraries.value.filter((lib) => !liveScan(lib.id)).map((lib) => lib.id)) : null;
   try {
     const items: Library[] = [];
     for (let offset = 0; ; offset += 500) {
-      const page = await client.request('get', '/api/v1/libraries', { params: { query: { offset, limit: 500 } } });
+      const page = await client.request('get', '/api/v1/libraries', {
+        params: { query: { offset, limit: 500 } }, signal: controller.signal,
+      });
       items.push(...page.items);
       if (items.length >= page.total || !page.items.length) break;
     }
+    if (controller.signal.aborted) return;
     const before = new Map(libraries.value.map((lib) => [lib.id, lib.revision]));
     const stale = new Set(items.filter((lib) => (lib.scan_status === 'scanning' || lib.scan_status === 'pending')
       && settled?.has(lib.id) && !liveScan(lib.id)).map((lib) => lib.id));
@@ -60,9 +66,11 @@ export async function loadLibraries(invalidate = true) {
       const remembered = localStorage.getItem('gt.library');
       const target = items.find((lib) => lib.id === remembered) || items[0];
       navigate({ library: target.id }, { replace: true });
+    } else if (current && !items.length) {
+      navigate({}, { replace: true });
     }
   } catch (error) {
-    librariesError.value = describeError(error);
+    if (!isAbort(error)) librariesError.value = describeError(error);
   }
 }
 
@@ -73,6 +81,39 @@ export async function addLibrary(path: string, name: string | null) {
   navigate({ library: library.id });
   toast(`已添加“${library.name}”，正在后台建立索引`, 'success');
   return library;
+}
+
+export async function renameLibrary(id: string, name: string) {
+  const library = await client.request('patch', '/api/v1/libraries/{library_id}', {
+    params: { path: { library_id: id } }, body: { name },
+  });
+  libraries.value = libraries.value.map((item) => item.id === id ? library : item);
+  await loadLibraries();
+  toast(`图库已改名为“${library.name}”`, 'success');
+}
+
+export async function reconnectLibrary(id: string, path: string) {
+  const task = await client.request('post', '/api/v1/libraries/{library_id}/reconnect', {
+    params: { path: { library_id: id } }, body: { path },
+  });
+  await loadTasks();
+  await loadLibraries();
+  mediaEpoch.value++;
+  toast('目录已连接，对账任务已受理，请在后台任务中查看结果', 'info', {
+    label: '查看任务', run: () => { taskDrawer.value = true; },
+  });
+  return task;
+}
+
+export async function removeLibrary(id: string) {
+  await client.request('delete', '/api/v1/libraries/{library_id}', { params: { path: { library_id: id } } });
+  batch(() => {
+    libraries.value = libraries.value.filter((item) => item.id !== id);
+    if (route.value.library === id) navigate({ library: libraries.value[0]?.id }, { replace: true });
+  });
+  invalidateLibrary(id);
+  await loadLibraries();
+  toast('已移出管理，图片和浏览记录已保留', 'success');
 }
 
 // ---------------------------------------------------------------- lists
@@ -301,7 +342,7 @@ export async function refreshCurrentGroup() {
     if (statusOf(error) === 404) { toast('此文件夹已不存在', 'error'); navigate({ library }, { replace: true }); return; }
     if (currentGroup.value?.id !== group) groupError.value = { id: group, text: describeError(error) };
     // Pages that wait for the folder show the error in place; the others keep working and get a notice.
-    if (currentGroup.value?.id === group || route.value.package || route.value.view === 'samples') reportError(error, '无法读取文件夹信息：');
+    if (currentGroup.value?.id === group || route.value.package) reportError(error, '无法读取文件夹信息：');
   }
 }
 
@@ -452,11 +493,20 @@ export async function submitTask(body: JobBody): Promise<Task> {
   return task;
 }
 
-export async function controlTask(id: string, action: 'pause' | 'resume' | 'cancel') {
+type TaskAction = 'pause' | 'resume' | 'cancel';
+export const taskControls = signal<Record<string, TaskAction>>({});
+export async function controlTask(id: string, action: TaskAction) {
+  if (taskControls.peek()[id]) return;
+  taskControls.value = { ...taskControls.peek(), [id]: action };
   try {
     await client.request('post', '/api/v1/tasks/{task_id}/control', { params: { path: { task_id: id } }, body: { action } });
     await refreshTask(id);
   } catch (error) { reportError(error, '任务操作失败：'); }
+  finally {
+    const next = { ...taskControls.peek() };
+    delete next[id];
+    taskControls.value = next;
+  }
 }
 
 // ---------------------------------------------------------------- dialogs
@@ -468,27 +518,45 @@ export interface DeleteRequestState {
   title: string;
   /** Display names by target ID, for targets the result reports without a path. */
   names?: Record<string, string>;
+  libraryName?: string;
   /** Directory targets (packages, folders) are removed with every file inside, images or not. */
   includesFolders?: boolean;
   /** Called once the delete task has finished, with the IDs that were removed. */
   onDone?: (completed: Set<string>) => void;
 }
 export interface DeleteReportState { kind: 'delete-report'; taskId: string }
-export type DialogState = { kind: 'add-library' } | DeleteRequestState | DeleteReportState;
+export type LibraryAction = 'rename' | 'reconnect' | 'remove';
+export interface LibraryRequestState { kind: 'library'; action: LibraryAction; library: Library; draft?: string }
+export type DialogState = { kind: 'add-library' } | LibraryRequestState | DeleteRequestState | DeleteReportState;
 export const dialog = signal<DialogState | null>(null);
+
+export function manageLibrary(library: Library, action: LibraryAction) {
+  dialog.value = { kind: 'library', library, action };
+}
 
 export function requestDelete(request: Omit<DeleteRequestState, 'kind'>) {
   if (readonly) { toast('只读联调模式：不执行删除', 'info'); return; }
-  dialog.value = { kind: 'delete', ...request };
+  dialog.value = { kind: 'delete', libraryName: currentLibrary.value?.name, ...request };
 }
 
-/** Image the viewer showed last (index within its package), so the wall it returns to can reveal it. */
-export const lastViewed = signal<{ group: string; package: string; image: string; index?: number } | null>(null);
+export interface ViewedImage { group: string; package: string; image: string; index?: number }
+/** Viewing history stays available for recent-item highlights after a return has been handled. */
+export const lastViewed = signal<ViewedImage | null>(null);
+/** A one-time return request, separate from history so later scrolling and resizes keep their anchor. */
+export const wallReturn = signal<ViewedImage | null>(null);
+effect(() => {
+  const pending = wallReturn.value;
+  const current = route.value;
+  if (pending && (current.image || current.view !== 'packages' || current.group !== pending.group
+    || (current.package && current.package !== pending.package))) wallReturn.value = null;
+});
 
 // ---------------------------------------------------------------- UI prefs
 
 export type TileSize = 's' | 'm' | 'l';
 export const tileSize = signal<TileSize>((localStorage.getItem('gt.tileSize') as TileSize) || 'm');
+export const imageFit = signal<'contain' | 'cover'>(localStorage.getItem('gt.imageFit') === 'cover' ? 'cover' : 'contain');
+effect(() => { localStorage.setItem('gt.imageFit', imageFit.value); });
 export const sidebarOpen = signal(localStorage.getItem('gt.sidebar') !== '0');
 export const narrow = signal(window.matchMedia('(max-width: 860px)').matches);
 window.matchMedia('(max-width: 860px)').addEventListener('change', (event) => { narrow.value = event.matches; });
@@ -499,3 +567,24 @@ export function persistPrefs() {
   localStorage.setItem('gt.groupFilter', JSON.stringify(groupFilter.value));
   if (route.value.library) localStorage.setItem('gt.library', route.value.library);
 }
+
+/** Follows the system unless pinned. Only the root attribute changes, so no image reloads. */
+export type Theme = 'system' | 'light' | 'dark';
+const THEME_KEY = 'gt.theme';
+function savedTheme(): Theme {
+  try {
+    const value = localStorage.getItem(THEME_KEY);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch { return 'system'; }
+}
+export const theme = signal<Theme>(savedTheme());
+effect(() => {
+  const value = theme.value;
+  const root = document.documentElement;
+  if (value === 'system') delete root.dataset.theme;
+  else root.dataset.theme = value;
+  try {
+    if (value === 'system') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, value);
+  } catch { /* storage unavailable */ }
+});

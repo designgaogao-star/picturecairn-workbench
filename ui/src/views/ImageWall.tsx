@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { isAbort, type Edge, type Group, type ImageItem, type Package } from '../api';
-import type { Resume } from '../components/GroupHeader';
+import { GroupMenu, ImageFitOptions, ModeTabs, NarrowMarks, NarrowSizes, ResumeButton, SizeSegment, type Resume } from '../components/GroupHeader';
+import { MarkSegment } from '../components/Marks';
+import { Menu } from '../components/Menu';
 import { SelectionBar, useSelection } from '../components/Selection';
 import { Thumb } from '../components/Thumb';
-import { VirtualGrid } from '../components/VirtualGrid';
-import { count, packageParent } from '../lib/format';
+import { anchorOf, VirtualGrid } from '../components/VirtualGrid';
+import { bytes, count, packageParent } from '../lib/format';
 import { Icon } from '../lib/icons';
 import { navigate, route } from '../lib/router';
 import {
-  cachedPackage, currentPackage, imagesList, lastViewed, reportError, requestDelete, resolvePackage, tileSize,
+  cachedPackage, currentLibrary, currentPackage, imageFit, imagesList, lastViewed, reportError, requestDelete, resolvePackage, tileSize, wallReturn,
 } from '../state/app';
 import { tileTarget } from './LibraryHome';
+import { inspectionScope, useInspection, type InspectResource } from '../state/inspection';
 
 /** Package metadata by ID, from the route's package, the cache or the group's package pages. */
 export function usePackage(groupId: string, packageId: string): Package | null {
@@ -36,22 +39,28 @@ const drawnEdge = new Map<string, Edge>();
 /** Thumbnail edge the image wall loads at the current tile size, so prewarmed thumbnails are the ones it shows. */
 export const wallEdge = (): Edge => drawnEdge.get(tileSize.value) ?? tileEdge(tileTarget());
 
-interface TileProps { item: ImageItem; width: number; selecting: boolean; selected: boolean; recent: boolean; onOpen: (item: ImageItem) => void; onToggle: (id: string) => void }
+interface TileProps { item: ImageItem; width: number; selecting: boolean; selected: boolean; recent: boolean; onOpen: (item: ImageItem) => void; onToggle: (id: string, range?: boolean) => void; onInspect: (item: ImageItem) => void }
 
-function ImageTile({ item, width, selecting, selected, recent, onOpen, onToggle }: TileProps) {
+function ImageTile({ item, width, selecting, selected, recent, onOpen, onToggle, onInspect }: TileProps) {
   const edge = tileEdge(width);
   return (
-    <button class={`card image-card ${selected ? 'selected' : ''} ${recent ? 'recent' : ''}`} title={item.name}
-      aria-label={item.name} aria-pressed={selecting ? selected : undefined}
-      onClick={() => (selecting ? onToggle(item.id) : onOpen(item))}>
+    <div class={`card image-card ${selecting ? 'selecting' : ''} ${selected ? 'selected' : ''} ${recent ? 'recent' : ''}`} onFocusCapture={() => onInspect(item)}>
+      <button class="card-hit" title={item.name} aria-label={item.name} aria-pressed={selecting ? selected : undefined}
+        onClick={(event) => selecting || event.shiftKey ? onToggle(item.id, event.shiftKey) : onOpen(item)}
+        onKeyDown={(event) => {
+          if (event.key === ' ') { event.preventDefault(); onToggle(item.id, event.shiftKey); }
+          else if (event.key === 'Enter') { event.preventDefault(); onOpen(item); }
+        }} />
       <div class="card-media">
-        <Thumb id={item.id} edge={edge} />
-        {selecting && <span class={`check ${selected ? 'on' : ''}`}><Icon name="Check" size={16} /></span>}
+        <Thumb id={item.id} edge={edge} fit={imageFit.value} />
         {item.animated && <span class="badge anim">动图</span>}
         {item.error && <span class="badge bad" title={item.error}>无法解码</span>}
-        <span class="card-caption">{item.name}</span>
       </div>
-    </button>
+      <button class={`check choice-check ${selected ? 'on' : ''}`} aria-label={`选择图片：${item.name}`} aria-pressed={selected}
+        onClick={(event) => onToggle(item.id, event.shiftKey)}><Icon name="Check" size={16} /></button>
+      <div class="card-body"><span class="card-title" title={item.name}>{item.name}</span>
+        <span class="card-sub muted">{item.width && item.height ? `${item.width} × ${item.height} · ` : ''}{bytes(item.size)}</span></div>
+    </div>
   );
 }
 
@@ -70,10 +79,24 @@ export function ImageWall({ groupId, group, packageId, inline, resume }: Props) 
   const total = list.total.value;
   list.version.value;
   const pkg = usePackage(groupId, packageId);
-  const selection = useSelection(packageId);
+  const selection = useSelection(packageId, list);
+  const [focused, setFocused] = useState<ImageItem | null>(null);
+  const selectedInfo = useMemo(() => [...selection.items.values()].map((item): InspectResource => ({ kind: 'image', item })), [selection.items]);
+  const focusedInfo = useMemo((): InspectResource | null => focused?.package_id === packageId ? { kind: 'image', item: focused } : null, [focused, packageId]);
+  useInspection(inspectionScope(), focusedInfo, selectedInfo);
   const viewed = lastViewed.value?.package === packageId ? lastViewed.value.image : null;
   const recent = viewed ?? (resume?.packageId === packageId ? resume.imageId : null);
-  const reveal = recent ? list.indexOf((item) => item.id === recent) : -1;
+  const anchorKey = `images:${packageId}`;
+  const [restoredPackage, setRestoredPackage] = useState<string | null>(null);
+  const returning = wallReturn.value?.package === packageId ? wallReturn.value : null;
+  const initial = restoredPackage !== packageId && anchorOf(anchorKey) === undefined && resume?.packageId === packageId ? resume : null;
+  const target = returning?.image ?? initial?.imageId;
+  const cachedIndex = target ? list.indexOf((item) => item.id === target) : -1;
+  const reveal = cachedIndex >= 0 ? cachedIndex : returning?.index ?? initial?.index ?? -1;
+  const revealed = () => {
+    setRestoredPackage(packageId);
+    if (returning && wallReturn.peek() === returning) wallReturn.value = null;
+  };
   const tile = tileTarget();
   const r = route.value;
   const parent = pkg ? packageParent(pkg.rel, pkg.name, group?.rel) : '';
@@ -82,12 +105,12 @@ export function ImageWall({ groupId, group, packageId, inline, resume }: Props) 
 
   const removeSelected = () => {
     const names: Record<string, string> = {};
-    for (const [, item] of list.cached()) if (selection.ids.has(item.id)) names[item.id] = item.rel;
+    for (const item of selection.items.values()) names[item.id] = item.rel;
     const ids = [...selection.ids];
     requestDelete({
       targets: ids.map((id) => ({ kind: 'image' as const, id })),
       title: ids.length === 1 ? `图片“${names[ids[0]]?.split('/').pop() ?? ''}”` : `${ids.length} 张图片`,
-      names, onDone: () => selection.stop(),
+      names, onDone: selection.remove,
     });
   };
 
@@ -102,29 +125,28 @@ export function ImageWall({ groupId, group, packageId, inline, resume }: Props) 
 
   return (
     <div class={`wall image-wall ${inline ? 'inline' : ''}`}>
-      <SelectionBar selection={selection} noun="图片" unit="张" onDelete={removeSelected}>
-        {!inline && (
-          <button class="btn small" onClick={() => navigate({ library: r.library, group: groupId })} title="返回图包列表">
-            <Icon name="ArrowLeft" size={14} />图包
-          </button>
-        )}
-        <span class="wall-title" title={pkg?.rel}>{pkg ? (pkg.loose ? '散图' : pkg.name) : '…'}</span>
-        {parent && <span class="muted wall-sub" title={parent}>{parent}</span>}
-        <span class="muted num">{total === null ? '' : `${count(total)} 张`}</span>
-        {pkg && !pkg.loose && (
-          <button class="icon-btn small danger-hover" title="删除整个图包…" aria-label="删除整个图包" onClick={removePackage}>
-            <Icon name="Trash2" size={16} />
-          </button>
-        )}
+      <SelectionBar selection={selection} noun="图片" unit="张" onDelete={removeSelected}
+        after={<><SizeSegment class="at-wide" />{inline && group && currentLibrary.value
+          ? <><MarkSegment class="at-wide" groupId={group.id} value={group.state} /><GroupMenu group={group} lib={currentLibrary.value}><NarrowMarks group={group} /><NarrowSizes /><ImageFitOptions /></GroupMenu></>
+          : <Menu label="更多操作"><NarrowSizes /><ImageFitOptions />{pkg && !pkg.loose && <button role="menuitem" class="danger" onClick={removePackage}><Icon name="Trash2" size={16} />删除此图包…</button>}</Menu>}</>}>
+        <ModeTabs /><span class="toolbar-sep" />
+        {inline ? <ResumeButton resume={resume} /> : <>
+          <button class="btn subtle small" onClick={() => navigate({ library: r.library, group: groupId })} title="返回图包列表"><Icon name="ArrowLeft" size={14} /><span class="label-wide">图包</span></button>
+          <span class="toolbar-title" title={pkg?.rel}>{pkg ? (pkg.loose ? '散图' : pkg.name) : '…'}</span>
+          {parent && <span class="muted toolbar-text at-wide" title={parent}>{parent}</span>}
+          <span class="muted num toolbar-count">{total === null ? '' : `${count(total)} 张`}</span>
+        </>}
       </SelectionBar>
-      <VirtualGrid list={list} tile={tile} height={(width) => Math.round(width * 4 / 3)} anchorKey={`images:${packageId}`}
-        keyOf={(item) => item.id} label="图片" class="cards images" reveal={reveal >= 0 ? reveal : null}
+      <VirtualGrid list={list} tile={tile} height={(width) => Math.round(width) + 56} anchorKey={anchorKey}
+        onVisibleChange={selection.onVisibleChange}
+        keyOf={(item) => item.id} label="图片" class="cards images" reveal={!r.image && reveal >= 0 ? reveal : null} onReveal={revealed}
+        focusKey={!r.image ? viewed ?? focused?.id : null}
         empty={<div class="empty"><Icon name="Image" size={36} /><p>这个图包里没有图片</p></div>}
         render={(item, _index, layout) => {
           drawnEdge.set(tileSize.value, tileEdge(layout.tileWidth));
           return item
             ? <ImageTile item={item} width={layout.tileWidth} selecting={selection.active} selected={selection.ids.has(item.id)}
-              recent={item.id === recent} onOpen={open} onToggle={selection.toggle} />
+              recent={item.id === recent} onOpen={open} onToggle={selection.toggle} onInspect={setFocused} />
             : <div class="card skeleton" />;
         }} />
     </div>

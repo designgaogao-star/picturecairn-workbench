@@ -3,13 +3,15 @@ import { client, describeError, isAbort, isActive, type Page, type Task } from '
 import { bytes, count, time } from '../lib/format';
 import { Icon } from '../lib/icons';
 import { navigate, type OrganizeTab } from '../lib/router';
-import { canCancel, canPause, canResume, KIND_LABEL, kindLabel, STATE_LABEL } from '../lib/tasks';
+import { KIND_LABEL, kindLabel, STATE_LABEL } from '../lib/tasks';
 import {
-  controlTask, dialog, libraries, loadTasks, reportError, resolveGroup, submitTask, taskDrawer,
+  dialog, libraries, loadTasks, reportError, resolveGroup, submitTask, taskDrawer,
   tasks, tasksError, toast, trackTask,
 } from '../state/app';
 import { ListState, Pager } from '../views/organizeParts';
 import { TaskProgress } from './Progress';
+import { SidePanel } from './SidePanel';
+import { TaskControls } from './TaskControls';
 
 type Result = NonNullable<Task['result']>;
 const has = <K extends string>(result: Result, key: K): result is Extract<Result, Record<K, unknown>> => key in result;
@@ -76,9 +78,7 @@ function TaskRow({ task }: { task: Task }) {
       <div class="task-row-foot">
         <span class="muted">{time(task.created)}</span>
         <span class="spacer" />
-        {canPause(task) && <button class="btn tiny" onClick={() => void controlTask(task.id, 'pause')}><Icon name="Pause" size={14} />暂停</button>}
-        {canResume(task) && <button class="btn tiny" onClick={() => void controlTask(task.id, 'resume')}><Icon name="Play" size={14} />继续</button>}
-        {canCancel(task) && <button class="btn tiny" onClick={() => void controlTask(task.id, 'cancel')}><Icon name="X" size={14} />取消</button>}
+        <TaskControls task={task} size="tiny" />
         {openable && <button class="btn tiny" onClick={() => void openResult(task)}><Icon name="ExternalLink" size={14} />{task.kind === 'delete' ? '逐项结果' : '查看结果'}</button>}
       </div>
     </li>
@@ -150,12 +150,6 @@ export function TasksDrawer() {
     }, 100);
     return () => { clearTimeout(timer); controller.abort(); };
   }, [open, key, stamp]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !document.querySelector('dialog[open]')) { taskDrawer.value = false; } };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
   if (!open) return null;
   const current = history.key === key ? history : null;
   const items = current?.data?.items ?? [];
@@ -165,9 +159,7 @@ export function TasksDrawer() {
   const automatic = finished.filter(routine);
   const shown = finished.filter((task) => !routine(task));
   return (
-    <>
-      <div class="drawer-scrim" onClick={() => { taskDrawer.value = false; }} />
-      <aside class="drawer" aria-label="后台任务">
+      <SidePanel class="drawer" label="后台任务" onClose={() => { taskDrawer.value = false; }}>
         <header class="drawer-head">
           <h2>后台任务</h2>
           <button class="icon-btn" title="刷新" aria-label="刷新任务" onClick={() => { void loadTasks(); setAttempt((n) => n + 1); }}><Icon name="RefreshCw" size={16} /></button>
@@ -189,7 +181,7 @@ export function TasksDrawer() {
             <div class="vgrid-error" role="alert">
               <Icon name="CircleAlert" size={16} />
               <span>无法读取任务列表：{error}</span>
-              <button class="btn tiny" onClick={() => void loadTasks()}>重试</button>
+              <button class="btn tiny" onClick={() => { void loadTasks(); setAttempt((n) => n + 1); }}>重试</button>
             </div>
           )}
           <ListState error={null} retry={() => setAttempt((n) => n + 1)} loading={!current} />
@@ -211,7 +203,6 @@ export function TasksDrawer() {
         {current?.data && <div class="task-history-pages"><span class="muted">共 {count(current.data.total)} 个任务</span>
           <Pager page={page} pages={Math.max(1, Math.ceil(current.data.total / 50))} onPage={setPage} /></div>}
         <CacheLine />
-      </aside>
-    </>
+      </SidePanel>
   );
 }

@@ -42,7 +42,7 @@ class Catalog:
         with self.write() as db:
             db.execute('PRAGMA journal_mode=WAL')
             version = db.execute('PRAGMA user_version').fetchone()[0]
-            if version > 7:
+            if version > 8:
                 raise RuntimeError('Catalog was created by a newer application')
             if version == 0:
                 sql = (Path(__file__).parent / 'sql' / '001_catalog.sql').read_text(encoding='utf-8')
@@ -71,6 +71,10 @@ class Catalog:
             if version == 6:
                 sql = (Path(__file__).parent / 'sql' / '007_task_sources.sql').read_text(encoding='utf-8')
                 db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=7;\nCOMMIT;')
+                version = 7
+            if version == 7:
+                sql = (Path(__file__).parent / 'sql' / '008_library_management.sql').read_text(encoding='utf-8')
+                db.executescript('BEGIN IMMEDIATE;\n' + sql + '\nPRAGMA user_version=8;\nCOMMIT;')
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=5)
@@ -125,25 +129,38 @@ class Catalog:
         return self.one(f'SELECT * FROM {table} WHERE id=?', (entity_id,))
 
     def libraries(self):
-        return self.rows('SELECT * FROM libraries ORDER BY name COLLATE NOCASE,id')
+        return self.rows('SELECT * FROM libraries WHERE managed=1 ORDER BY name COLLATE NOCASE,id')
+
+    @staticmethod
+    def local_root(value):
+        if str(value).startswith(('\\\\', '//')):
+            raise ValueError('Network libraries are not supported')
+        path = Path(value).resolve(strict=True)
+        if str(path).startswith('\\\\') or not path.is_dir():
+            raise ValueError('Select a local directory')
+        return path
+
+    def check_library_root(self, path, library_id=None):
+        occupied = self.one('SELECT id FROM libraries WHERE path_key=?', (path_key(path),))
+        if occupied and occupied['id'] != library_id:
+            raise ValueError('该目录已有图库记录，请重新添加原目录以恢复原记录')
+        for lib in self.libraries():
+            if lib['id'] == library_id:
+                continue
+            other = Path(lib['path'])
+            if path.is_relative_to(other) or other.is_relative_to(path):
+                raise ValueError('Library roots must not overlap')
 
     def add_library(self, path, name=None):
         existing = self.one('SELECT * FROM libraries WHERE path_key=?', (path_key(Path(path).absolute()),))
         if existing:
             return existing
-        path = Path(path).resolve(strict=True)
-        if not path.is_dir() or not path.drive and str(path).startswith('//'):
-            raise ValueError('Select a local directory')
-        if str(path).startswith('\\\\'):
-            raise ValueError('Network libraries are not supported')
+        path = self.local_root(path)
         key = path_key(path)
         existing = self.one('SELECT * FROM libraries WHERE path_key=?', (key,))
         if existing:
             return existing
-        for lib in self.libraries():
-            other = Path(lib['path'])
-            if path.is_relative_to(other) or other.is_relative_to(path):
-                raise ValueError('Library roots must not overlap')
+        self.check_library_root(path)
         library_id = new_id()
         self.execute('INSERT INTO libraries(id,name,path,path_key) VALUES(?,?,?,?)',
                      (library_id, name or path.name or str(path), str(path), key))

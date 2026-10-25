@@ -11,6 +11,7 @@ from gallery.images import Images
 from gallery.indexer import Indexer
 from gallery.instance import Instance
 from gallery.jobs import Busy, Resources, Tasks
+from gallery.libraries import Libraries
 from gallery.organize import Organize
 from gallery.watcher import Watcher
 
@@ -41,6 +42,7 @@ class Service:
                                    migrate=self._migrate, audit=self._audit)
         self.images.cache_pressure = self._cache_pressure
         self.watcher = Watcher(self.catalog, self.tasks, settings.watch, self.indexer.excluded)
+        self.libraries = Libraries(self.catalog, self.tasks, self.watcher, self.events)
         self.stop_event = threading.Event()
         self.maintenance = None
         self.shutdown_callback = lambda: None
@@ -84,7 +86,7 @@ class Service:
 
     def _exclude_legacy(self, source):
         source = Path(source).resolve()
-        roots = {Path(library['path']) for library in self.catalog.libraries()}
+        roots = {Path(library['path']) for library in self.catalog.rows('SELECT path FROM libraries')}
         excluded = [source / 'cache', source / 'thumbs'] if source in roots else [source]
         self.indexer.excluded.update(excluded)
 

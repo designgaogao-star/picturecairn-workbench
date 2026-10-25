@@ -1,0 +1,38 @@
+name: 缺陷反馈
+description: 图片加载、位置恢复、图库、整理或桌面运行问题
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 构建日期与运行方式
+      description: 填写构建日期或源码摘要，以及便携包或源码运行；构建来源可在 release-manifest.json 查看。
+      placeholder: 开发预览，2026-10-25 构建，Windows x64 便携包
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 版本、显示缩放与图库磁盘
+      placeholder: Windows 11，125%，本地机械硬盘
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤、实际结果和预期结果
+      description: 尽量使用新建的临时图库复现。提供路径结构时可用虚构名称。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 错误提示、任务结果或日志片段
+      description: 可以附已去除个人路径的日志、合成图片或截图。请勿上传真实图库数据库、原图、缓存或删除日志全文。
+  - type: checkboxes
+    id: data
+    attributes:
+      label: 数据保护
+      options:
+        - label: 我已检查附件，不含私人图片、个人路径或真实图库数据。
+          required: true

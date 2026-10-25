@@ -1,0 +1,68 @@
+name: Build Windows preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      long_run:
+        description: 'Run the full 60-minute desktop workload'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: '0.11.21'
+          python-version: '3.14'
+          enable-cache: true
+      - name: Build portable ZIP and checksums
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/build.ps1
+      - name: Validate the assembled desktop
+        shell: pwsh
+        env:
+          LONG_RUN: ${{ inputs.long_run }}
+        run: |
+          $desktop = (Get-ChildItem -LiteralPath build-out -Filter GalleryTool.exe -File -Recurse | Select-Object -First 1).FullName
+          if (-not $desktop) { throw 'The desktop executable was not produced.' }
+          $checks = @{ Desktop = $desktop; SkipUi = $true }
+          if ($env:LONG_RUN -eq 'true') { $checks.SoakMinutes = 60 }
+          & ./scripts/verify.ps1 @checks
+      - name: Upload preview candidate
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x64-preview-candidate
+          path: |
+            build-out/*/*.zip
+            build-out/*/*.sha256
+            build-out/*/release-manifest.json
+            build-out/*/archive-verification.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Keep runtime evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-runtime-evidence
+          path: |
+            output/ui-qa/**/*.json
+            output/ui-qa/**/*.log
+            output/quality/**/result.json
+            output/quality/**/renderer.jsonl
+            output/quality/**/processes.jsonl
+            output/quality/**/failure.txt
+            output/quality/**/exit-check.log
+          if-no-files-found: ignore
+          retention-days: 7

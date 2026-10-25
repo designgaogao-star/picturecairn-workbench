@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import errno
 import hashlib
 import json
 import math
@@ -92,11 +93,16 @@ def backend(directory, executable=None, source_tree=None):
         process = subprocess.Popen(command, cwd=source_tree, env=environment, stdout=output, stderr=output)
         try:
             deadline = time.monotonic() + 30
-            while not ready.is_file():
+            while True:
                 if process.poll() is not None or time.monotonic() >= deadline:
                     raise RuntimeError(log.read_text(encoding='utf-8'))
+                try:
+                    descriptor = json.loads(ready.read_text(encoding='utf-8'))
+                    break
+                except OSError as error:
+                    if error.errno not in (errno.ENOENT, errno.EACCES, errno.EPERM):
+                        raise
                 time.sleep(.01)
-            descriptor = json.loads(ready.read_text(encoding='utf-8'))
             with httpx.Client(base_url=descriptor['url'], timeout=120) as client:
                 try:
                     yield client, descriptor['pid']
@@ -166,6 +172,7 @@ def run(client, images, package, library):
             report['prewarm_result'] = wait_task(client, job.json()['id'])['result']
             wait_task(client, scan.json()['id'])
             measure('warm_preview', images * 3, 1600, 4)
+            measure('warm_thumbnail', images * 5, 400, 4)
         finally:
             stopped.set()
             responsive.result(timeout=10)
