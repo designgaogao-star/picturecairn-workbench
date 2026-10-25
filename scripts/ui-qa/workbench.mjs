@@ -21,6 +21,7 @@ const desktopToken = 'isolated-workbench-qa';
 environment.GALLERY_DESKTOP_TOKEN = desktopToken;
 const children = [];
 const checks = [];
+const serverErrors = [];
 const check = (name, condition) => { assert.ok(condition, name); checks.push(name); };
 let browser, server, backendUrl, page;
 const stageIndex = process.argv.indexOf('--stage');
@@ -373,6 +374,12 @@ try {
   const base = server.resolvedUrls.local[0];
   browser = await chromium.launch({ channel: 'msedge', headless: true });
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  page.on('response', (response) => {
+    if (response.status() >= 500) {
+      serverErrors.push({ url: response.url(), status: response.status() });
+      if (serverErrors.length > 32) serverErrors.shift();
+    }
+  });
   const groups = (await get(`/api/v1/libraries/${lib.id}/groups`)).items;
   const group = groups.find((item) => item.name === '山色');
   assert.ok(group);
@@ -392,10 +399,16 @@ try {
       return {
         route: router.route.value, lastViewed: app.lastViewed.value,
         cards: [...document.querySelectorAll('.image-card')].map((card) => ({ name: card.textContent, class: card.className })),
+        thumbnails: [...document.querySelectorAll('.thumb')].map((thumb) => {
+          const rect = thumb.getBoundingClientRect(), image = thumb.querySelector('img');
+          return { className: thumb.className, top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right,
+            width: rect.width, height: rect.height, src: image?.getAttribute('src'),
+            complete: image?.complete, naturalWidth: image?.naturalWidth };
+        }),
         grids: [...document.querySelectorAll('.vgrid')].map((grid) => ({ top: grid.scrollTop, height: grid.clientHeight, scrollHeight: grid.scrollHeight })),
       };
     });
-    await writeFile(path.join(output, 'failure.json'), JSON.stringify({ error: String(error), checks, state }, null, 2));
+    await writeFile(path.join(output, 'failure.json'), JSON.stringify({ error: String(error), checks, serverErrors, state }, null, 2));
   }
   throw error;
 } finally {
@@ -408,5 +421,10 @@ try {
       child.kill();
       await exited;
     }
+  }
+  try {
+    await writeFile(path.join(output, 'data-server.log'), await readFile(path.join(temporary, 'data/server.log')));
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.warn(`Unable to retain temporary service log: ${error.message}`);
   }
 }
