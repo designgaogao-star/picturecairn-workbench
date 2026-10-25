@@ -10,6 +10,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 REQUIRED_FILES = (
@@ -110,7 +111,19 @@ def check(root: Path) -> dict:
     return report
 
 
+def configure_output() -> None:
+    """Keep Chinese diagnostics printable on Windows runners using cp1252."""
+    stream = getattr(sys, "stdout", None)
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> int:
+    configure_output()
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", help="输出机器可读 JSON")

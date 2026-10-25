@@ -1,5 +1,6 @@
 """The public-release check catches private paths without blocking examples."""
 
+import io
 import json
 import subprocess
 from pathlib import Path
@@ -64,3 +65,20 @@ def test_public_check_allows_generic_development_examples(tmp_path, monkeypatch)
     assert report["personal_paths"]["passed"]
     assert report["development_metadata"]["passed"]
     assert not report["publish_ready"]
+
+
+def test_configure_output_requests_utf8(monkeypatch):
+    class Stream(io.StringIO):
+        def __init__(self):
+            super().__init__()
+            self.options = None
+
+        def reconfigure(self, **options):
+            self.options = options
+
+    stream = Stream()
+    monkeypatch.setattr(release.sys, "stdout", stream)
+
+    release.configure_output()
+
+    assert stream.options == {"encoding": "utf-8", "errors": "replace"}
