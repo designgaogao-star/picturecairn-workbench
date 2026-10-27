@@ -1,12 +1,12 @@
-# Stillmark D「压角印」工程接入
+# PictureCairn D「压角印」工程接入
 
 用户于 2026-10-24 确认 D「压角印」。沿用设计负责人交付的路径、比例与墨／纸／朱色，不重新设计图形或工作台布局。
 
 ## 名称与兼容
 
-对外统一使用 **Stillmark 影迹图片工作台**，英文描述为 Stillmark Image Workbench。源码仓库为 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，尚无二进制 Release，最新验收以发布清单为准。
+当前源码和未发布候选对外统一使用 **PictureCairn 影标图片工作台**，英文描述为 PictureCairn Image Workbench。源码仓库仍为 [designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)。公开的 [Windows 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 是品牌迁移前的 Stillmark 历史包，不能作为 PictureCairn 已随包发布的证据；当前品牌候选以本文件的候选记录和源码验证为准。
 
-Windows AppUserModelID 为 `GalleryTool.StillmarkWorkbench`，应用名、窗口标题、托盘提示、PE 产品信息均使用完整名称。`GalleryTool.exe`、`GalleryTool.local.json`、`GALLERY_DATA`、原数据目录和 API 保持兼容，不因品牌更名迁移用户数据。未来公开发布的包管理器 ID 应带实际发布者前缀，本轮不抢占无前缀的 npm、winget 或文件扩展名。
+Windows AppUserModelID 为 `GalleryTool.PictureCairnWorkbench`，应用名、窗口标题、托盘提示、PE 产品信息均使用完整名称。`GalleryTool.exe`、`GalleryTool.local.json`、`GALLERY_DATA`、原数据目录和 API 保持兼容，不因品牌更名迁移用户数据。未来公开发布的包管理器 ID 应带实际发布者前缀，本轮不抢占无前缀的 npm、winget 或文件扩展名。
 
 ## 界面
 
@@ -32,12 +32,16 @@ SVG 在构建时以可信常量接入，不引入用户或服务端提供的 SVG
 
 ## 实际产物验证
 
-当前开发包：`build-out/20261025-161637/GalleryTool/GalleryTool.exe`；首个品牌候选为 `20261024-232328`。图片内存及占位图释放在 040954 包通过行为与长测验收；当前包只调整未发布命名并加入公开仓库卫生检查，重新通过实际桌面、元数据与品牌检查。完整来源和入口状态以 [发布收尾记录](release-readiness-20261024.md) 为准。
+公开的 Stillmark 历史包为 `build-out/20261025-164104/GalleryTool/GalleryTool.exe`，产品源码为 `28faca1`；它包含 WAL 生命周期、缩略图迟到事件和在途分页刷新修复，但不包含 PictureCairn 品牌迁移。首个品牌候选为 `20261024-232328`，中间命名整理包 `20261025-161637`、040954 的图片内存与占位图验收保留于 [历史收尾记录](release-readiness-20261024.md)。
+
+PictureCairn 当前候选为 `build-out/20261027-023425/GalleryTool/GalleryTool.exe`，对应便携包 `GalleryTool-dev-win-x64.zip`，ZIP SHA-256 为 `5c4fcd5c08f831e5aaf0223e9102d0e9a592a239e755d0b27284f1c5d0e67004`，共 438 个产物。该候选已完成品牌、实际 Electron 流程、退出和工程检查，但尚未提交、推送或替换公开 Release；它是开发候选，不是新的公开版本。
+
+公开包的运行证据和历史内存观察见 [本次验收](github-preview-verification-20261026.md)；限定扫描候选 `20261026-105024` 的来源、限制与性能见 [候选验收与交付](candidate-verification-20261026.md)，品牌候选 `20261027-023425` 的运行验证见本节记录和对应的 `output/ui-qa/` 证据。三者的结果不能混用。
 
 - 源码浏览器品牌检查 13 项通过，实际 Electron 品牌检查 17 项通过。
 - 检查包括应用内主题优先、朱色、转曲字标、启动深浅、favicon、390px 侧栏、应用名／ID、黑白四档原生位图及主题更新刷新托盘。
 - 完整实际桌面流程还覆盖目录选择 IPC、图片墙、GIF/WebP、位置恢复、整理、逐项结果、图库管理 22 项、动态端口重启和所属后端退出。
-- 当前包品牌证据：`output/ui-qa/integration-1792916370612/brand-verification.json` 及同目录深浅／启动／窄屏截图。此前 040954 的四项专项退出记录为 `output/ui-qa/shutdown-1792872966145/result.json`；本次重新验证正常退出与重启，未重复阻塞线程专项。主题截图已等待有限 CSS 过渡完成，避免截取中间色。
+- PictureCairn 候选的本机品牌证据为 `output/ui-qa/integration-1793039783447/brand-verification.json`，四项退出证据为 `output/ui-qa/shutdown-1793039826551/result.json`；这两份记录对应 `build-out/20261027-023425`，不是公开 Release。公开历史包的品牌证据为 `output/ui-qa/integration-1792951374652/brand-verification.json`，历史 161637 的证据为 `output/ui-qa/integration-1792916370612/brand-verification.json`。主题截图均等待有限 CSS 过渡完成，避免截取中间色；完整退出与长期内存的范围单列于各自验收记录。
 
 截图全部来自生成的几何图片。设计提案中的场景预览仍属于样机，不能替代实际产品截图。截图、位图、ICO、输出与用户数据均不暂存或提交。
 
@@ -56,4 +60,4 @@ SVG 在构建时以可信常量接入，不引入用户或服务端提供的 SVG
 
 并排查看浅色、深色与 16/24/32px 后，D 的方形画面、左下角印与切缝轮廓仍清晰；与 ImageGlass 的字形、digiKam/XnView/FastStone 的镜头或眼睛、Bridge 的 Br 和 Eagle 的动物轮廓有明显区别。小尺寸的两块及间隙可以辨认，但“图片／位置／核验”的具体含义仍需要名称和产品使用建立，不能把设计解释当作用户研究结论。
 
-同名检索风险沿用 [原始提案](brand/stillmark/README.md) 第 10 节，尤其是相邻品类的 Windows 截图工具。此轮决定保留全称并做命名空间区分；图标对照和工程接入均不构成正式商标检索或注册结论。
+同名检索风险沿用 [原始提案](brand/picturecairn/README.md) 第 10 节，尤其是相邻品类的 Windows 截图工具。此轮决定保留全称并做命名空间区分；图标对照和工程接入均不构成正式商标检索或注册结论。

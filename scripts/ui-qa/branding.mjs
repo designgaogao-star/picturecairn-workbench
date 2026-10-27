@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const product = 'Stillmark 影迹图片工作台';
+const product = 'PictureCairn 影标图片工作台';
 
 export async function brandingChecks(page, base, output, application) {
   const checks = [];
@@ -29,7 +29,7 @@ export async function brandingChecks(page, base, output, application) {
   }
   const favicon = await page.locator('link[rel="icon"]').getAttribute('href');
   const response = await fetch(new URL(favicon, page.url()));
-  check('正式 favicon 可读取', response.ok && (await response.text()).includes('Stillmark'));
+  check('正式 favicon 可读取', response.ok && (await response.text()).includes('PictureCairn'));
 
   // Hold only the isolated backend's library read so the otherwise brief startup state can be inspected.
   for (const mode of ['light', 'dark']) {
@@ -83,7 +83,7 @@ export async function brandingChecks(page, base, output, application) {
       return { name: app.getName(), id: helper.APP_USER_MODEL_ID, variants, refreshed };
     });
     check('桌面应用使用完整产品名', native.name === product);
-    check('Windows 应用标识有独立命名空间', native.id === 'GalleryTool.StillmarkWorkbench');
+    check('Windows 应用标识有独立命名空间', native.id === 'GalleryTool.PictureCairnWorkbench');
     check('黑白托盘四种缩放像素正确', native.variants.length === 8 && native.variants.every((item) => item.passed));
     check('系统主题更新会刷新托盘', native.refreshed);
   }

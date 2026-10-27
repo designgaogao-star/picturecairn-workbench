@@ -1,4 +1,4 @@
-# Stillmark 后端架构
+# PictureCairn 后端架构
 
 ## 所有权
 
@@ -24,6 +24,8 @@
 目录结构是权威内容来源，SQLite 是浏览查询与用户状态的权威来源。所有根目录有独立 ID；目录、图包、图片使用持久 ID。在可确定身份时通过 NTFS 文件 ID 保留改名后的引用，硬链接分别建记录。
 
 源图片增删只影响对应目录，列表请求不扫描文件系统。失败目录保留旧记录并报告错误；根目录离线不意味着内容消失。首次和启动校验可后台逐文件扫描；每十分钟检查目录变化，每小时完整核对一次。文件监听触发的目录扫描强制核对文件，用户也可显式刷新。
+
+限定目录的扫描从最近祖先图包继承 package ID：分组本身使用其散图图包，深层空目录使用上级正常图包。目录中没有直接图片不会扩大为全库扫描；相似分析准备时只强制刷新选定分组子树，完整核验分别刷新两个图包。目录、分组和图包身份仍来自持久索引。
 
 维护间隔由 GALLERY_MAINTENANCE_INTERVAL 或 --maintenance-interval 配置；--no-scan 同时关闭启动与维护扫描。异常或取消将扫描状态置为 interrupted，重启清除残留 scanning/pending。待处理的同图库扫描合并，正在执行的扫描允许留一个后续扫描，以免遗漏枚举期间新发生的变化。
 
@@ -87,10 +89,10 @@ Python 和 npm 依赖分别锁定于 uv.lock 与 package-lock.json。唯一构�
 
 构建附带 release-manifest.json，记录版本、Git 分支/HEAD/未提交状态、逐文件源码 SHA-256、运行时版本和逐文件产物摘要。清单只证明构建来源，实际桌面、性能和长测验收另附证据。scripts/verify.ps1 汇总源码与实际桌面检查，默认排除两个原生回收站探针。
 
-Stillmark 的 D「压角印」资产以 docs/brand/stillmark 为源。界面使用固定深浅或 currentColor 的转曲稿，跟随应用内主题；查看器使用纯白单色稿。scripts/build-brand.mjs 和 brand_assets.py 生成忽略目录中的七档 ICO、黑白四档托盘位图；Electron 按系统任务栏主题更新托盘。stamp-desktop.mjs 从原 Electron 生成新 exe 并写入图标／版本，不修改依赖。数据目录、GalleryTool.exe 和 GalleryTool.local.json 保留兼容，品牌接入不迁移用户数据，详见品牌集成记录。
+PictureCairn 的 D「压角印」资产以 docs/brand/picturecairn 为源。界面使用固定深浅或 currentColor 的转曲稿，跟随应用内主题；查看器使用纯白单色稿。scripts/build-brand.mjs 和 brand_assets.py 生成忽略目录中的七档 ICO、黑白四档托盘位图；Electron 按系统任务栏主题更新托盘。stamp-desktop.mjs 从原 Electron 生成新 exe 并写入图标／版本，不修改依赖。数据目录、GalleryTool.exe 和 GalleryTool.local.json 保留兼容，品牌接入不迁移用户数据，详见品牌集成记录。
 
 collect_licenses.py 从锁定分发包提取运行时与构建依赖的许可原文，附 Python 解释器、前端库及机器可读清单；包根保留 Electron 的 LICENSE，项目许可另存为 LICENSE.txt。build.ps1 生成 ZIP 与 SHA-256，并用 write_release_manifest.py --archive 逐项流式核对 ZIP 内容；--verify 同时检查应用目录的文件与当前运行源码，后续文档／维护脚本变化单列。
 
-Vite 配置使用 ui/vite.config.mts，明确采用 ESM。Windows CI 与手工预览包工作流只调用已有验证／构建入口，手工构建默认包含完整一小时桌面负载，不自动发布 Release。源码已公开至 designgaogao-star/stillmark-workbench，远程 Windows 检查和打包验收的当前结果以 Actions 及发布清单为准。verify.ps1 先构建正式前端，再运行会请求静态页面的 Python HTTP 测试，支持没有 ui/dist 的干净 checkout。
+Vite 配置使用 ui/vite.config.mts，明确采用 ESM。Windows CI 与手工预览包工作流只调用已有验证／构建入口，手工构建默认包含完整一小时桌面负载，不自动发布 Release。源码已公开至 designgaogao-star/picturecairn-workbench，远程 Windows 检查和打包验收的当前结果以 Actions 及发布清单为准。verify.ps1 先构建正式前端，再运行会请求静态页面的 Python HTTP 测试，支持没有 ui/dist 的干净 checkout。
 
 正式前端的所有 JSON 请求使用类型客户端。客户端可注入 HTTP transport；ui/src/api.ts 在开发只读模式中于此拒绝全部非 GET 请求，避免不同视图遗漏检查。生产构建不启用该限制，后端权限、路径校验及文件操作规则不依赖此开发开关。

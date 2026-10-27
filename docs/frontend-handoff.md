@@ -4,7 +4,7 @@
 
 ## 联调
 
-首份 [Windows 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已公开，以日期和源码摘要识别。API 的产品版本字段仍使用构建时的开发占位值；`api_version: "1"` 与 `/api/v1` 表示接口契约编号。
+首份 [Windows 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 已公开，但它是品牌迁移前的 Stillmark 历史包；当前源码和未发布候选使用 PictureCairn。API 的产品版本字段仍使用构建时的开发占位值；`api_version: "1"` 与 `/api/v1` 表示接口契约编号。
 
 联调使用独立临时数据目录，以 `--port 0 --ready-file <临时就绪文件>` 启动后端，从该文件读取实际回环地址，并通过 `GALLERY_BACKEND` 传给 Vite。Vite 未设置该变量时默认代理到 `http://127.0.0.1:8765`；联调时用本轮临时后端的实际地址覆盖。OpenAPI 在 `/openapi.json`，所有业务接口在 `/api/v1`。重新生成契约用 `npm run contract`；不要手动编辑生成的 schema.d.ts。
 

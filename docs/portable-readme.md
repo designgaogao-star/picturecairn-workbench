@@ -1,8 +1,8 @@
-# Stillmark 影迹图片工作台 Windows 预览版
+# PictureCairn 影标图片工作台 Windows 预览版
 
 这是自带后端与运行环境的 Windows x64 开发预览便携包，使用时不需要安装 Python、Node.js 或开发依赖。
 
-显示名称为 Stillmark 影迹图片工作台。为兼容既有启动脚本，本版可执行文件仍名为 GalleryTool.exe，配置与数据目录也继续沿用旧名称。该预览包未做代码签名。
+显示名称为 PictureCairn 影标图片工作台。为兼容既有启动脚本，本版可执行文件仍名为 GalleryTool.exe，配置与数据目录也继续沿用旧名称。该预览包未做代码签名。
 
 1. 将整个 ZIP 解压到可写目录，保留 resources 等文件夹。
 2. 双击 GalleryTool.exe。

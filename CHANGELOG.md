@@ -1,10 +1,17 @@
 # 开发更新记录
 
+## 工作台收尾 · 2026-10-27
+
+- 安装器视觉样机补齐可编辑路径、动态进度、取消、失败重试、许可说明和窄屏布局；它仍是设计样机，当前正式构建入口仍为 Windows 便携包。
+- README 明确区分当前 PictureCairn 源码与公开的 Stillmark 历史包，避免把历史下载误认成当前品牌候选。
+- `build-out/20261027-062443/` 重新生成最终 PictureCairn 开发候选，438 个产物、来源清单、ZIP 校验和均通过；ZIP SHA-256 为 `5523018d8dba400dd00e45afa3bb09e24df8f554de9c9a6704d98fd2c08d10dc`。
+- 临时图库桌面长测完成 480 分钟／1440 轮，页面错误为空，独立审计通过；最终截图采集超时已单独记录，不影响运行结论。
+
 ## 开发预览 · 2026-10-26
 
-首份 [Windows x64 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已公开，构建 `20261025-164104`、源码 `28faca1`，按日期和来源标识，不宣称稳定版或正式版本号。具体测试范围与限制见 [验收记录](docs/github-preview-verification-20261026.md)。
+首份 [Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 已公开；该附件是品牌迁移前的 Stillmark 历史包，构建 `20261025-164104`、源码 `28faca1`，按日期和来源标识，不宣称稳定版或正式版本号。当前源码已迁移为 PictureCairn，尚未替换该公开附件。具体测试范围与限制见 [验收记录](docs/github-preview-verification-20261026.md)。
 
-- 使用 Stillmark 影迹图片工作台名称与 D「压角印」标识；深浅主题、查看器、窗口和托盘采用相应设计。程序文件和数据目录继续兼容 GalleryTool 命名。
+- 当前源码和未发布候选使用 PictureCairn 影标图片工作台名称与 D「压角印」标识；公开的首份附件仍保留 Stillmark 名称。深浅主题、查看器、窗口和托盘采用相应设计。程序文件和数据目录继续兼容 GalleryTool 命名。
 - 正式图片工作台包含多图库、真实文件夹与图包浏览、图片墙、GIF/WebP 动画查看器、包内导航与位置恢复。
 - 图库可修改显示名、搬迁后重新连接、移出与重新添加恢复；原文件、索引、位置、标记、缓存和历史保留。
 - 大图包分页与虚拟滚动，支持键盘跨页定位和快速切换；关闭查看器、调整列数、刷新及桌面重启后保留位置与偏好。

@@ -1,11 +1,11 @@
-# GitHub Windows 开发预览验收 · 2026-10-26
+# GitHub Windows 开发预览验收 · 2026-10-26（Stillmark 历史包）
 
-本次包包含 SQLite WAL 生命周期、缩略图状态归属和在途分页刷新修复。旧 `ffadf60` 包的验收保留在 [历史记录](github-preview-verification-20261025.md)，不作为本次包的通过证据。[Windows x64 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已于 2026-10-26 公开。
+本次包包含 SQLite WAL 生命周期、缩略图状态归属和在途分页刷新修复，是 PictureCairn 品牌迁移前的 Stillmark 历史包。旧 `ffadf60` 包的验收保留在 [历史记录](github-preview-verification-20261025.md)，不作为本次包的通过证据。[Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 已于 2026-10-26 公开。当前源码已迁移为 PictureCairn；本记录只证明该历史包的实际范围，不证明新品牌已经随 Release 发布。
 
 ## 来源与已通过检查
 
 - 构建来源：`28faca184a4b90a9da95f9567ab5558115568ef9`。工作区保留共享分支 `feat/backend-v2`，该提交已同步至 `main`。
-- [main Windows 检查 40212760133](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760133) 与 [共享分支检查 40212760158](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212760158) 均成功，包含原分页失败提示与原位重试断言。
+- [main Windows 检查 40212760133](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40212760133) 与 [共享分支检查 40212760158](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40212760158) 均成功，包含原分页失败提示与原位重试断言。
 - 本机统一验证 `scripts/verify.ps1` 通过：113 项 Python、Ruff、契约、严格 TypeScript、品牌与 UI 构建、14 项交互回归、四项退出、126 项工作台、只读联调与临时业务流程。两项原生回收测试按约束排除。
 - 本机日志为 `output/quality/github-pagination-state-20261026.log`，工作台和业务记录为 `output/ui-qa/workbench-1792946234195`、`output/ui-qa/integration-1792946298653`。已查看桌面和窄屏的合成图库截图；这些本机输出不进入源码提交。
 
@@ -21,14 +21,14 @@ SQLite 曾在短请求之间关闭全部连接，反复清理和恢复 WAL。缩
 
 ## 实际包与追加验收
 
-- [实际包构建与完整一小时负载 40212772400](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 成功。原始采样已重算：3600.007 秒、180 轮、121 个进程快照、页面错误为空、五个采样进程已退出。后半小时总私有内存斜率 +1.058 MiB/分钟、标准中位数变化 +16.35 MiB；句柄斜率 −0.142/分钟，JS 堆斜率 −0.0105 MiB/分钟，均在原门槛内。最大实际 DOM 530，采样时未完成请求最多一项，峰值总私有内存 354.90 MiB、RSS 449.18 MiB。复核范围是已上传的时序和退出记录，未取得长测的 run.json、临时数据库与 server.log，不称为 audit_soak.py 全量独立审计。
-- [十轮隔离业务流程 40213558997](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40213558997) 失败：八轮完成，第九轮在目录重连后等待扫描任务时，一个请求超过原有十秒门槛，第十轮没有执行。保留的九份临时服务日志没有 ERROR，原始失败没有具体路由与请求阶段，暂不能把它归因于后端或客户端。artifact 的 20,978,644 bytes 已完整下载并核对 GitHub SHA-256 `89f68d1db7ffc03facbc3f910022c9c7b23e2760c282d2e7d31e361392dd4eba`，全部 305 项已解压，证据在 `output/github-40213558997/`。该轮失败时保留草稿；后续默认启动复验与最终发布见下文。
+- [实际包构建与完整一小时负载 40212772400](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40212772400) 成功。原始采样已重算：3600.007 秒、180 轮、121 个进程快照、页面错误为空、五个采样进程已退出。后半小时总私有内存斜率 +1.058 MiB/分钟、标准中位数变化 +16.35 MiB；句柄斜率 −0.142/分钟，JS 堆斜率 −0.0105 MiB/分钟，均在原门槛内。最大实际 DOM 530，采样时未完成请求最多一项，峰值总私有内存 354.90 MiB、RSS 449.18 MiB。复核范围是已上传的时序和退出记录，未取得长测的 run.json、临时数据库与 server.log，不称为 audit_soak.py 全量独立审计。
+- [十轮隔离业务流程 40213558997](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40213558997) 失败：八轮完成，第九轮在目录重连后等待扫描任务时，一个请求超过原有十秒门槛，第十轮没有执行。保留的九份临时服务日志没有 ERROR，原始失败没有具体路由与请求阶段，暂不能把它归因于后端或客户端。artifact 的 20,978,644 bytes 已完整下载并核对 GitHub SHA-256 `89f68d1db7ffc03facbc3f910022c9c7b23e2760c282d2e7d31e361392dd4eba`，全部 305 项已解压，证据在 `output/github-40213558997/`。该轮失败时保留草稿；后续默认启动复验与最终发布见下文。
 - 本次构建 `20261025-164104` 的 ZIP 为 234,215,319 bytes，SHA-256 `6d490005045ce982b0e8ea7aa7fb81940a2bc0607e9863c70772842c4674424c`，440 个产物全部匹配。295 个来源与提交 28faca1 逐项核对，五项仅为 LF/CRLF 差异，没有内容不一致。本机在独立目录解压，用 Node 24.22.1 驱动同一实际 Electron 包通过目录选择、浏览、GIF/WebP 像素变化、整理、22 项图库管理、17 项品牌、动态端口重启和所属后端退出；证据为 `output/ui-qa/integration-1792951374652`。后续 QA／文档改动与包的运行源码没有差异，当前工作区比较另列于 `output/github-40212772400/app-verification.json`。
 - 旧草稿的四个附件、构建来源和验收摘要已整体替换；公开前再次逐项核对大小、GitHub digest 与本地 SHA-256，均一致。
 
 请求诊断现已补充最近 256 次请求的方法、路由、响应头／正文阶段、耗时；失败后通过独立 HTTP 客户端做一次一秒健康探测，然后仍抛出原始失败。手动多轮流程可用 `--trace-backend` 为隔离源码后端采集线程栈，不修改生产入口或十秒请求门槛。本机带记录的十轮原完整业务均通过，请求时序与线程记录已逐份核对；这不能证明远程超时已解决。
 
-默认启动的追加复验现已完成：[40220316275](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40220316275) 成功，完整 artifact 的 23,601,164 bytes 经 GitHub SHA-256 `0d761dde60d461bafb557c3be7432124f249d518578c8b79c49448b09783373c` 校验，341 个文件全部解压。十份图库生命周期记录和服务日志已逐份读取，358 次请求完成，没有 ERROR 或周期栈采集。本机同为 Node 24.22.1 的默认启动十轮也通过。重复通过不等于已取得历史 500 或原远程超时的根因。
+默认启动的追加复验现已完成：[40220316275](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40220316275) 成功，完整 artifact 的 23,601,164 bytes 经 GitHub SHA-256 `0d761dde60d461bafb557c3be7432124f249d518578c8b79c49448b09783373c` 校验，341 个文件全部解压。十份图库生命周期记录和服务日志已逐份读取，358 次请求完成，没有 ERROR 或周期栈采集。本机同为 Node 24.22.1 的默认启动十轮也通过。重复通过不等于已取得历史 500 或原远程超时的根因。
 
 另外故意阻塞一次测试客户端的任务查询：原检查在 10005ms 后失败，记录了具体 GET 路由、headers 阶段与健康探测 200。该注入仅验证诊断能区分客户端停滞和后端健康，不能当作原远程错误的根因或产品通过证据。
 
@@ -40,13 +40,13 @@ SQLite 曾在短请求之间关闭全部连接，反复清理和恢复 WAL。缩
 
 ## 偏好保存与退出专项
 
-同源码 main [40220047575](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40220047575) 在退出专项第三次保存时失败；原现场没有保存文件或渲染器值，不能断言唯一根因。独立受控复现已确认旧测试前提无效：直接将 localStorage 的尺寸写为 `l`，绕过 Signals 中仍为 `m` 的界面状态，后续宽窄布局变化会按实际界面状态写回 `m`。QA 现在通过空临时图库的真实尺寸控件操作，并用同一 Electron 执行队列确认迟到读取结束。
+同源码 main [40220047575](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40220047575) 在退出专项第三次保存时失败；原现场没有保存文件或渲染器值，不能断言唯一根因。独立受控复现已确认旧测试前提无效：直接将 localStorage 的尺寸写为 `l`，绕过 Signals 中仍为 `m` 的界面状态，后续宽窄布局变化会按实际界面状态写回 `m`。QA 现在通过空临时图库的真实尺寸控件操作，并用同一 Electron 执行队列确认迟到读取结束。
 
 原四项检查、1.5 秒生产保存超时、十秒精确值等待与 6.5 秒退出门槛保留。新版首轮通过；随后源码五次和实际包前三次通过，总第九次在退出门槛失败，第三项保存已通过，第十次和后续统一验证未执行。失败后端日志显示已完成应用关闭，但缺少桌面退出时序，具体原因仍未确定。独立生命周期诊断随后对同一实际包九次通过，不能据此撤销原失败。
 
 正式专项已补充窗口 close／closed、渲染器销毁、app before-quit／will-quit／quit 与驱动观察到的进程退出时间，直接写入每轮临时输出；不改生产关闭流程。本轮源码五次、同一实际包五次均通过，四项条件完整，退出 2539–2785ms；十份记录均有 renderer-destroyed、quit 和退出码 0。汇总为 `output/quality/preferences-lifecycle-20261026/summary.json`。随后完整 `scripts/verify.ps1` 通过：113 项 Python、两项原生回收排除、14 项交互、四项退出、126 项工作台和隔离业务及全部工程检查；日志 `output/quality/github-preference-lifecycle-20261026.log`。
 
-QA 提交 `dd6d644` 的 [main 40227232701](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40227232701) 与 [共享分支 40227231836](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40227231836) 均成功；两份完整日志中的 113 项 Python、四项退出和 126 项工作台均实际执行，阻塞退出分别为 2509／2754ms。main 的 72 项证据经 GitHub SHA-256 `9bbe0d73a46a9e9356a83f0ecfbbf4b79acab0a96fc512391ed66d0080ca10fd` 校验并解压，四项退出记录及服务日志已复核。
+QA 提交 `dd6d644` 的 [main 40227232701](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40227232701) 与 [共享分支 40227231836](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40227231836) 均成功；两份完整日志中的 113 项 Python、四项退出和 126 项工作台均实际执行，阻塞退出分别为 2509／2754ms。main 的 72 项证据经 GitHub SHA-256 `9bbe0d73a46a9e9356a83f0ecfbbf4b79acab0a96fc512391ed66d0080ca10fd` 校验并解压，四项退出记录及服务日志已复核。
 
 ## 公开下载复核
 
@@ -55,5 +55,9 @@ Release 为 `preview-20261026-28faca1`，标签实际指向完整产品源码 `2
 ## 发布范围
 
 首次发包仍定位 Windows x64 开发预览，用日期和源码摘要识别，不作稳定版或正式版本号承诺。未签名、更多 Windows 环境、物理磁盘冷读与长期原生内存表现继续如实列出验证范围。历史单次 500 与超时保留记录，不能用一次绿灯关闭。
+
+发布后的本地两小时追加负载完整执行 7200.012 秒、360 轮，但末半小时总私有内存增长 +2.31305 MiB/分钟，超过原定 2 MiB/分钟门槛，结果为失败。页面错误为零，任务均已结算、所属进程退出；第二小时渲染器私有内存仍增长，JS 堆和 Blink 图片资源没有同步增长。1 MiB 自动化响应正文缓冲控制随后完成一小时／180 轮及完整独立审计，原门槛通过，但渲染器仍增长。停用整个 Network 代理并保留原生真实请求检查的正式控制，在主机高负载期间因第 47 轮分析任务超过原 120 秒门槛而失败，未跑满两小时；尚不能确认原生内存根因。此结果不改写上述远程一小时记录，也不撤销当前长期稳定性限制，详见 [内存调查](superpowers/plans/2026-10-26-native-memory.md)。
+
+后续已单独复现“普通分组／深层空目录的限定扫描退回全库”，源码修复的三条回归先失败后通过；新候选 105024 的 438 个产物、实际 Electron、118 项 Python／126 项工作台及直接加载性能通过，最终 review 已完成。其唯一两小时／360 轮测试完整结束，但总私有内存末半小时 +2.39308 MiB/分钟，超原定 2 的门槛；没有降低门槛或标成通过。本轮以源码与开发候选收口，不替换此公开 ZIP 或本机入口。第一次主机满载时握手 14.32 秒超 10 秒的失败保留；主机恢复后的完整重跑、交付路径和限制见 [候选验收与交付](candidate-verification-20261026.md)。
 
 所有测试仅使用临时合成图库和独立数据目录；没有操作真实图库数据库、真实图片或回收站。完整清单见 [GitHub 发布清单](github-release-checklist.md)。

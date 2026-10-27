@@ -1,27 +1,29 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/stillmark/extra/stillmark-lockup-dark.svg">
-    <img src="docs/brand/stillmark/extra/stillmark-lockup-light.svg" alt="Stillmark 影迹图片工作台" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/picturecairn/extra/picturecairn-lockup-dark.svg">
+    <img src="docs/brand/picturecairn/extra/picturecairn-lockup-light.svg" alt="PictureCairn 影标图片工作台" width="420">
   </picture>
 </p>
 
-# Stillmark 影迹图片工作台
+# PictureCairn 影标图片工作台
 
 **原目录浏览，随时续看，核实再整理。**
 
 面向大量成套图片的 Windows 本地工作台。图片留在原有文件夹中：按目录和图包浏览，关掉再打开时继续上次的位置；两套图包看起来相似时，先检查差异和完整文件内容，再决定怎样整理。
 
-## Windows 预览版
+## Windows 预览状态
 
-已提供 [Windows x64 开发预览下载](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1)，主要在 Windows 11 x64 验收。便携包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。当前构建标识为 `20261025-164104`，来源提交 `28faca1`。
+当前源码和本机候选使用 **PictureCairn 影标图片工作台**。PictureCairn 品牌包尚未创建新的 GitHub Release；仓库里现有的 [Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 是品牌迁移前的 **Stillmark 历史包**，不代表当前源码的界面或名称。
 
-开发预览以构建日期和 `release-manifest.json` 的源码摘要区分，不作稳定版承诺；依赖工具要求的版本字段使用开发占位值。完整验证范围及已知限制见 [本次验收](docs/github-preview-verification-20261026.md)。
+历史包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。它只适合复现历史验收结果；当前源码的构建入口、实际候选路径和限制见 [交付验收](docs/candidate-verification-20261026.md)。开发预览以构建日期和 `release-manifest.json` 的源码摘要区分，不作稳定版承诺；依赖工具要求的版本字段使用开发占位值。
 
-1. 下载 [GalleryTool-dev-win-x64.zip](https://github.com/designgaogao-star/stillmark-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip) 和同名 [.sha256](https://github.com/designgaogao-star/stillmark-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip.sha256)，核对 SHA-256。
+如果需要复现历史包：
+
+1. 下载 [GalleryTool-dev-win-x64.zip](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip) 和同名 [.sha256](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip.sha256)，核对 SHA-256。
 2. 将整个 ZIP 解压到可写目录，保留 `resources/` 等文件。
 3. 双击 **GalleryTool.exe**，选择存放图片的本地目录。索引在后台建立，已扫描部分可以直接浏览。
 
-为兼容既有启动脚本，开发预览继续使用 GalleryTool.exe 和 GalleryTool.local.json 文件名；窗口、托盘和界面显示完整的 Stillmark 品牌。当前包未做代码签名，Windows 可能显示“未知发布者”。
+为兼容既有启动脚本，程序文件仍使用 `GalleryTool.exe` 和 `GalleryTool.local.json` 文件名；当前源码的窗口、托盘和界面资源已经改为 PictureCairn。历史包未做代码签名，Windows 可能显示“未知发布者”。
 
 ```powershell
 # 哈希应与 .sha256 第一列一致
@@ -47,11 +49,11 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 下面的截图来自已验收便携包的临时合成图库，展示图片墙、深色查看器和窄屏布局。它们不包含真实图库内容：
 
 <p align="center">
-  <img src="docs/screenshots/stillmark-workbench-light.png" alt="Stillmark 浅色图片墙" width="49%">
-  <img src="docs/screenshots/stillmark-viewer-dark.png" alt="Stillmark 深色查看器" width="49%">
+  <img src="docs/screenshots/picturecairn-workbench-light.png" alt="PictureCairn 浅色图片墙" width="49%">
+  <img src="docs/screenshots/picturecairn-viewer-dark.png" alt="PictureCairn 深色查看器" width="49%">
 </p>
 <p align="center">
-  <img src="docs/screenshots/stillmark-workbench-narrow.png" alt="Stillmark 窄屏图片墙" width="260">
+  <img src="docs/screenshots/picturecairn-workbench-narrow.png" alt="PictureCairn 窄屏图片墙" width="260">
 </p>
 
 截图来源和 SHA-256 见 [公开演示材料](docs/screenshots.md)。
@@ -72,9 +74,9 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 发现问题时使用仓库的缺陷模板，提供构建日期或源码摘要、Windows 环境、复现步骤及已脱敏的日志片段。用合成目录说明问题，不上传真实图库数据库、原图、缓存或删除日志全文。
 
-[版本记录](CHANGELOG.md) · [文档导航](docs/README.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/stillmark/README.md)
+[版本记录](CHANGELOG.md) · [文档导航](docs/README.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/picturecairn/README.md)
 
-源码仓库：[designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)。默认分支为 `main`，共享开发分支为 `feat/backend-v2`。远程结果见 [Windows 检查](https://github.com/designgaogao-star/stillmark-workbench/actions/workflows/ci.yml) 与 [Windows 便携包构建及运行验收](https://github.com/designgaogao-star/stillmark-workbench/actions/workflows/build-windows.yml)；源码公开不代表二进制 Release 已发布。
+源码仓库：[designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)。默认分支为 `main`，共享开发分支为 `feat/backend-v2`。远程结果见 [Windows 检查](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/ci.yml) 与 [Windows 便携包构建及运行验收](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/build-windows.yml)；当前公开二进制仍是品牌迁移前的 Stillmark 历史包，PictureCairn 候选尚未发布。
 
 ## 开发
 
@@ -88,7 +90,7 @@ npm ci
 npm run ui:build
 
 # 为开发创建独立数据目录，动态端口写入 ready.json
-uv run python -m gallery --data C:\Temp\stillmark-dev --port 0 --ready-file C:\Temp\stillmark-dev\ready.json
+uv run python -m gallery --data C:\Temp\picturecairn-dev --port 0 --ready-file C:\Temp\picturecairn-dev\ready.json
 ```
 
 前端联调时将 `GALLERY_BACKEND` 指向这个临时后端，再运行 `npm run ui:dev`；`GALLERY_UI_PORT` 可指定前端端口。源码桌面使用 `npm start`，启动前会生成已确认的品牌位图和 ICO。
@@ -112,7 +114,7 @@ pwsh -NoProfile -File scripts/verify.ps1 -Desktop <GalleryTool.exe绝对路径> 
 ## 旧版数据迁移
 
 ```powershell
-uv run python -m gallery --root D:\Pictures --legacy D:\OldGalleryTool --data C:\Temp\stillmark-migrated
+uv run python -m gallery --root D:\Pictures --legacy D:\OldGalleryTool --data C:\Temp\picturecairn-migrated
 ```
 
 迁移先用 SQLite backup 获取一致快照，保留旧数据库、原图、缩略图、浏览记录与删除日志。旧下标转换为图片 ID；旧哈希注明来源，不与新规范混用。相同来源的重复迁移返回原报告。

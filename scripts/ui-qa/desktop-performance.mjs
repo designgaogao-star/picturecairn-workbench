@@ -43,9 +43,9 @@ async function run(executable, label) {
     const originalMetrics = app.getAppMetrics.bind(app);
     let policyQueries = 0;
     app.getAppMetrics = () => { policyQueries++; return originalMetrics(); };
-    app.__stillmarkMetrics = () => ({ items: originalMetrics(), policyQueries });
+    app.__picturecairnMetrics = () => ({ items: originalMetrics(), policyQueries });
     BrowserWindow.getAllWindows()[0].webContents.session.registerPreloadScript({
-      id: 'stillmark-perf-resources', type: 'frame', filePath,
+      id: 'picturecairn-perf-resources', type: 'frame', filePath,
     });
   }, path.join(project, 'scripts/ui-qa/resource-stats.cjs'));
   await page.reload();
@@ -93,14 +93,14 @@ async function run(executable, label) {
   const nativeMemory = async () => {
     const memory = await application.evaluate(({ app, BrowserWindow }) => {
       const pid = BrowserWindow.getAllWindows()[0].webContents.getOSProcessId();
-      const metrics = app.__stillmarkMetrics();
+      const metrics = app.__picturecairnMetrics();
       const value = metrics.items.find((item) => item.pid === pid).memory;
       return { private_mib: value.privateBytes / 1024, working_set_mib: value.workingSetSize / 1024,
         policy_queries: metrics.policyQueries };
     });
     assert.ok(Number.isFinite(memory.private_mib) && Number.isFinite(memory.working_set_mib),
       'The Windows renderer memory measurements must be available');
-    const resources = await page.evaluate(() => ({ blink_images: window.__stillmarkResourceUsage.read().images,
+    const resources = await page.evaluate(() => ({ blink_images: window.__picturecairnResourceUsage.read().images,
       dom_images: document.querySelectorAll('img').length }));
     return { ...memory, ...resources };
   };

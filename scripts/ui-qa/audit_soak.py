@@ -6,6 +6,7 @@ import json
 import re
 import sqlite3
 import statistics
+from datetime import datetime
 from pathlib import Path
 
 from process_metrics import check_exited
@@ -36,10 +37,14 @@ def audit(directory):
         expected = next(item['sha256'] for item in manifest['source']['files'] if item['path'] == 'scripts/ui-qa/soak.mjs')
         line = re.search(r'soak\.mjs:(\d+):\d+', failure)
         source = executed.read_text(encoding='utf-8').splitlines()
+        screenshot_line = int(line[1]) - 1 if line is not None else -1
+        duration_asserted = any('assert.ok(Date.now() - started >= minutes * 60000)' in item
+                                for item in source[:screenshot_line])
         capture_only = (hashlib.sha256(executed.read_bytes()).hexdigest() == expected
                         and failure.startswith('page.screenshot: Timeout') and line is not None
-                        and "path.join(output, 'final-desktop.png')" in source[int(line[1]) - 1]
-                        and "assert.ok(Date.now() - started >= minutes * 60000)" in source[int(line[1]) - 2]
+                        and 0 <= screenshot_line < len(source)
+                        and "path.join(output, 'final-desktop.png')" in source[screenshot_line]
+                        and duration_asserted
                         and (directory / 'failure.png').is_file())
     assert not failure or capture_only, 'Recorded automation failure is not a verified capture-only exception'
     duration = run['minutes'] * 60
@@ -57,7 +62,16 @@ def audit(directory):
     assert all(not row['errors'] for row in renderer), 'Recorded renderer errors'
     if result:
         assert result['cycles'] == len(renderer), 'Completed checkpoint does not match the recorded cycles'
-    assert process_rows[-1]['elapsed_seconds'] >= duration
+    # The sampler starts before the workload and records periodically. Its elapsed
+    # clock cannot prove coverage of the workload clock; use the recorded UTC times.
+    # The completed checkpoint proves duration, while samples must reach both ends
+    # within the same 30s interval already used for renderer coverage.
+    started = datetime.fromisoformat(run['started'])
+    process_times = [(datetime.fromisoformat(row['utc']) - started).total_seconds() for row in process_rows]
+    assert process_times and process_times[0] <= 30, 'Process samples miss the initial workload interval'
+    assert process_times[-1] >= duration - 30, 'Process samples miss the final workload interval'
+    process_gaps = [right - left for left, right in zip(process_times, process_times[1:])]
+    assert process_gaps and all(gap > 0 for gap in process_gaps), 'Process timestamps must increase'
     assert {row['phase'] for row in renderer} == set(range(6))
     latter = [row for row in process_rows if row['elapsed_seconds'] >= process_rows[-1]['elapsed_seconds'] - 1800]
     private = trend(latter, lambda row: sum(item['private'] for item in row['processes']) / 1024**2)
@@ -77,6 +91,9 @@ def audit(directory):
     return {'runtime_passed': True, 'automation_exit': 'capture_failure' if capture_only else 'passed',
             'capture_failure': failure, 'workload_minutes': run['minutes'],
             'process_observed_seconds': process_rows[-1]['elapsed_seconds'], 'cycles': len(renderer),
+            'process_first_workload_seconds': process_times[0],
+            'process_last_workload_seconds': process_times[-1],
+            'process_max_sample_gap_seconds': max(process_gaps),
             'max_cycle_gap_seconds': max(gaps),
             'process_samples': len(process_rows), 'process_private_mib': private, 'handles': handles,
             'renderer_heap_mib': heap, 'max_live_dom': max(row['liveDom'] for row in renderer),

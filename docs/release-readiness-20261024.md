@@ -1,4 +1,4 @@
-# Stillmark Windows 预览版收尾
+# PictureCairn Windows 预览版收尾
 
 本文保留本机构建与历次修复的历史证据；GitHub 构建候选包及当前远程验收见 [GitHub Windows 开发预览验收](github-preview-verification-20261025.md) 和 [发布清单](github-release-checklist.md)。下文的“当前”按各段记录当时的构建理解。
 
@@ -6,7 +6,7 @@
 
 已完成图库管理、用户确认的 D「压角印」品牌接入、便携分发材料、反馈与 CI 配置。Review 补齐了静态占位图的即时资源释放，行为验收包 `20261025-040954` 通过完整源码、实际桌面、加载对照、完整一小时长测和独立审计。按用户要求整理未发布命名后，已从提交 `52b67ef` 重新生成最新开发构建 `20261025-180752`，并完成源码门槛、产物清单和实际 Electron 验证；较早的 `161637`、`175349` 包与原行为验收按历史记录保留。
 
-当前是 **Windows x64 开发预览**，不使用正式产品版本号。源码已公开至 [designgaogao-star/stillmark-workbench](https://github.com/designgaogao-star/stillmark-workbench)，提交 ffadf60 的 main 与开发分支 Windows CI 均已通过，实际 Windows 包长测另在执行，尚无二进制 Release。不把单台机器验收描述为所有图片、硬盘或 Windows 版本的稳定性保证。
+当前是 **Windows x64 开发预览**，不使用正式产品版本号。源码已公开至 [designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)，提交 ffadf60 的 main 与开发分支 Windows CI 均已通过，实际 Windows 包长测另在执行，尚无二进制 Release。不把单台机器验收描述为所有图片、硬盘或 Windows 版本的稳定性保证。
 
 2026-10-25 起按用户要求，GitHub 首次公开发布前不再使用 V2 或正式版本称呼。开发包按构建日期和源码摘要区分，ZIP 名为 `GalleryTool-dev-win-x64.zip`；工具必需的 Node／API 版本为 `0.0.0-dev`、Python 元数据为 `0.0.0.dev0`、PE 数值槽位为零，Windows 属性文字为“开发预览（未发布）”。下文旧 ZIP 文件名按历史证据保留，不能当作公开发布记录。
 
@@ -22,7 +22,7 @@
 
 该包此前由 `scripts/build.ps1` 生成，桌面为 `build-out/20261025-161637/GalleryTool/GalleryTool.exe`，后端为同目录的 `resources/backend/gallery_server.exe`，便携包为 `build-out/20261025-161637/GalleryTool-dev-win-x64.zip`。ZIP 为 231,093,198 bytes，SHA-256 为 `540aad23c736cfd0545dacbc65a84fe8727b71ac966b31cad7dad83fcf739711`；构建源码摘要为 `80d50606d223ed98386e361f6ae0379d46beee2421098f2c6088f07d46830ffe`。它不是当前最新候选包。
 
-本次只修改产品命名、版本元数据和文档：README、开发更新记录、反馈模板、API/OpenAPI、桌面包和 Windows 文件属性均不再标注正式产品版本。接口 `/api/v1`、图片缓存与算法版本、既有分支和测试文件名继续承担各自技术用途。窗口／托盘仍显示 Stillmark 完整品牌，界面主包仍为 `main-B8poEv-P.js`，没有改动看图、调度或内存处理行为。
+本次只修改产品命名、版本元数据和文档：README、开发更新记录、反馈模板、API/OpenAPI、桌面包和 Windows 文件属性均不再标注正式产品版本。接口 `/api/v1`、图片缓存与算法版本、既有分支和测试文件名继续承担各自技术用途。窗口／托盘仍显示 PictureCairn 完整品牌，界面主包仍为 `main-B8poEv-P.js`，没有改动看图、调度或内存处理行为。
 
 重新执行的完整 Python 为 **104 passed、2 deselected，69.30 秒**；Ruff、公开仓库卫生检查、严格 UI／契约类型检查、UI 构建、31 个 JS 文件语法、PowerShell 解析均通过。Windows 实际文件属性显示“开发预览（未发布）”，数值字段为零；438 个产物和 ZIP 校验通过。实际 Electron 再次通过图片／整理流程、22 项图库管理、17 项品牌、资源释放、刷新、跨端口重启和所属后端退出，证据为 `output/ui-qa/integration-1792916370612`。
 
@@ -33,7 +33,7 @@
 ## 本轮实现
 
 - 图库显示改名、搬迁后重新连接、移出与重新添加恢复；持久 ID、位置、标记、原文件、缓存和历史保留。关联活动任务阻止换根或移出，旧根监听的迟到通知不会重建旧任务。见 [图库管理记录](library-management-20261024.md)。
-- Stillmark 全称、侧栏、启动深浅组合、查看器、favicon、托盘、窗口和可执行文件资源接入。七档 ICO、黑白四档原生托盘位图及主题更新有真实验证。保留 GalleryTool.exe／GalleryTool.local.json 和数据目录兼容，见 [品牌集成](brand-integration-20261024.md)。
+- PictureCairn 全称、侧栏、启动深浅组合、查看器、favicon、托盘、窗口和可执行文件资源接入。七档 ICO、黑白四档原生托盘位图及主题更新有真实验证。保留 GalleryTool.exe／GalleryTool.local.json 和数据目录兼容，见 [品牌集成](brand-integration-20261024.md)。
 - 品牌设计源脚本的 4 项 Ruff 问题作机械修复，没有重新生成或修改图形；Vite 配置明确为 .mts。
 - 构建收集 Python 解释器、27 个 Python 分发包及 4 个前端库的许可，保留 Electron 原 LICENSE，项目 MIT 另存 LICENSE.txt。随包用户说明包含升级／备份／回退和功能范围。
 - 唯一构建入口生成 ZIP、SHA-256、来源与逐文件产物清单；可同时核验应用目录与 ZIP 内部的文件摘要。

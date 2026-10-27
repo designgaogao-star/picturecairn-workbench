@@ -32,9 +32,9 @@ def test_release_verification_detects_added_runtime_source_and_changed_artifact(
     report = release.verify(project, app)
     assert not report['passed']
     assert report['runtime_source_mismatches'] == ['ui/new.ts']
-    (project / 'docs/brand/stillmark').mkdir(parents=True)
-    (project / 'docs/brand/stillmark/mark.svg').write_text('<svg/>', encoding='utf-8')
-    assert release.verify(project, app)['runtime_source_mismatches'] == ['docs/brand/stillmark/mark.svg', 'ui/new.ts']
+    (project / 'docs/brand/picturecairn').mkdir(parents=True)
+    (project / 'docs/brand/picturecairn/mark.svg').write_text('<svg/>', encoding='utf-8')
+    assert release.verify(project, app)['runtime_source_mismatches'] == ['docs/brand/picturecairn/mark.svg', 'ui/new.ts']
     program.write_bytes(b'modified artifact')
     assert release.verify(project, app)['artifact_mismatches'] == ['GalleryTool.exe']
     (app / 'unexpected-data.txt').write_text('This file was not part of the recorded build', encoding='utf-8')

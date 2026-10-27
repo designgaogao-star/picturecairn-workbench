@@ -1,6 +1,6 @@
-# Stillmark 影迹图片工作台 · 开发预览 2026-10-26
+# Stillmark 影迹图片工作台 · 开发预览 2026-10-26（历史发布包）
 
-> 对应已公开的 [2026-10-26 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1)，构建 20261025-164104。保留此文件作为本次发布说明来源。
+> 对应已公开的 [2026-10-26 Stillmark 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1)，构建 20261025-164104。保留此文件作为该历史发布包的说明来源。当前源码已迁移为 PictureCairn 影标图片工作台；本文件中的品牌名称和包摘要按公开历史包保留，不代表新品牌已经包含在该附件中。
 
 Stillmark 是 Windows 本地图片工作台：原目录浏览，随时续看，核实再整理。
 
@@ -24,7 +24,7 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 构建标识：`20261025-164104`，Windows x64，便携 ZIP 为 234,215,319 bytes。
 
-来源提交：`28faca184a4b90a9da95f9567ab5558115568ef9`。GitHub [构建与一小时实际包验收](https://github.com/designgaogao-star/stillmark-workbench/actions/runs/40212772400) 已通过，295 个构建来源与 440 个产物已逐项核对。此后的改动为验收工具、测试和文档；产品运行代码与本包一致。本包包含 WAL 生命周期、缩略图迟到事件和在途分页刷新修复。
+来源提交：`28faca184a4b90a9da95f9567ab5558115568ef9`。GitHub [构建与一小时实际包验收](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40212772400) 已通过，295 个构建来源与 440 个产物已逐项核对。此后的改动为验收工具、测试和文档；产品运行代码与本包一致。本包包含 WAL 生命周期、缩略图迟到事件和在途分页刷新修复。
 
 SHA-256：
 
@@ -34,7 +34,7 @@ SHA-256：
 
 解压到可写目录，双击 `GalleryTool.exe`。首次使用时选择图片目录，索引会在后台建立。原图不会被导入或移动。
 
-本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 113 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核；相同运行代码的默认启动业务在本机和远程各完成十轮，远程 358 次请求完成、服务日志无 ERROR。完整范围与历史失败见 [验收记录](https://github.com/designgaogao-star/stillmark-workbench/blob/main/docs/github-preview-verification-20261026.md)。Release 附件 `verification-summary.json` 提供脱敏的验收摘要。
+本次通过源码、实际解压包、图库管理、GIF/WebP 像素变化、重启恢复、逐项删除与退出检查；完整 Python 为 113 项通过，两项原生回收站探针按测试约束排除。60 分钟负载共 180 轮，原始时序与退出记录已复核；相同运行代码的默认启动业务在本机和远程各完成十轮，远程 358 次请求完成、服务日志无 ERROR。完整范围与历史失败见 [验收记录](https://github.com/designgaogao-star/picturecairn-workbench/blob/main/docs/github-preview-verification-20261026.md)。Release 附件 `verification-summary.json` 提供脱敏的验收摘要。
 
 本包保留构建时的开发元数据 `0.0.0-dev` 和“开发预览（未发布）”，识别本包请使用构建标识或 `release-manifest.json` 的源码摘要。
 

@@ -79,7 +79,7 @@ def verify(project, app):
                     if source_line_endings_match(project / name, source_hashes[name])}
     source_changes = sorted((raw_source_changes - line_endings) | (source_paths(project) - recorded_paths))
     runtime_changes = [name for name in source_changes if name.startswith(('gallery/', 'ui/', 'electron/', 'contracts/'))
-                       or name.startswith('docs/brand/stillmark/') and name.endswith('.svg')
+                       or name.startswith('docs/brand/picturecairn/') and name.endswith('.svg')
                        or name in ('pyproject.toml', 'uv.lock', 'package.json', 'package-lock.json', 'gallery_server.py')]
     return {'version': saved['version'], 'source_sha256_at_build': saved['source']['sha256'],
             'artifact_files_checked': len(saved['artifacts']), 'artifact_mismatches': artifacts,

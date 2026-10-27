@@ -1,6 +1,6 @@
 # 文档导航
 
-Stillmark 是 Windows 本地图片工作台。源码和首份 [Windows x64 开发预览](https://github.com/designgaogao-star/stillmark-workbench/releases/tag/preview-20261026-28faca1) 已在 GitHub 公开。使用入口见 [项目 README](../README.md)。
+PictureCairn 是 Windows 本地图片工作台。源码已在 GitHub 公开；当前下载链接指向品牌迁移前的 Stillmark 历史 [Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1)，PictureCairn 候选尚未创建新的 Release。使用入口见 [项目 README](../README.md)。
 
 ## 当前使用与开发
 
@@ -9,12 +9,15 @@ Stillmark 是 Windows 本地图片工作台。源码和首份 [Windows x64 开�
 - [架构](architecture.md) 与 [前端接口交接](frontend-handoff.md)：模块边界、持久 ID、资源预算及类型契约。
 - [图库管理](library-management-20261024.md)：改名、搬迁重连、移出与恢复的数据语义。
 - [公开演示材料](screenshots.md)：合成图片截图、生成方法和摘要。
-- [品牌资产](brand/stillmark/README.md) 与 [工程接入](brand-integration-20261024.md)：D「压角印」设计源和实际接入。
+- [品牌资产](brand/picturecairn/README.md) 与 [工程接入](brand-integration-20261024.md)：D「压角印」设计源和实际接入。
+- [安装体验样机](design/installer/README.md)：PictureCairn 安装器的视觉与路径迁移语义；当前仍以便携包为正式构建入口。
 
 ## 发布与验收
 
+- [本轮交付收口](delivery-cutoff-20261026.md)：功能冻结、未达到原 14:15 截止的记录与最终交付状态；本轮开发停止。
 - [GitHub 发布清单](github-release-checklist.md)：当前通过、未完成事项及远程 Actions 链接。
 - [原始交付核对](delivery-audit-20261026.md)：后端计划、前端交接和当前包的证据对应关系，区分已有功能验证与待补的性能／长期运行证据。
+- [限定扫描候选验收与交付](candidate-verification-20261026.md)：源码和 Windows 候选包、启动方法、扫描边界与性能；两小时内存门槛失败，未切换或发布。
 - [当前 GitHub Windows 包验收](github-preview-verification-20261026.md)：本次修复、源码检查、实际包和公开下载校验；[旧候选记录](github-preview-verification-20261025.md) 保留历史构建与长测证据。
 - [Windows 开发预览收尾](release-readiness-20261024.md)：每个本机构建的来源与验收范围。旧构建通过不能代替新构建的验收。
 - [便携包说明](portable-readme.md) 与 [本次发布说明](github-release-draft.md)：数据目录、升级备份、回退及限制。

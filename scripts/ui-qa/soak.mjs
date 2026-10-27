@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createWriteStream } from 'node:fs';
-import { appendFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -20,6 +20,9 @@ const imageStats = process.argv.includes('--image-stats');
 assert.ok(executable && Number.isFinite(minutes) && minutes >= 60, '--desktop and --minutes >= 60 are required');
 const output = path.join(project, 'output/quality', `soak-${Date.now()}`);
 await mkdir(output, { recursive: true });
+// Keep the exact workload driver beside its evidence so a capture-only failure can be audited
+// against the packaged source manifest without trusting the current working tree.
+await copyFile(fileURLToPath(import.meta.url), path.join(output, 'executed-soak.mjs'));
 const temporary = await mkdtemp(path.join(tmpdir(), 'gallery-soak-data-'));
 const source = path.join(temporary, 'generated-library');
 const python = path.join(project, '.venv/Scripts/python.exe');
@@ -124,14 +127,14 @@ try {
       const original = app.getAppMetrics.bind(app);
       let policyQueries = 0;
       app.getAppMetrics = () => { policyQueries++; return original(); };
-      globalThis.__stillmarkSoakMemory = () => {
+      globalThis.__picturecairnSoakMemory = () => {
         const pid = BrowserWindow.getAllWindows()[0].webContents.getOSProcessId();
         const memory = original().find((item) => item.pid === pid).memory;
         return { private_mib: memory.privateBytes / 1024, working_set_mib: memory.workingSetSize / 1024,
           policy_queries: policyQueries };
       };
       BrowserWindow.getAllWindows()[0].webContents.session.registerPreloadScript({
-        id: 'stillmark-soak-resources', type: 'frame', filePath,
+        id: 'picturecairn-soak-resources', type: 'frame', filePath,
       });
     }, path.join(project, 'scripts/ui-qa/resource-stats.cjs'));
     await page.reload();
@@ -243,8 +246,8 @@ try {
     const dom = await cdp.send('Memory.getDOMCounters');
     const imageObservationStarted = Date.now();
     const imageResources = imageStats ? {
-      native: await application.evaluate(() => globalThis.__stillmarkSoakMemory()),
-      ...await page.evaluate(() => ({ blink: window.__stillmarkResourceUsage.read(),
+      native: await application.evaluate(() => globalThis.__picturecairnSoakMemory()),
+      ...await page.evaluate(() => ({ blink: window.__picturecairnResourceUsage.read(),
         dom_images: document.querySelectorAll('img').length, sourced_images: document.querySelectorAll('img[src]').length })),
     } : undefined;
     if (imageResources) {

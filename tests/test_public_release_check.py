@@ -58,7 +58,7 @@ def test_public_check_rejects_private_paths(tmp_path, monkeypatch):
 def test_public_check_allows_generic_development_examples(tmp_path, monkeypatch):
     root = make_repo(tmp_path)
     example = root / "README.md"
-    example.write_text("Use C:\\Temp\\stillmark-dev and D:\\Pictures\\sample.\n", encoding="utf-8")
+    example.write_text("Use C:\\Temp\\picturecairn-dev and D:\\Pictures\\sample.\n", encoding="utf-8")
     fake_git(monkeypatch, [*release.REQUIRED_FILES, "package.json"])
 
     report = release.check(root)
