@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PictureCairn 安装体验样机</title>
+  <link rel="stylesheet" href="picturecairn-installer.css">
+</head>
+<body>
+  <main class="installer" aria-label="PictureCairn 安装体验样机">
+    <aside class="rail">
+      <div class="rail-brand">
+        <img src="../../brand/picturecairn/extra/picturecairn-mark-24.svg" alt="">
+        <div><strong>PictureCairn</strong><span>影标图片工作台</span></div>
+      </div>
+      <div class="rail-rule"></div>
+      <ol class="steps" aria-label="安装步骤">
+        <li class="done" data-state="welcome"><span>1</span><div><strong>开始</strong><small>认识 PictureCairn</small></div></li>
+        <li class="current" data-state="location"><span>2</span><div><strong>位置</strong><small>选择程序和数据位置</small></div></li>
+        <li data-state="install"><span>3</span><div><strong>安装</strong><small>写入文件并校验</small></div></li>
+        <li data-state="complete"><span>4</span><div><strong>完成</strong><small>打开图片工作台</small></div></li>
+      </ol>
+      <div class="rail-foot"><span class="seal" aria-hidden="true"></span><span>原图留在原处<br>不上传、不搬移</span></div>
+    </aside>
+    <section class="stage">
+      <header class="stage-head"><span>开发预览 · Windows x64</span><button class="close" data-action="close" aria-label="关闭">×</button></header>
+      <div class="stage-body" id="stage-body" aria-live="polite">
+        <p class="eyebrow">第 2 步 · 安装位置</p>
+        <h1>把工作台放在哪里？</h1>
+        <p class="lede">程序文件和图库数据可以分开。图片仍留在你选择的原目录中。</p>
+        <div class="field-block">
+          <label for="program-path">程序位置</label>
+          <div class="path-field"><input id="program-path" value="C:\Users\79974\AppData\Local\PictureCairn" aria-describedby="program-path-help"><button class="browse" data-action="choose-program">浏览…</button></div>
+          <small id="program-path-help">约 236 MB · 可在设置中修改数据位置</small>
+        </div>
+        <div class="field-block">
+          <label for="data-path">图库索引与缓存</label>
+          <div class="path-field"><input id="data-path" value="C:\Users\79974\AppData\Local\GalleryTool" aria-describedby="data-path-help"><button class="browse" data-action="choose-data">选择…</button></div>
+          <small id="data-path-help">保留已有 GalleryTool 数据目录，升级前会先检查备份</small>
+        </div>
+        <div class="notice"><span class="notice-mark">i</span><p>安装器只写入程序和索引文件。原始图片不会被复制、移动或上传。</p></div>
+      </div>
+      <footer class="stage-foot" id="stage-foot"><button class="text-button" data-action="license">查看许可</button><span class="spacer"></span><button class="secondary" data-action="back">上一步</button><button class="primary" data-action="install">开始安装 <span aria-hidden="true">→</span></button></footer>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const body = document.querySelector('#stage-body');
+      const foot = document.querySelector('#stage-foot');
+      const head = document.querySelector('.stage-head');
+      const steps = [...document.querySelectorAll('.steps li')];
+      const locationBody = body.innerHTML;
+      const locationFoot = foot.innerHTML;
+      let state = 'location';
+      let installTimer;
+      let paths = {
+        program: document.querySelector('#program-path').value,
+        data: document.querySelector('#data-path').value,
+      };
+
+      const screens = {
+        welcome: {
+          body: `<p class="eyebrow">第 1 步 · 开始</p>
+            <h1>把图片工作台留在你的电脑里</h1>
+            <p class="lede">PictureCairn 按原目录浏览图片，记住你看到的位置，再从那里继续。</p>
+            <div class="welcome-panel"><span class="welcome-panel-mark" aria-hidden="true"></span><div><strong>原图始终留在原处</strong><p>安装器只写入程序、索引和缓存，不复制、不移动、不上传你的图片。</p></div></div>
+            <ul class="state-list"><li><span>01</span><div><strong>选择程序位置</strong><small>程序文件和图库数据可以分开保存。</small></div></li><li><span>02</span><div><strong>保留已有数据</strong><small>升级前会检查 GalleryTool 数据目录并保留备份。</small></div></li><li><span>03</span><div><strong>安装后直接开始</strong><small>完成后打开工作台，继续浏览熟悉的文件夹。</small></div></li></ul>`,
+          foot: `<button class="text-button" data-action="license">查看许可</button><span class="spacer"></span><button class="primary" data-action="next">开始设置 <span aria-hidden="true">→</span></button>`,
+        },
+        location: { body: locationBody, foot: locationFoot },
+        install: {
+          body: `<p class="eyebrow">第 3 步 · 安装</p>
+            <h1>正在准备你的工作台</h1>
+            <p class="lede">写入程序文件、校验数据目录，然后就可以打开 PictureCairn。</p>
+            <div class="install-progress" aria-live="polite"><div class="progress-label"><span data-progress-label>正在准备程序文件</span><strong data-progress-value>18%</strong></div><div class="progress-track" role="progressbar" aria-label="安装进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="18"><span style="width:18%"></span></div><small data-progress-note>原始图片不会被读取或移动。</small></div>
+            <ul class="state-list compact install-steps"><li class="active" data-install-step="program"><span>01</span><div><strong>正在校验程序位置</strong><small data-program-summary>确认目录可写，保留已有程序文件。</small></div></li><li data-install-step="data"><span>02</span><div><strong>检查 GalleryTool 数据目录</strong><small data-data-summary>发现已有数据时会先保留备份。</small></div></li><li data-install-step="launch"><span>03</span><div><strong>等待写入并启动</strong><small>完成后可以立即打开。</small></div></li></ul>`,
+          foot: `<button class="text-button" data-action="simulate-error">查看失败样式</button><span class="spacer"></span><button class="secondary" data-action="cancel">取消</button><button class="primary" disabled>安装中 <span class="mini-spinner" aria-hidden="true"></span></button>`,
+        },
+        complete: {
+          body: `<p class="eyebrow">第 4 步 · 完成</p>
+            <h1>PictureCairn 已准备好</h1>
+            <p class="lede">工作台已经安装完成。你的图库原图、索引和浏览位置都保留在原来的位置。</p>
+            <div class="complete-mark" aria-hidden="true">✓</div>
+            <ul class="state-list compact"><li class="complete"><span>✓</span><div><strong>程序文件已校验</strong><small>PictureCairn 开发预览 · Windows x64 · <span data-program-path>程序位置</span></small></div></li><li class="complete"><span>✓</span><div><strong>数据目录已保留</strong><small data-data-path>图库索引与缓存位置</small></div></li></ul>`,
+          foot: `<button class="text-button" data-action="license">查看许可</button><span class="spacer"></span><button class="primary" data-action="open">打开 PictureCairn <span aria-hidden="true">→</span></button>`,
+        },
+        error: {
+          body: `<p class="eyebrow danger-text">安装没有完成</p>
+            <h1>数据仍然安全</h1>
+            <p class="lede">安装器没有覆盖已有程序或图库数据。检查安装位置后，可以重新尝试。</p>
+            <div class="notice error"><span class="notice-mark">!</span><p><strong>无法写入程序位置。</strong><br>请确认目录可写，或选择另一个位置。</p></div>
+            <ul class="state-list compact"><li class="complete"><span>✓</span><div><strong>原始图片未被触碰</strong><small>图片不会因安装失败而移动或删除。</small></div></li><li class="failed"><span>!</span><div><strong>程序文件未完成写入</strong><small>可以返回位置设置并重试。</small></div></li></ul>`,
+          foot: `<button class="secondary" data-action="back">返回位置</button><span class="spacer"></span><button class="primary" data-action="retry">重试安装 <span aria-hidden="true">→</span></button>`,
+        },
+        license: {
+          body: `<p class="eyebrow">许可</p>
+            <h1>PictureCairn 使用 MIT License</h1>
+            <p class="lede">这是开发预览安装器的设计样机。正式安装器会把完整许可文件和第三方声明放在程序目录中。</p>
+            <div class="notice"><span class="notice-mark">i</span><p>你可以查看、修改和重新分发本项目代码，具体条件以随包提供的 <strong>LICENSE</strong> 和 <strong>THIRD_PARTY_NOTICES</strong> 为准。</p></div>
+            <ul class="state-list compact"><li><span>01</span><div><strong>项目许可</strong><small>PictureCairn 代码使用 MIT License。</small></div></li><li><span>02</span><div><strong>第三方许可</strong><small>Electron、Python 依赖和前端依赖的声明随包提供。</small></div></li></ul>`,
+          foot: `<span class="spacer"></span><button class="primary" data-action="back">返回</button>`,
+        },
+      };
+
+      function updateSteps() {
+        const order = ['welcome', 'location', 'install', 'complete'];
+        const current = state === 'error' ? 2 : order.indexOf(state);
+        steps.forEach((step, index) => {
+          step.classList.toggle('done', index < current);
+          step.classList.toggle('current', index === current);
+        });
+      }
+
+      let previousState = 'location';
+      let progressTimer;
+
+      function render(next) {
+        if (state === 'location') rememberLocation();
+        window.clearTimeout(installTimer);
+        window.clearInterval(progressTimer);
+        state = next;
+        const screen = screens[state];
+        body.innerHTML = screen.body;
+        foot.innerHTML = screen.foot;
+        if (state === 'location') restoreLocation();
+        if (state === 'complete') updateCompletionPaths();
+        updateSteps();
+        foot.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.action)));
+        body.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.action)));
+      }
+
+      function rememberLocation() {
+        const program = document.querySelector('#program-path');
+        const data = document.querySelector('#data-path');
+        if (program?.value.trim()) paths.program = program.value.trim();
+        if (data?.value.trim()) paths.data = data.value.trim();
+      }
+
+      function restoreLocation() {
+        const program = document.querySelector('#program-path');
+        const data = document.querySelector('#data-path');
+        if (program) program.value = paths.program;
+        if (data) data.value = paths.data;
+      }
+
+      function updateCompletionPaths() {
+        const program = body.querySelector('[data-program-path]');
+        const data = body.querySelector('[data-data-path]');
+        if (program) program.textContent = paths.program;
+        if (data) data.textContent = paths.data;
+      }
+
+      function updateProgress(value) {
+        const label = body.querySelector('[data-progress-label]');
+        const percent = body.querySelector('[data-progress-value]');
+        const note = body.querySelector('[data-progress-note]');
+        const programSummary = body.querySelector('[data-program-summary]');
+        const dataSummary = body.querySelector('[data-data-summary]');
+        const bar = body.querySelector('[role="progressbar"]');
+        const fill = body.querySelector('.progress-track span');
+        const stepsByState = body.querySelectorAll('[data-install-step]');
+        const stage = value < 40 ? 0 : value < 72 ? 1 : 2;
+        const labels = ['正在准备程序文件', '正在检查图库数据', '正在写入并校验文件'];
+        const notes = ['确认目录可写，原始图片不会被读取。', '已有 GalleryTool 数据会先保留，再写入新的程序文件。', '校验完成后会打开 PictureCairn。'];
+        if (label) label.textContent = labels[stage];
+        if (percent) percent.textContent = `${value}%`;
+        if (note) note.textContent = notes[stage];
+        if (programSummary) programSummary.textContent = paths.program;
+        if (dataSummary) dataSummary.textContent = paths.data;
+        if (bar) bar.setAttribute('aria-valuenow', String(value));
+        if (fill) fill.style.width = `${value}%`;
+        stepsByState.forEach((step, index) => {
+          step.classList.toggle('complete', index < stage || value >= 100);
+          step.classList.toggle('active', index === stage && value < 100);
+          const marker = step.querySelector('span');
+          if (marker) marker.textContent = index < stage || value >= 100 ? '✓' : String(index + 1).padStart(2, '0');
+        });
+      }
+
+      function action(name) {
+        if (name === 'next') return render('location');
+        if (name === 'close') {
+          window.clearTimeout(installTimer);
+          window.clearInterval(progressTimer);
+          const title = document.querySelector('.stage-head span');
+          if (title) title.textContent = state === 'install' ? '安装已取消 · 未写入数据' : '可以关闭这个窗口';
+          if (state === 'install') render('location');
+          return;
+        }
+        if (name === 'license') { previousState = state; return render('license'); }
+        if (name === 'back') return render(state === 'license' ? previousState : state === 'complete' || state === 'error' ? 'location' : 'welcome');
+        if (name === 'cancel') return render('location');
+        if (name === 'install' || name === 'retry') {
+          rememberLocation();
+          render('install');
+          let progress = 18;
+          progressTimer = window.setInterval(() => {
+            progress = Math.min(100, progress + (progress < 72 ? 18 : 14));
+            updateProgress(progress);
+            if (progress >= 100) {
+              window.clearInterval(progressTimer);
+              installTimer = window.setTimeout(() => render('complete'), 260);
+            }
+          }, 320);
+          return;
+        }
+        if (name === 'simulate-error') return render('error');
+        if (name === 'choose-program') {
+          const input = document.querySelector('#program-path');
+          if (input) { input.value = 'D:\\Apps\\PictureCairn'; rememberLocation(); }
+          return;
+        }
+        if (name === 'choose-data') {
+          const input = document.querySelector('#data-path');
+          if (input) { input.value = 'D:\\GalleryTool-data'; rememberLocation(); }
+          return;
+        }
+        if (name === 'open') {
+          const title = document.querySelector('.stage-head span');
+          if (title) title.textContent = '已完成 · 可以关闭这个窗口';
+          return;
+        }
+      }
+
+      foot.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.action)));
+      body.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.action)));
+      head.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => action(button.dataset.action)));
+      updateSteps();
+    })();
+  </script>
+</body>
+</html>
