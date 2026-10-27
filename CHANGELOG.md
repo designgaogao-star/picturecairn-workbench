@@ -6,6 +6,7 @@
 - README 明确区分当前 PictureCairn 源码与公开的 Stillmark 历史包，避免把历史下载误认成当前品牌候选。
 - `build-out/20261027-062443/` 重新生成最终 PictureCairn 开发候选，438 个产物、来源清单、ZIP 校验和均通过；ZIP SHA-256 为 `5523018d8dba400dd00e45afa3bb09e24df8f554de9c9a6704d98fd2c08d10dc`。
 - 临时图库桌面长测完成 480 分钟／1440 轮，页面错误为空，独立审计通过；最终截图采集超时已单独记录，不影响运行结论。
+- 仓库已改名为 `picturecairn-workbench`；PictureCairn 首次日期型开发预览使用 `preview-20261027`，发布说明见 [开发预览说明](docs/github-release-20261027.md)。
 
 ## 开发预览 · 2026-10-26
 

@@ -13,13 +13,13 @@
 
 ## Windows 预览状态
 
-当前源码和本机候选使用 **PictureCairn 影标图片工作台**。PictureCairn 品牌包尚未创建新的 GitHub Release；仓库里现有的 [Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 是品牌迁移前的 **Stillmark 历史包**，不代表当前源码的界面或名称。
+当前源码和公开开发预览使用 **PictureCairn 影标图片工作台**。最新的 [PictureCairn Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261027) 使用日期型预览标识，不代表稳定版或正式语义版本。仓库里旧的 [Stillmark Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 作为品牌迁移历史保留。
 
-历史包自带 Electron、Python 后端与依赖，使用时无需安装开发环境。它只适合复现历史验收结果；当前源码的构建入口、实际候选路径和限制见 [交付验收](docs/candidate-verification-20261026.md)。开发预览以构建日期和 `release-manifest.json` 的源码摘要区分，不作稳定版承诺；依赖工具要求的版本字段使用开发占位值。
+公开预览自带 Electron、Python 后端与依赖，使用时无需安装开发环境。下载 [PictureCairn-dev-win-x64.zip](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261027/PictureCairn-dev-win-x64.zip) 和同名 `.sha256` 文件，解压后运行 `GalleryTool.exe`。构建来源、验证范围和限制见 [开发预览说明](docs/github-release-20261027.md)；版本字段继续使用开发占位值。
 
 如果需要复现历史包：
 
-1. 下载 [GalleryTool-dev-win-x64.zip](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip) 和同名 [.sha256](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261026-28faca1/GalleryTool-dev-win-x64.zip.sha256)，核对 SHA-256。
+1. 下载 [PictureCairn-dev-win-x64.zip](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261027/PictureCairn-dev-win-x64.zip) 和同名 [.sha256](https://github.com/designgaogao-star/picturecairn-workbench/releases/download/preview-20261027/PictureCairn-dev-win-x64.zip.sha256)，核对 SHA-256。
 2. 将整个 ZIP 解压到可写目录，保留 `resources/` 等文件。
 3. 双击 **GalleryTool.exe**，选择存放图片的本地目录。索引在后台建立，已扫描部分可以直接浏览。
 
@@ -76,7 +76,7 @@ Get-FileHash .\GalleryTool-dev-win-x64.zip -Algorithm SHA256
 
 [版本记录](CHANGELOG.md) · [文档导航](docs/README.md) · [贡献指南](CONTRIBUTING.md) · [漏洞报告](SECURITY.md) · [当前界面说明](docs/frontend-ui.md) · [产品背景](PRODUCT.md) · [品牌与同名项目记录](docs/brand/picturecairn/README.md)
 
-源码仓库：[designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)。默认分支为 `main`，共享开发分支为 `feat/backend-v2`。远程结果见 [Windows 检查](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/ci.yml) 与 [Windows 便携包构建及运行验收](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/build-windows.yml)；当前公开二进制仍是品牌迁移前的 Stillmark 历史包，PictureCairn 候选尚未发布。
+源码仓库：[designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)。默认分支为 `main`，共享开发分支为 `feat/backend-v2`。远程结果见 [Windows 检查](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/ci.yml) 与 [Windows 便携包构建及运行验收](https://github.com/designgaogao-star/picturecairn-workbench/actions/workflows/build-windows.yml)。
 
 ## 开发
 

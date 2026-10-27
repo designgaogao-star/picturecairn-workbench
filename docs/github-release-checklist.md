@@ -1,6 +1,14 @@
 # GitHub 首次公开发布清单
 
-PictureCairn 当前是 Windows 本地开发预览。产品名称为 **PictureCairn 影标图片工作台**；源码和本机新候选包使用这个名称。公开的 `preview-20261026-28faca1` 仍是品牌迁移前的 Stillmark 历史包，不能当作 PictureCairn 已发布包。本次候选继续保留“开发预览（未发布）”元数据，以日期和源码摘要标识；稳定版本号、签名和自动更新另行验证。
+PictureCairn 当前是 Windows 本地开发预览。产品名称为 **PictureCairn 影标图片工作台**；源码和公开包使用这个名称。旧的 `preview-20261026-28faca1` 是品牌迁移前的 Stillmark 历史包。本次公开预览使用 `preview-20261027` 和源码摘要标识；稳定版本号、签名和自动更新另行验证。
+
+## PictureCairn 开发预览 · 2026-10-27
+
+- [x] 仓库改名为 `designgaogao-star/picturecairn-workbench`，旧地址保留重定向。
+- [x] PictureCairn 品牌、正式前端和 Electron 桌面入口已接入。
+- [x] `scripts/build.ps1` 生成的 438 个产物、来源清单、许可证和 SHA-256 已核对。
+- [x] 实际 Electron 回归和 480 分钟临时图库长测通过，结果见 [开发预览说明](github-release-20261027.md) 和 [长测报告](long-run-verification-20261027.md)。
+- [x] 日期型 GitHub Release：`preview-20261027`。
 
 ## 当前已经具备
 
@@ -15,7 +23,7 @@ PictureCairn 当前是 Windows 本地开发预览。产品名称为 **PictureCai
 
 ## 本次发布门槛（已完成）
 
-[2026-10-26 Stillmark 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 已公开。它是品牌迁移前的历史包。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。历史观察不因本次公开预览而关闭。PictureCairn 候选尚未创建新的 GitHub Release。
+[2026-10-26 Stillmark 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1) 已公开。它是品牌迁移前的历史包。历史 main 检查 40202393252 在重新添加图库后读取活动任务返回 HTTP 500，缺少异常堆栈；后续另已复现并修复 WAL 连接生命周期竞争，但尚未证明同根。缩略图状态竞争和在途分页失效也已确定性复现并修复，`28faca1` 的 main 与共享分支完整检查均通过。历史观察不因本次公开预览而关闭；当前 PictureCairn 预览见上方 2026-10-27 条目。
 
 当前实际包验收 [40212772400](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40212772400) 已成功；同一 ZIP 的来源、440 个产物、原始一小时采样与本机实际运行均已复核。默认启动十轮复验 [40220316275](https://github.com/designgaogao-star/picturecairn-workbench/actions/runs/40220316275) 与本机十轮成功，全部远程服务日志和 358 次请求已复核。QA 修正 `dd6d644` 的两路远程检查成功，旧草稿附件已替换；发布后匿名 API、校验文件、验收摘要与 ZIP 范围下载均通过。
 

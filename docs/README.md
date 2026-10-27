@@ -1,6 +1,6 @@
 # 文档导航
 
-PictureCairn 是 Windows 本地图片工作台。源码已在 GitHub 公开；当前下载链接指向品牌迁移前的 Stillmark 历史 [Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261026-28faca1)，PictureCairn 候选尚未创建新的 Release。使用入口见 [项目 README](../README.md)。
+PictureCairn 是 Windows 本地图片工作台。源码和 [PictureCairn Windows x64 开发预览](https://github.com/designgaogao-star/picturecairn-workbench/releases/tag/preview-20261027) 已在 GitHub 公开；旧 Stillmark 包作为品牌迁移历史保留。使用入口见 [项目 README](../README.md)。
 
 ## 当前使用与开发
 
@@ -21,6 +21,7 @@ PictureCairn 是 Windows 本地图片工作台。源码已在 GitHub 公开；�
 - [当前 GitHub Windows 包验收](github-preview-verification-20261026.md)：本次修复、源码检查、实际包和公开下载校验；[旧候选记录](github-preview-verification-20261025.md) 保留历史构建与长测证据。
 - [Windows 开发预览收尾](release-readiness-20261024.md)：每个本机构建的来源与验收范围。旧构建通过不能代替新构建的验收。
 - [便携包说明](portable-readme.md) 与 [本次发布说明](github-release-draft.md)：数据目录、升级备份、回退及限制。
+- [PictureCairn 开发预览说明](github-release-20261027.md)：当前公开包、校验文件、验证范围和已知限制。
 - [测试工具说明](../scripts/ui-qa/README.md)：源码、实际 Electron、性能和长测入口。测试只用临时图库，不操作回收站。
 
 ## 历史记录

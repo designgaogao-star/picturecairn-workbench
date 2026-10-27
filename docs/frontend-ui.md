@@ -26,7 +26,7 @@
 
 ## 历史 GitHub 验收：2026-10-25
 
-- 源码已公开于 [designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)，main 为默认分支；开发协作继续使用 feat/backend-v2。界面和产品版本仍使用开发预览称呼；现有二进制 Release 是品牌迁移前的 Stillmark 历史包，PictureCairn 候选尚未发布。
+- 源码和 PictureCairn 日期型开发预览已公开于 [designgaogao-star/picturecairn-workbench](https://github.com/designgaogao-star/picturecairn-workbench)，main 为默认分支；开发协作继续使用 feat/backend-v2。界面和产品版本仍使用开发预览称呼；旧 Stillmark 二进制 Release 作为品牌迁移历史保留。
 - 干净 Windows runner 先后暴露控制台中文输出编码、验证脚本依赖已有 ui/dist、窗口显示/隐藏测试时序和临时目录短路径别名问题。修复集中在检查器、构建顺序与 QA；没有改变当前前端布局或图片行为。
 - 图库管理 QA 使用 realpath 统一短路径和 junction，并在真实临时目录上检查操作范围。同一 junction 场景修复前失败、修复后完整业务流程与 22 项图库生命周期检查通过。
 - 本机完整 verify.ps1 通过：105 项 Python、126 项工作台、十项键盘/偏好回归、四项桌面退出、只读、图库管理、品牌与图片生命周期。GitHub 同提交的源码检查和完整包长测分别记录，不能用本机通过代替远程结果；详见 [发布清单](github-release-checklist.md)。
