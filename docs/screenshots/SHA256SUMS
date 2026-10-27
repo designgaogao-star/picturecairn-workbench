@@ -1,6 +1,6 @@
 # SHA-256 for public synthetic screenshots
 # Source: scripts/ui-qa/run.mjs --desktop build-out/20261025-180752/GalleryTool/GalleryTool.exe
 # Source run: output/ui-qa/integration-1792923675523
-9f6c2a2e1991302a9e1a4ba3fceaf1215922ba9b4f7968a576f2ff96b1319f15  stillmark-workbench-light.png
-14844936c3f9b586b64da68c23eb8cf3b572096c58696755f659fa2322c315b6  stillmark-viewer-dark.png
-3160977a94b7c6000405810f17678b06af946702d56eb348429a69f32c6d0600  stillmark-workbench-narrow.png
+9f6c2a2e1991302a9e1a4ba3fceaf1215922ba9b4f7968a576f2ff96b1319f15  picturecairn-workbench-light.png
+14844936c3f9b586b64da68c23eb8cf3b572096c58696755f659fa2322c315b6  picturecairn-viewer-dark.png
+3160977a94b7c6000405810f17678b06af946702d56eb348429a69f32c6d0600  picturecairn-workbench-narrow.png

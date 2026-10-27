@@ -10,6 +10,6 @@
 - `licenses/python-interpreter.txt`：随便携包分发的 Python 解释器许可。
 - Electron 的 Chromium、Node.js 等声明以随包的 `LICENSES.chromium.html` 为准。
 
-品牌 SVG 中的字标已转为路径；字体来源与授权见 `docs/brand/stillmark/stillmark-brand-guidelines.md`。包内不分发品牌生成时使用的字体文件。设计探索和演示图片不使用真实图库内容。
+品牌 SVG 中的字标已转为路径；字体来源与授权见 `docs/brand/picturecairn/picturecairn-brand-guidelines.md`。包内不分发品牌生成时使用的字体文件。设计探索和演示图片不使用真实图库内容。
 
 完整许可原文与构建清单一同分发。上面的说明用于索引各文件，具体条款以对应许可证原文为准。

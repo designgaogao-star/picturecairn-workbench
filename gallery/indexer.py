@@ -101,13 +101,15 @@ class Indexer:
             root_id, _ = self._upsert_directory(db, library_id, '', None, None, root_stat)
             root_pkg = self._package(db, library_id, root_id, root_id, '', True)
         if directory and directory['rel']:
-            package = self.catalog.one('SELECT package_id FROM files WHERE directory_id=? LIMIT 1', (subtree,))
-            pkg = self.catalog.one('SELECT id FROM packages WHERE directory_id=? AND loose=0', (subtree,))
-            start_pkg = pkg['id'] if pkg else package['package_id'] if package else None
-            if start_pkg is None:
-                directory = None
-        if directory and directory['rel']:
-            stack = [(directory['rel'], directory['id'], directory['group_id'], start_pkg)]
+            # Groups own a loose package; empty nested directories inherit their ancestor's package.
+            # Neither needs files directly inside it to preserve the requested scan boundary.
+            package = self.catalog.one(
+                'WITH RECURSIVE parents(id,parent_id,depth) AS ('
+                'SELECT id,parent_id,0 FROM directories WHERE id=? UNION ALL '
+                'SELECT d.id,d.parent_id,p.depth+1 FROM directories d JOIN parents p ON d.id=p.parent_id) '
+                'SELECT packages.id FROM parents JOIN packages ON packages.directory_id=parents.id '
+                'WHERE packages.group_id=? ORDER BY parents.depth LIMIT 1', (subtree, directory['group_id']))
+            stack = [(directory['rel'], directory['id'], directory['group_id'], package['id'])]
         else:
             stack = [('', root_id, root_id, root_pkg)]
         visited = failed = files_seen = 0

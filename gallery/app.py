@@ -42,7 +42,7 @@ def create_app(settings: Settings | None = None):
         finally:
             await asyncio.to_thread(service.stop)
 
-    app = FastAPI(title='Stillmark 影迹图片工作台 API', version=__version__, description=RELEASE_LABEL, lifespan=lifespan,
+    app = FastAPI(title='PictureCairn 影标图片工作台 API', version=__version__, description=RELEASE_LABEL, lifespan=lifespan,
                   docs_url=None, redoc_url=None,
                   responses={code: {'model': s.ErrorResponse} for code in (403, 404, 409, 422, 503)})
     app.state.service = service

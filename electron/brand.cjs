@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { nativeImage } = require('electron');
 
-const PRODUCT_NAME = 'Stillmark 影迹图片工作台';
-const APP_USER_MODEL_ID = 'GalleryTool.StillmarkWorkbench';
+const PRODUCT_NAME = 'PictureCairn 影标图片工作台';
+const APP_USER_MODEL_ID = 'GalleryTool.PictureCairnWorkbench';
 
 function trayImage(directory, dark) {
   const image = nativeImage.createEmpty();

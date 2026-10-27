@@ -15,7 +15,7 @@ REQUIRED = ('mark', 'mark-monochrome', 'mark-light', 'mark-dark', 'wordmark', 'l
 def validate_sources(source):
     source = Path(source)
     for name in REQUIRED:
-        if not (source / f'stillmark-{name}.svg').is_file():
+        if not (source / f'picturecairn-{name}.svg').is_file():
             raise FileNotFoundError(f'Missing brand source: {name}')
     records = []
     for file in sorted(source.rglob('*.svg')):
@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    source = Path(__file__).resolve().parents[1] / 'docs/brand/stillmark'
+    source = Path(__file__).resolve().parents[1] / 'docs/brand/picturecairn'
     records = validate_sources(source)
     assemble_ico(args.output)
     (args.output / 'sources.json').write_text(json.dumps({'direction': 'D Corner Seal', 'sources': records,

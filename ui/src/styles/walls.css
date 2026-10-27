@@ -28,14 +28,14 @@
 
 /* ---------------------------------------------------------------- cards */
 
-/* Cards carry no border; hover and selection change the plate instead, so the images stay the loudest thing. */
+/* Cards keep the image dominant while a quiet frame gives the wall a finished rhythm. */
 .card {
   position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 0;
-  border: 0; border-radius: var(--radius-item); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-item); background: var(--surface);
   color: var(--text); text-align: left; overflow: hidden;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
-button.card:hover, .group-card:hover, .package-card:hover, .image-card:hover { background: var(--surface-hover); }
+button.card:hover, .group-card:hover, .package-card:hover, .image-card:hover { background: var(--surface-hover); border-color: var(--line-strong); box-shadow: var(--shadow-s); }
 .card-hit { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; border: 0; padding: 0; border-radius: inherit; background: none; }
 .card-hit:focus-visible { outline-offset: -2px; }
 .card.skeleton { background: var(--surface); }
@@ -52,7 +52,7 @@ button.card-media { cursor: pointer; }
 .card-placeholder { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface-hover); color: var(--text-muted); }
 .card-placeholder.loading { animation: pulse 1.6s ease-in-out infinite; }
 .card-body { flex: none; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 10px; }
-.group-card .card-body { height: 58px; }
+.group-card .card-body { height: 62px; }
 .package-card .card-body { height: 52px; }
 .card-title { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

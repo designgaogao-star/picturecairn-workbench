@@ -1,4 +1,4 @@
-# Stillmark 影迹图片工作台：产品背景
+# PictureCairn 影标图片工作台：产品背景
 
 这是设计和工程共同使用的产品依据。图片工作台与图库管理已实现；当前交付、候选构建与运行入口的区别见 `docs/frontend-ui.md`。设计修订以 `docs/design/image-workbench/handoff.md` 为准。
 

@@ -1,9 +1,9 @@
-import mark from '../../../docs/brand/stillmark/extra/stillmark-mark-24.svg?raw';
-import wordmark from '../../../docs/brand/stillmark/extra/stillmark-wordmark-ui.svg?raw';
-import stacked from '../../../docs/brand/stillmark/extra/stillmark-lockup-stacked.svg?raw';
-import white from '../../../docs/brand/stillmark/extra/stillmark-tray-white.svg?raw';
+import mark from '../../../docs/brand/picturecairn/extra/picturecairn-mark-24.svg?raw';
+import wordmark from '../../../docs/brand/picturecairn/extra/picturecairn-wordmark-ui.svg?raw';
+import stacked from '../../../docs/brand/picturecairn/extra/picturecairn-lockup-stacked.svg?raw';
+import white from '../../../docs/brand/picturecairn/extra/picturecairn-tray-white.svg?raw';
 
-export const PRODUCT_NAME = 'Stillmark 影迹图片工作台';
+export const PRODUCT_NAME = 'PictureCairn 影标图片工作台';
 
 /** These are trusted, validated, repository-owned SVG sources, never server or user content. */
 export function Brand() {
@@ -11,7 +11,7 @@ export function Brand() {
     <span class="brand-mark" aria-hidden="true" dangerouslySetInnerHTML={{ __html: mark }} />
     <span class="brand-type" aria-hidden="true">
       <span class="brand-wordmark" dangerouslySetInnerHTML={{ __html: wordmark }} />
-      <span class="brand-subtitle">影迹图片工作台</span>
+      <span class="brand-subtitle">影标图片工作台</span>
     </span>
   </span>;
 }

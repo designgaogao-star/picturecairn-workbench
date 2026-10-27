@@ -23,9 +23,9 @@ assert.ok(versions.length, 'The staged Electron executable has no version resour
 for (const info of versions) {
   for (const language of info.getAvailableLanguages()) {
     info.setStringValues(language, { ProductName: packageInfo.productName, FileDescription: packageInfo.productName,
-      CompanyName: 'Stillmark contributors',
-      InternalName: 'StillmarkWorkbench', OriginalFilename: 'GalleryTool.exe',
-      LegalCopyright: 'Copyright Stillmark contributors. MIT License.' });
+      CompanyName: 'PictureCairn contributors',
+      InternalName: 'PictureCairnWorkbench', OriginalFilename: 'GalleryTool.exe',
+      LegalCopyright: 'Copyright PictureCairn contributors. MIT License.' });
     info.setFileVersion('0.0.0.0', language.lang);
     info.setProductVersion('0.0.0.0', language.lang);
     info.setStringValues(language, { FileVersion: packageInfo.releaseLabel, ProductVersion: packageInfo.releaseLabel });

@@ -1,4 +1,4 @@
-# Stillmark 影迹图片工作台：设计规则
+# PictureCairn 影标图片工作台：设计规则
 
 状态：图片工作台 A1–E 已实施；D「压角印」品牌资产已确认并接入候选构建。运行入口和实际验收结果见 `docs/frontend-ui.md`，设计修订以 `docs/design/image-workbench/handoff.md` 为准。样机保留作历史参考。
 

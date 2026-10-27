@@ -9,10 +9,10 @@ from scripts.brand_assets import ICON_SIZES, assemble_ico, validate_sources
 
 
 def test_delivered_sources_are_self_contained_path_artwork():
-    source = Path(__file__).resolve().parents[1] / 'docs/brand/stillmark'
+    source = Path(__file__).resolve().parents[1] / 'docs/brand/picturecairn'
     records = validate_sources(source)
     assert len(records) == 32
-    assert any(record['file'] == 'extra/stillmark-mark-16.svg' for record in records)
+    assert any(record['file'] == 'extra/picturecairn-mark-16.svg' for record in records)
 
 
 def test_ico_keeps_all_optical_variants_and_rejects_missing_size(tmp_path):

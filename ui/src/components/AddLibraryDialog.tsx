@@ -54,7 +54,7 @@ export function AddLibraryForm({ onDone }: { onDone?: () => void }) {
         <span>名称（可选）</span>
         <input value={name} onInput={(event) => setName(event.currentTarget.value)} placeholder="默认使用文件夹名" />
       </label>
-      <p class="hint">只读取该文件夹中的图片；索引在后台建立，期间可以直接浏览已扫描的部分。</p>
+      <p class="hint"><Icon name="Info" size={15} />只读取这个文件夹中的图片；不会复制或移动原图。索引在后台建立，期间可以直接浏览已扫描的部分。</p>
       {error && <p class="form-error" role="alert"><Icon name="CircleAlert" size={16} />{error}</p>}
       <div class="form-actions">
         <button class="btn primary" type="submit" disabled={busy || choosing || !path.trim()}>

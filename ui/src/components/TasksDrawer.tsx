@@ -161,7 +161,7 @@ export function TasksDrawer() {
   return (
       <SidePanel class="drawer" label="后台任务" onClose={() => { taskDrawer.value = false; }}>
         <header class="drawer-head">
-          <h2>后台任务</h2>
+          <div class="drawer-title"><h2>后台任务</h2><span class="drawer-subtitle">{active.length ? `${active.length} 个进行中` : '历史与维护'}</span></div>
           <button class="icon-btn" title="刷新" aria-label="刷新任务" onClick={() => { void loadTasks(); setAttempt((n) => n + 1); }}><Icon name="RefreshCw" size={16} /></button>
           <button class="icon-btn" title="关闭" aria-label="关闭" onClick={() => { taskDrawer.value = false; }}><Icon name="X" /></button>
         </header>
@@ -185,7 +185,7 @@ export function TasksDrawer() {
             </div>
           )}
           <ListState error={null} retry={() => setAttempt((n) => n + 1)} loading={!current} />
-          {!items.length && !error && current && <p class="muted pad">没有符合条件的任务</p>}
+          {!items.length && !error && current && <div class="drawer-empty"><Icon name="ListChecks" size={28} /><strong>没有符合条件的任务</strong><span>扫描、预热和整理完成后会出现在这里。</span></div>}
           {active.length > 0 && (
             <section>
               <h3>进行中 <span class="muted">{active.length}</span></h3>

@@ -42,7 +42,7 @@ function Unreachable({ error }: { error: string }) {
         <Icon name={online ? 'CircleAlert' : 'WifiOff'} size={36} />
         <h1>{title}</h1>
         {error !== title && <p class="muted">{error}</p>}
-        <p class="muted">{online ? '图库服务已连接，但读取图库列表失败，请稍后重试。' : '请确认 Stillmark 正在运行。服务恢复后会自动重新连接。'}</p>
+        <p class="muted">{online ? '图库服务已连接，但读取图库列表失败，请稍后重试。' : '请确认 PictureCairn 正在运行。服务恢复后会自动重新连接。'}</p>
         <button class="btn primary" onClick={() => void loadLibraries()}><Icon name="RefreshCw" size={16} />重试</button>
       </div>
     </div>

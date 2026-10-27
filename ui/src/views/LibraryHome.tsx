@@ -64,13 +64,26 @@ export function LibraryHome({ lib }: { lib: Library }) {
   const scanning = ['scanning', 'pending'].includes(scanStatus(lib));
   return (
     <div class="page library-home">
+      <section class="library-context" aria-labelledby="library-context-title">
+        <div class="library-context-copy">
+          <div class="library-context-kicker">
+            <span class={`status ${status.tone}`}><span class={`dot ${status.tone}`} />{status.text}</span>
+            <span class="context-divider" aria-hidden="true" />
+            <span class="muted">本地图库</span>
+          </div>
+          <h1 id="library-context-title">图库概览</h1>
+          <p class="library-path" title={lib.path}><Icon name="FolderOpen" size={14} />{lib.path}</p>
+        </div>
+        <dl class="library-context-stats">
+          <div><dt>文件夹</dt><dd class="num">{total === null ? '—' : count(total)}</dd></div>
+          <div><dt>上次扫描</dt><dd>{lib.last_scan ? time(lib.last_scan) : '尚未扫描'}</dd></div>
+        </dl>
+      </section>
       <section class="toolbar wrap" aria-label="图库工具">
-          <span class={`status ${status.tone}`}><span class={`dot ${status.tone}`} />{status.text}</span>
-          {lib.last_scan && <span class="muted at-wide">上次扫描 {time(lib.last_scan)}</span>}
-          {total !== null && <span class="muted toolbar-count">{count(total)} 个文件夹{filter.state || filter.category ? '（已筛选）' : ''}</span>}
-          <span class="spacer" /><FilterBar /><SizeSegment />
-          <button class="btn subtle small" title="重新扫描" onClick={() => void rescanLibrary(lib)}><Icon name="RefreshCw" size={14} spin={scanStatus(lib) === 'scanning'} /><span class="label-wide">重新扫描</span></button>
-          <LibraryMenu library={lib} />
+        <FilterBar /><SizeSegment />
+        <span class="spacer" />
+        <button class="btn subtle small" title="重新扫描" onClick={() => void rescanLibrary(lib)}><Icon name="RefreshCw" size={14} spin={scanStatus(lib) === 'scanning'} /><span class="label-wide">重新扫描</span></button>
+        <LibraryMenu library={lib} />
       </section>
       <ScanProgress lib={lib} />
       <VirtualGrid list={list} tile={tile} height={(width) => Math.round(width * 0.75) + 58} anchorKey={`home:${list.key}`}
@@ -90,11 +103,25 @@ export function LibraryHome({ lib }: { lib: Library }) {
 export function Welcome() {
   return (
     <div class="page welcome">
-      <div class="welcome-box">
-        <Brand />
-        <h1>添加第一个图库</h1>
-        <p class="muted">选择存放图片的文件夹。扫描在后台进行，扫描到的文件夹会立即可以浏览。</p>
-        <AddLibraryForm />
+      <div class="welcome-layout">
+        <section class="welcome-copy" aria-labelledby="welcome-title">
+          <Brand />
+          <p class="welcome-kicker">PictureCairn · 影标图片工作台</p>
+          <h1 id="welcome-title">从你熟悉的文件夹开始</h1>
+          <p class="welcome-lede">选择一个本地图片目录。原图留在原处，图库只记录索引和浏览位置。</p>
+          <ul class="welcome-points">
+            <li><Icon name="FolderOpen" size={16} /><span>按真实目录和图包浏览</span></li>
+            <li><Icon name="History" size={16} /><span>关掉再开，回到上次看到的位置</span></li>
+            <li><Icon name="CopyCheck" size={16} /><span>整理前先核实，删除逐项反馈</span></li>
+          </ul>
+        </section>
+        <section class="welcome-box" aria-labelledby="welcome-form-title">
+          <div class="welcome-box-head">
+            <span class="welcome-box-mark"><Icon name="FolderPlus" size={18} /></span>
+            <div><h2 id="welcome-form-title">添加第一个图库</h2><p>索引会在后台建立，扫描到的内容可以立即浏览。</p></div>
+          </div>
+          <AddLibraryForm />
+        </section>
       </div>
     </div>
   );

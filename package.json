@@ -3,7 +3,7 @@
   "version": "0.0.0-dev",
   "releaseChannel": "development",
   "releaseLabel": "开发预览（未发布）",
-  "productName": "Stillmark 影迹图片工作台",
+  "productName": "PictureCairn 影标图片工作台",
   "private": true,
   "description": "原目录浏览，随时续看，核实再整理的 Windows 图片工作台",
   "main": "electron/main.js",

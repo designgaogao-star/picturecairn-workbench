@@ -127,7 +127,7 @@ function createWindow() {
     title: PRODUCT_NAME, icon: path.join(brandDirectory, 'app.ico'), autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js'),
       additionalArguments: [`--gallery-theme=${theme}`, `--gallery-ui-session=${uiSession}`] } });
-  mainWindow.webContents.session.registerPreloadScript({ id: 'stillmark-image-memory', type: 'frame',
+  mainWindow.webContents.session.registerPreloadScript({ id: 'picturecairn-image-memory', type: 'frame',
     filePath: path.join(__dirname, 'image-memory.js') });
   if (saved.maximized) mainWindow.maximize();
   const savedRoute = typeof saved.route === 'string' && saved.route.startsWith('#/') ? saved.route : '';
@@ -187,7 +187,7 @@ else {
       tray.setToolTip(PRODUCT_NAME);
       updateTray = () => tray.setImage(trayImage(brandDirectory, nativeTheme.shouldUseDarkColorsForSystemIntegratedUI));
       nativeTheme.on('updated', updateTray);
-      tray.setContextMenu(Menu.buildFromTemplate([{ label: '打开 Stillmark', click: () => mainWindow.show() }, { label: '退出', click: () => app.quit() }]));
+      tray.setContextMenu(Menu.buildFromTemplate([{ label: '打开 PictureCairn', click: () => mainWindow.show() }, { label: '退出', click: () => app.quit() }]));
       tray.on('double-click', () => mainWindow.show());
     } catch (error) { dialog.showErrorBox('无法启动图库', error.message); app.quit(); }
   });

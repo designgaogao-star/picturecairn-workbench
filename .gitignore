@@ -8,7 +8,7 @@ dist_*/
 build-out/
 release*/
 node_modules/
-docs/brand/stillmark/source/fonts/
+docs/brand/picturecairn/source/fonts/
 .pytest_cache/
 .ruff_cache/
 tests/_shots/

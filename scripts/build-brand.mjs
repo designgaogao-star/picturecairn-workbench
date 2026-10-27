@@ -5,18 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
-const source = path.join(project, 'docs/brand/stillmark');
+const source = path.join(project, 'docs/brand/picturecairn');
 const output = path.join(project, 'output/brand/runtime');
 await mkdir(output, { recursive: true });
 const jobs = [];
 for (const size of [16, 24, 32, 48, 64, 128, 256]) jobs.push({ size, file: `app-${size}.png`,
-  source: size === 24 ? 'extra/stillmark-app-icon-24.svg' : size <= 32 ? 'stillmark-favicon.svg' : 'stillmark-app-icon.svg' });
+  source: size === 24 ? 'extra/picturecairn-app-icon-24.svg' : size <= 32 ? 'picturecairn-favicon.svg' : 'picturecairn-app-icon.svg' });
 for (const [size, suffix] of [[16, ''], [20, '@1.25x'], [24, '@1.5x'], [32, '@2x']]) {
   for (const white of [false, true]) jobs.push({ size, file: `tray${white ? '-white' : ''}${suffix}.png`,
-    source: size === 20 || size === 24 ? `extra/stillmark-tray-${size}${white ? '-white' : ''}.svg`
-      : white ? 'extra/stillmark-tray-white.svg' : 'stillmark-tray.svg' });
+    source: size === 20 || size === 24 ? `extra/picturecairn-tray-${size}${white ? '-white' : ''}.svg`
+      : white ? 'extra/picturecairn-tray-white.svg' : 'picturecairn-tray.svg' });
 }
-jobs.push({ size: 512, file: 'github-avatar.png', source: 'extra/stillmark-avatar.svg' });
+jobs.push({ size: 512, file: 'github-avatar.png', source: 'extra/picturecairn-avatar.svg' });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 try {
   const page = await browser.newPage({ deviceScaleFactor: 1 });
